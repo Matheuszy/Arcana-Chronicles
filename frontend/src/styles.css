@@ -1,0 +1,132 @@
+/* =========================================================
+   ARCANA — Tokens de design
+   Paleta: tinta noturna + ouro de vela + selo de cera
+   ========================================================= */
+:root {
+  --ink-950: #100e17;
+  --ink-900: #17141f;
+  --ink-800: #221d2e;
+  --ink-700: #322a41;
+  --parchment: #eee5d3;
+  --parchment-dim: #a99d8a;
+  --ember: #c9962f;
+  --ember-bright: #e6b859;
+  --seal: #8c3b3b;
+  --arcane: #5b4b9e;
+  --arcane-bright: #7c68c9;
+  --ok: #4f8a5b;
+
+  --font-display: 'Cinzel', serif;
+  --font-body: 'Spectral', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: radial-gradient(ellipse at top, #1c1826 0%, var(--ink-950) 55%);
+  color: var(--parchment);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  margin: 0 0 0.5em;
+  color: var(--parchment);
+}
+
+a { color: var(--ember-bright); }
+button { font-family: var(--font-body); cursor: pointer; }
+::selection { background: var(--ember); color: var(--ink-950); }
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--ink-950); }
+::-webkit-scrollbar-thumb { background: var(--ink-700); border-radius: 8px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.7em 1.4em;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--ember-bright), var(--ember));
+  color: #211705;
+  box-shadow: 0 4px 14px rgba(201, 150, 47, 0.25);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(201, 150, 47, 0.35); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--parchment);
+  border-color: var(--ink-700);
+}
+.btn-ghost:hover { border-color: var(--ember); color: var(--ember-bright); }
+
+.btn-danger {
+  background: transparent;
+  color: var(--seal);
+  border-color: var(--seal);
+}
+.btn-danger:hover { background: rgba(140, 59, 59, 0.15); }
+
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+.card {
+  background: var(--ink-900);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 1.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.field label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--parchment-dim);
+}
+
+.field input, .field select, .field textarea {
+  background: var(--ink-800);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-sm);
+  padding: 0.6em 0.8em;
+  color: var(--parchment);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
+
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none;
+  border-color: var(--ember);
+  box-shadow: 0 0 0 3px rgba(201, 150, 47, 0.2);
+}

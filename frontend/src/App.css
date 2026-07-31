@@ -1,0 +1,71 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.9rem 2rem;
+  border-bottom: 1px solid var(--ink-700);
+  background: rgba(16, 14, 23, 0.85);
+  backdrop-filter: blur(6px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--parchment);
+}
+.brand-glyph { color: var(--ember); font-size: 1.1rem; }
+.brand-name { font-size: 1.1rem; }
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+}
+.nav a {
+  color: var(--parchment-dim);
+  text-decoration: none;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+.nav a.active, .nav a:hover {
+  color: var(--ember-bright);
+  border-color: var(--ember);
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+.who-role {
+  padding: 0.2em 0.6em;
+  border-radius: 999px;
+  border: 1px solid var(--arcane);
+  color: var(--arcane-bright);
+}
+.who-role.master { border-color: var(--ember); color: var(--ember-bright); }
+.who-name { color: var(--parchment-dim); }
+
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
