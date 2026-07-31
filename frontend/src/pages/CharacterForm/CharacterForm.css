@@ -1,0 +1,60 @@
+.page {
+  padding: 2rem clamp(1rem, 4vw, 3rem) 3rem;
+  max-width: 780px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.eyebrow {
+  color: var(--ember);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  margin-bottom: 0.4rem;
+}
+
+.form { margin-top: 1.5rem; }
+
+.row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.row .field { flex: 1; min-width: 110px; }
+.row .grow { flex: 2; min-width: 220px; }
+
+.section-title {
+  font-size: 0.95rem;
+  color: var(--ember-bright);
+  margin: 1.5rem 0 1rem;
+  border-bottom: 1px solid var(--ink-700);
+  padding-bottom: 0.4rem;
+}
+
+.attrs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.attr-field { position: relative; }
+.attr-field label { text-transform: capitalize; }
+.attr-field .modifier {
+  position: absolute;
+  right: 0.7em;
+  top: 2.1em;
+  font-family: var(--font-mono);
+  color: var(--ember-bright);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--ink-700);
+  padding-top: 1.25rem;
+}

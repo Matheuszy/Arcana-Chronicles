@@ -1,0 +1,105 @@
+.page {
+  padding: 2rem clamp(1rem, 4vw, 3rem) 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  color: var(--ember);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  margin-bottom: 0.4rem;
+}
+
+.filters {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}
+
+.chip {
+  background: transparent;
+  border: 1px solid var(--ink-700);
+  color: var(--parchment-dim);
+  padding: 0.4em 0.9em;
+  border-radius: 999px;
+  font-size: 0.82rem;
+}
+.chip.active, .chip:hover {
+  border-color: var(--ember);
+  color: var(--ember-bright);
+}
+
+.muted { color: var(--parchment-dim); }
+
+.empty {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 1.5rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.sheet-card {
+  border-left: 3px solid var(--arcane);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.sheet-card[data-kind='MONSTER'], .sheet-card[data-kind='BOSS'] { border-left-color: var(--seal); }
+.sheet-card[data-kind='PLAYER'] { border-left-color: var(--ember); }
+
+.sheet-card-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--parchment-dim);
+}
+
+.sheet-card h3 { font-size: 1.2rem; margin: 0; }
+
+.stats-row {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--parchment-dim);
+}
+
+.attrs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--parchment-dim);
+  border-top: 1px dashed var(--ink-700);
+  padding-top: 0.6rem;
+}
+
+.sheet-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.sheet-card-actions .btn { flex: 1; padding: 0.5em 0.8em; font-size: 0.85rem; }
