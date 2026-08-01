@@ -39,20 +39,12 @@ public class Personagem {
     @Column(columnDefinition = "TEXT")
     private String backstory;
 
-    /**
-     * Usado pela IA para incorporar NPCs/Monstros/Bosses no chat da mesa.
-     * Nulo para personagens do tipo PLAYER.
-     */
     @Column(columnDefinition = "TEXT")
     private String personalityPrompt;
 
     @Column
     private String avatarUrl;
 
-    /**
-     * Referência ao usuário dono do personagem.
-     * ManyToOne para quando a entidade Usuario estiver pronta.
-     */
     @Column(nullable = false)
     private Long ownerId;
 
