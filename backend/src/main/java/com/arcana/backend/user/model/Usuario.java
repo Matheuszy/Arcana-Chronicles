@@ -9,8 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter
-@Setter
 @Table(name = "usuarios")
 public class Usuario {
 
@@ -41,5 +39,24 @@ public class Usuario {
         this.password = password;
     }
 
+    public String setUsername(String username) {
+        this.username = username;
+        return this.username;
+    }
+
+    public String setEmail(String email) {
+        this.email = email;
+        return this.email;
+    }
+
+    public String setPassword(String password) {
+        this.password = password;
+        return this.password;
+    }
+
+    public List<Personagem> setPersonagens(Personagem personagem) {
+        this.personagens.add(personagem);
+        return this.personagens;
+    }
 
 }
