@@ -1,5 +1,6 @@
 package com.arcana.backend.character.model;
 
+import com.arcana.backend.user.model.Usuario;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -45,8 +46,8 @@ public class Personagem {
     @Column
     private String avatarUrl;
 
-    @Column(nullable = false)
-    private Long ownerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Usuario ownerId;
 
     @Column(nullable = false, updatable = false)
     private java.time.LocalDateTime createdAt;
@@ -61,7 +62,7 @@ public class Personagem {
     public Personagem(String name, TipoJogador kind, Integer level,
                       Integer hpMax, Integer hpCurrent, Integer armorClass,
                       Atributos attributes, String backstory,
-                      String personalityPrompt, String avatarUrl, Long ownerId) {
+                      String personalityPrompt, String avatarUrl, Usuario ownerId) {
         this.name = name;
         this.kind = kind;
         this.level = level;

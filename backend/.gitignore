@@ -4,6 +4,17 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Arquivos de configuração sensíveis ###
+application.properties
+application-*.properties
+application-*.yml
+application-*.yaml
+!application.properties.example
+!application-*.yml.example
+.env
+.env.*
+!.env.example
+
 ### STS ###
 .apt_generated
 .classpath
@@ -31,3 +42,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Logs ###
+*.log
+logs/
+
+### OS ###
+.DS_Store
+Thumbs.db
