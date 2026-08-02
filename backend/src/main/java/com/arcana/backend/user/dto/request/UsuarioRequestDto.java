@@ -1,4 +1,8 @@
 package com.arcana.backend.user.dto.request;
 
-public class UsuarioRequestDto {
+public record UsuarioRequestDto(
+        String username,
+        String email,
+        String password
+) {
 }

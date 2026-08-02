@@ -1,5 +1,6 @@
 package com.arcana.backend.user.service;
 
+import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import jakarta.transaction.Transactional;
@@ -44,14 +45,16 @@ public class UsuarioService {
         }
     }
 
-    public Usuario updateByUsername(String username) {
-        if (this.usuarioRepositorie.findByUsername(username).isPresent()) {
-            Usuario usuario = usuarioRepositorie.findByUsername(username).get();
-            usuario.setUsername(username);
-
+    @Transactional
+    public Usuario updateByUsername(UsuarioRequestDto novoUsuario) {
+        Optional<Usuario> usuarioExistente = usuarioRepositorie.findByUsername(novoUsuario.username());
+        if (usuarioExistente.isPresent()) {
+            Usuario usuario = usuarioExistente.get();
+            usuario.setUsername(novoUsuario.username());
+            usuario.setEmail(novoUsuario.email());
+            usuario.setPassword(novoUsuario.password());
             return usuarioRepositorie.save(usuario);
-        }
-        else {
+        } else {
             throw new RuntimeException("Usuário não encontrado");
         }
     }
