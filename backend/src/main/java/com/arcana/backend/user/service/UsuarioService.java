@@ -26,19 +26,10 @@ public class UsuarioService {
         }
     }
 
-    public Optional<Usuario> findByEmail(String email) {
-        if (this.usuarioRepositorie.findByEmail(email).isPresent()) {
-            return usuarioRepositorie.findByEmail(email);
-        }
-        else {
-            throw new RuntimeException("Email não encontrado");
-        }
-    }
-
     @Transactional
     public Optional<Usuario> findByPersonagemId(Long personagemId) {
-        if (this.usuarioRepositorie.findeByPersonagemId(personagemId).isPresent()) {
-            return usuarioRepositorie.findeByPersonagemId(personagemId);
+        if (this.usuarioRepositorie.findByPersonagemId(personagemId).isPresent()) {
+            return usuarioRepositorie.findByPersonagemId(personagemId);
         }
         else {
             throw new RuntimeException("Personagem não encontrado");
@@ -46,7 +37,7 @@ public class UsuarioService {
     }
 
     @Transactional
-    public Usuario updateByUsername(UsuarioRequestDto novoUsuario) {
+    public Usuario update(UsuarioRequestDto novoUsuario) {
         Optional<Usuario> usuarioExistente = usuarioRepositorie.findByUsername(novoUsuario.username());
         if (usuarioExistente.isPresent()) {
             Usuario usuario = usuarioExistente.get();
@@ -54,6 +45,16 @@ public class UsuarioService {
             usuario.setEmail(novoUsuario.email());
             usuario.setPassword(novoUsuario.password());
             return usuarioRepositorie.save(usuario);
+        } else {
+            throw new RuntimeException("Usuário não encontrado");
+        }
+    }
+
+    @Transactional
+    public void deleteById(Long id) {
+        Optional<Usuario> usuarioExistente = usuarioRepositorie.findById(id);
+        if (usuarioExistente.isPresent()) {
+            usuarioRepositorie.delete(usuarioExistente.get());
         } else {
             throw new RuntimeException("Usuário não encontrado");
         }

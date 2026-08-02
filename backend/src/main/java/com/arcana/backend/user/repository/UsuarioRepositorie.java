@@ -12,11 +12,8 @@ public interface UsuarioRepositorie extends JpaRepository<Usuario, Long> {
 
     Optional<Usuario> findByUsername(String username);
 
-    Optional<Usuario> findByEmail(String email);
-
     @Query("SELECT u FROM Usuario u JOIN u.personagens p WHERE p.id = :personagemId")
-    Optional<Usuario> findeByPersonagemId(Long personagemId);
+    Optional<Usuario> findByPersonagemId(Long personagemId);
 
-    Usuario updateByUsername(String username);
 
 }
