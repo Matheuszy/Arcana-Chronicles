@@ -31,5 +31,15 @@ public class Usuario {
     List<Personagem> personagens = new ArrayList<>();
 
 
+    public Usuario() {
+
+    }
+
+    public Usuario(String username, String email, String password) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+    }
+
 
 }
