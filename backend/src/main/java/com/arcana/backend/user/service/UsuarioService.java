@@ -1,11 +1,13 @@
 package com.arcana.backend.user.service;
 
+import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -30,6 +32,16 @@ public class UsuarioService {
     public Optional<Usuario> findByPersonagemId(Long personagemId) {
         if (this.usuarioRepositorie.findByPersonagemId(personagemId).isPresent()) {
             return usuarioRepositorie.findByPersonagemId(personagemId);
+        }
+        else {
+            throw new RuntimeException("Personagem não encontrado");
+        }
+    }
+
+    @Transactional
+    public Optional<Personagem> findByPersonagensIn(List<Personagem> personagens) {
+        if (this.usuarioRepositorie.findByPersonagensIn(personagens).isPresent()) {
+            return usuarioRepositorie.findByPersonagensIn(personagens);
         }
         else {
             throw new RuntimeException("Personagem não encontrado");
