@@ -2,6 +2,7 @@ package com.arcana.backend.user.service;
 
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
+import com.arcana.backend.user.dto.response.UsuarioResponseDto;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import jakarta.transaction.Transactional;
@@ -59,6 +60,20 @@ public class UsuarioService {
             return usuarioRepositorie.save(usuario);
         } else {
             throw new RuntimeException("Usuário não encontrado");
+        }
+    }
+
+    @Transactional
+    public UsuarioResponseDto createUser(UsuarioRequestDto novoUsuario) {
+        if (this.usuarioRepositorie.findByUsername(novoUsuario.username()).isEmpty()) {
+            Usuario usuario = new Usuario();
+            usuario.setUsername(novoUsuario.username());
+            usuario.setEmail(novoUsuario.email());
+            usuario.setPassword(novoUsuario.password());
+            usuarioRepositorie.save(usuario);
+            return new UsuarioResponseDto(usuario.getUsername(), usuario.getPassword(), usuario.getPersonagens());
+        } else {
+            throw new RuntimeException("Usuário já existe");
         }
     }
 
