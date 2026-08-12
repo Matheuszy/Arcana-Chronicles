@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -47,14 +49,15 @@ public class Personagem {
     private String avatarUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    private Usuario ownerId;
+    @JoinColumn(name = "owner_id", nullable = false)
+    private Usuario owner;
 
     @Column(nullable = false, updatable = false)
-    private java.time.LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 
     @PrePersist
     private void prePersist() {
-        this.createdAt = java.time.LocalDateTime.now();
+        this.createdAt = LocalDateTime.now();
     }
 
     public Personagem() {}
@@ -62,7 +65,7 @@ public class Personagem {
     public Personagem(String name, TipoJogador kind, Integer level,
                       Integer hpMax, Integer hpCurrent, Integer armorClass,
                       Atributos attributes, String backstory,
-                      String personalityPrompt, String avatarUrl, Usuario ownerId) {
+                      String personalityPrompt, String avatarUrl, Usuario owner) {
         this.name = name;
         this.kind = kind;
         this.level = level;
@@ -73,6 +76,6 @@ public class Personagem {
         this.backstory = backstory;
         this.personalityPrompt = personalityPrompt;
         this.avatarUrl = avatarUrl;
-        this.ownerId = ownerId;
+        this.owner = owner;
     }
 }

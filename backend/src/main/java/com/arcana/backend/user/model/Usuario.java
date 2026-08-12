@@ -9,54 +9,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Getter
+@Setter
 @Table(name = "usuarios")
 public class Usuario {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private  String username;
+    private String username;
 
     @Column(nullable = false, unique = true)
-    private  String email;
+    private String email;
 
     @Column(nullable = false)
-    private  String password;
+    private String password;
 
-    @OneToMany(mappedBy="ownerId", cascade = CascadeType.ALL, orphanRemoval = true)
-    List<Personagem> personagens = new ArrayList<>();
+    // mappedBy aponta para o campo "owner" em Personagem
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Personagem> personagens = new ArrayList<>();
 
-
-    public Usuario() {
-
-    }
+    public Usuario() {}
 
     public Usuario(String username, String email, String password) {
         this.username = username;
         this.email = email;
         this.password = password;
     }
-
-    public String setUsername(String username) {
-        this.username = username;
-        return this.username;
-    }
-
-    public String setEmail(String email) {
-        this.email = email;
-        return this.email;
-    }
-
-    public String setPassword(String password) {
-        this.password = password;
-        return this.password;
-    }
-
-    public List<Personagem> setPersonagens(Personagem personagem) {
-        this.personagens.add(personagem);
-        return this.personagens;
-    }
-
 }
