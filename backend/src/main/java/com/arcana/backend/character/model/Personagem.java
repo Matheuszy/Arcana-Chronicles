@@ -41,22 +41,22 @@ public class Personagem {
     @Embedded
     private Atributos attributes;
 
-    /** Perícias com proficiência — armazenadas como lista de strings */
+
     @ElementCollection
     @CollectionTable(name = "personagem_pericias", joinColumns = @JoinColumn(name = "personagem_id"))
     @Column(name = "pericia")
     private List<String> skills = new ArrayList<>();
 
-    /** Equipamentos em texto livre */
+ 
     @Column(columnDefinition = "TEXT")
     private String equipment;
 
-    /** Magias do personagem */
+  
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "personagem_id")
     private List<Magia> spells = new ArrayList<>();
 
-    /** Slots de magia por círculo (1–9) — JSON simples como string */
+
     @Column(columnDefinition = "TEXT")
     private String spellSlots;
 

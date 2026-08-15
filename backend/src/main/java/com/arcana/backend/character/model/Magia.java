@@ -17,7 +17,6 @@ public class Magia {
     @Column(nullable = false)
     private String name;
 
-    /** 0 = truque (cantrip), 1–9 = círculo */
     @Column(nullable = false)
     private Integer level;
 
