@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -39,6 +41,25 @@ public class Personagem {
     @Embedded
     private Atributos attributes;
 
+    /** Perícias com proficiência — armazenadas como lista de strings */
+    @ElementCollection
+    @CollectionTable(name = "personagem_pericias", joinColumns = @JoinColumn(name = "personagem_id"))
+    @Column(name = "pericia")
+    private List<String> skills = new ArrayList<>();
+
+    /** Equipamentos em texto livre */
+    @Column(columnDefinition = "TEXT")
+    private String equipment;
+
+    /** Magias do personagem */
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "personagem_id")
+    private List<Magia> spells = new ArrayList<>();
+
+    /** Slots de magia por círculo (1–9) — JSON simples como string */
+    @Column(columnDefinition = "TEXT")
+    private String spellSlots;
+
     @Column(columnDefinition = "TEXT")
     private String backstory;
 
@@ -61,21 +82,4 @@ public class Personagem {
     }
 
     public Personagem() {}
-
-    public Personagem(String name, TipoJogador kind, Integer level,
-                      Integer hpMax, Integer hpCurrent, Integer armorClass,
-                      Atributos attributes, String backstory,
-                      String personalityPrompt, String avatarUrl, Usuario owner) {
-        this.name = name;
-        this.kind = kind;
-        this.level = level;
-        this.hpMax = hpMax;
-        this.hpCurrent = hpCurrent;
-        this.armorClass = armorClass;
-        this.attributes = attributes;
-        this.backstory = backstory;
-        this.personalityPrompt = personalityPrompt;
-        this.avatarUrl = avatarUrl;
-        this.owner = owner;
-    }
 }

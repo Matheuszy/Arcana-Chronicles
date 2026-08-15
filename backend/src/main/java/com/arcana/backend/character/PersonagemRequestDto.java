@@ -4,6 +4,9 @@ import com.arcana.backend.character.model.TipoJogador;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
+import java.util.List;
+import java.util.Map;
+
 public record PersonagemRequestDto(
 
         @NotBlank(message = "Nome do personagem não pode ser vazio")
@@ -33,20 +36,37 @@ public record PersonagemRequestDto(
         @Valid
         AtributosDto attributes,
 
+        /** Chaves das perícias com proficiência (ex: "acrobacia", "arcanismo") */
+        List<String> skills,
+
+        /** Equipamentos em texto livre */
+        String equipment,
+
+        /** Magias do personagem */
+        List<SpellDto> spells,
+
+        /** Slots de magia por círculo: {"1": 4, "2": 3, ...} */
+        Map<String, Integer> spellSlots,
+
         String backstory,
 
-        // Usado pela IA para NPCs, Monstros e Bosses — opcional para PLAYER
         String personalityPrompt,
 
         String avatarUrl
 
 ) {
     public record AtributosDto(
-            @NotNull @Min(1) @Max(30) Integer forca,
-            @NotNull @Min(1) @Max(30) Integer destreza,
-            @NotNull @Min(1) @Max(30) Integer constituicao,
-            @NotNull @Min(1) @Max(30) Integer inteligencia,
-            @NotNull @Min(1) @Max(30) Integer sabedoria,
-            @NotNull @Min(1) @Max(30) Integer carisma
+            @NotNull @Min(8) @Max(20) Integer forca,
+            @NotNull @Min(8) @Max(20) Integer destreza,
+            @NotNull @Min(8) @Max(20) Integer constituicao,
+            @NotNull @Min(8) @Max(20) Integer inteligencia,
+            @NotNull @Min(8) @Max(20) Integer sabedoria,
+            @NotNull @Min(8) @Max(20) Integer carisma
+    ) {}
+
+    public record SpellDto(
+            @NotBlank String name,
+            @NotNull @Min(0) @Max(9) Integer level,
+            String description
     ) {}
 }
