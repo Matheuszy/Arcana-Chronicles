@@ -15,9 +15,7 @@ export interface ChatMessage {
   authorName: string;
   type: ChatMessageType;
   content: string;
-  /** presente quando type === 'ROLAGEM' */
   diceResult?: DiceRollResult;
-  /** presente quando a mensagem menciona um NPC, ex: "arannis" */
   mentionedNpcId?: string;
   createdAt: string;
 }
