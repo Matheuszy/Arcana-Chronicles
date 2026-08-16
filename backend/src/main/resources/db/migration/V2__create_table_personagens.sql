@@ -1,5 +1,4 @@
 CREATE TABLE IF NOT EXISTS personagens (
-    -- ID e Informações Básicas
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     kind VARCHAR(50) NOT NULL, 
