@@ -26,8 +26,7 @@ public class Usuario {
 
     @Column(nullable = false)
     private String password;
-
-    // mappedBy aponta para o campo "owner" em Personagem
+    
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Personagem> personagens = new ArrayList<>();
 
