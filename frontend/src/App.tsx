@@ -1,14 +1,20 @@
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { SessionProvider, useSession } from './context/SessionContext';
-import RoleSelect from './pages/RoleSelect/RoleSelect';
+import Login from './pages/Login/Login';
 import CharacterList from './pages/CharacterList/CharacterList';
 import CharacterForm from './pages/CharacterForm/CharacterForm';
 import TableList from './pages/TableList/TableList';
 import TableRoom from './pages/TableRoom/TableRoom';
 import './App.css';
 
+/** Redireciona para /login se não houver sessão ativa */
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { userId } = useSession();
+  return userId ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
 function Shell() {
-  const { role, displayName } = useSession();
+  const { role, displayName, userId, clear } = useSession();
 
   return (
     <div className="shell">
@@ -18,7 +24,7 @@ function Shell() {
           <span className="brand-name">ARCANA</span>
         </NavLink>
 
-        {role && (
+        {userId && (
           <>
             <nav className="nav">
               <NavLink to="/fichas" className={({ isActive }) => (isActive ? 'active' : '')}>
@@ -34,6 +40,13 @@ function Shell() {
                 {role === 'MESTRE' ? 'Mestre' : 'Jogador'}
               </span>
               <span className="who-name">{displayName}</span>
+              <button
+                className="btn btn-ghost who-logout"
+                onClick={() => { clear(); }}
+                title="Sair"
+              >
+                Sair
+              </button>
             </div>
           </>
         )}
@@ -41,13 +54,27 @@ function Shell() {
 
       <main className="stage">
         <Routes>
-          <Route path="/" element={<RoleSelect />} />
-          <Route path="/fichas" element={<CharacterList />} />
-          <Route path="/fichas/nova" element={<CharacterForm />} />
-          <Route path="/fichas/:id/editar" element={<CharacterForm />} />
-          <Route path="/mesas" element={<TableList />} />
-          <Route path="/mesas/:id" element={<TableRoom />} />
-          <Route path="*" element={<RoleSelect />} />
+          <Route path="/login" element={<Login />} />
+
+          <Route path="/" element={
+            <PrivateRoute><Navigate to="/mesas" replace /></PrivateRoute>
+          } />
+          <Route path="/fichas" element={
+            <PrivateRoute><CharacterList /></PrivateRoute>
+          } />
+          <Route path="/fichas/nova" element={
+            <PrivateRoute><CharacterForm /></PrivateRoute>
+          } />
+          <Route path="/fichas/:id/editar" element={
+            <PrivateRoute><CharacterForm /></PrivateRoute>
+          } />
+          <Route path="/mesas" element={
+            <PrivateRoute><TableList /></PrivateRoute>
+          } />
+          <Route path="/mesas/:id" element={
+            <PrivateRoute><TableRoom /></PrivateRoute>
+          } />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </main>
     </div>

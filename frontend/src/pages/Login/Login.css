@@ -1,0 +1,128 @@
+.login-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem 4rem;
+  gap: 2rem;
+}
+
+/* ── Brand ── */
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: center;
+}
+
+.login-glyph {
+  font-size: 2.5rem;
+  color: var(--ember);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+  filter: drop-shadow(0 0 12px rgba(201, 150, 47, 0.5));
+}
+
+.login-brand h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 5vw, 3rem);
+  letter-spacing: 0.18em;
+  color: var(--parchment);
+  margin: 0;
+}
+
+.login-sub {
+  color: var(--parchment-dim);
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+/* ── Card ── */
+.login-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ── Tabs ── */
+.login-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--ink-700);
+  margin-bottom: 1.5rem;
+}
+
+.login-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0.7rem;
+  color: var(--parchment-dim);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.login-tab:hover { color: var(--parchment); }
+.login-tab.active {
+  color: var(--ember-bright);
+  border-bottom-color: var(--ember);
+}
+
+/* ── Form ── */
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Role pills ── */
+.role-pills {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.role-pill {
+  flex: 1;
+  background: var(--ink-800);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.5rem;
+  color: var(--parchment-dim);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.role-pill:hover { border-color: var(--arcane); color: var(--parchment); }
+.role-pill.active {
+  border-color: var(--arcane);
+  color: var(--arcane-bright);
+  box-shadow: 0 0 0 3px rgba(91, 75, 158, 0.2);
+}
+
+.role-pill--mestre:hover { border-color: var(--ember); }
+.role-pill--mestre.active {
+  border-color: var(--ember);
+  color: var(--ember-bright);
+  box-shadow: 0 0 0 3px rgba(201, 150, 47, 0.2);
+}
+
+/* ── Erro ── */
+.login-error {
+  font-size: 0.85rem;
+  color: var(--seal);
+  background: rgba(140, 59, 59, 0.12);
+  border: 1px solid var(--seal);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Submit ── */
+.login-submit {
+  width: 100%;
+  margin-top: 0.25rem;
+}
