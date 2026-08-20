@@ -21,9 +21,12 @@ export const characterService = {
   },
 
   create(character: Character): Promise<Character> {
+    const ownerId = localStorage.getItem('userId') || '';
     return fetch(BASE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json',
+        'X-Owner-Id': ownerId
+       },
       body: JSON.stringify(character),
     }).then((r) => handle<Character>(r));
   },
