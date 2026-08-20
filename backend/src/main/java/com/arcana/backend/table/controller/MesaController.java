@@ -19,7 +19,6 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/tables")
-@CrossOrigin(origins = "http://localhost:5173")
 public class MesaController {
 
     private final MesaService mesaService;
