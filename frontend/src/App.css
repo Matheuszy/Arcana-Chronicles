@@ -64,6 +64,13 @@
 .who-role.master { border-color: var(--ember); color: var(--ember-bright); }
 .who-name { color: var(--parchment-dim); }
 
+.who-logout {
+  padding: 0.25em 0.7em;
+  font-size: 0.78rem;
+  border-color: var(--ink-700);
+}
+.who-logout:hover { border-color: var(--seal); color: var(--seal); }
+
 .stage {
   flex: 1;
   display: flex;
