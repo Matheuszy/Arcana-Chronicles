@@ -1,74 +1,78 @@
 package com.arcana.backend.user.service;
 
-import com.arcana.backend.character.model.Personagem;
+import com.arcana.backend.user.dto.request.LoginRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
+import com.arcana.backend.user.dto.response.LoginResponseDto;
+import com.arcana.backend.user.dto.response.UsuarioResponseDto;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Optional;
-
 @Service
 public class UsuarioService {
 
-    private UsuarioRepositorie usuarioRepositorie;
+    private final UsuarioRepositorie usuarioRepositorie;
 
     public UsuarioService(UsuarioRepositorie usuarioRepositorie) {
         this.usuarioRepositorie = usuarioRepositorie;
     }
 
-    public Optional<Usuario> findByUsername(String username) {
-        if (this.usuarioRepositorie.findByUsername(username).isPresent()) {
-            return usuarioRepositorie.findByUsername(username);
+    /** Cadastra um novo usuário */
+    @Transactional
+    public UsuarioResponseDto criar(UsuarioRequestDto dto) {
+        if (usuarioRepositorie.findByUsername(dto.username()).isPresent()) {
+            throw new RuntimeException("Username já está em uso: " + dto.username());
         }
-        else {
-            throw new RuntimeException("Usuário não encontrado");
-        }
+
+        // TODO: quando Spring Security for adicionado, trocar por BCrypt.encode(dto.password())
+        Usuario usuario = new Usuario(dto.username(), dto.email(), dto.password());
+        return UsuarioResponseDto.from(usuarioRepositorie.save(usuario));
     }
 
-    @Transactional
-    public Optional<Usuario> findByPersonagemId(Long personagemId) {
-        if (this.usuarioRepositorie.findByPersonagemId(personagemId).isPresent()) {
-            return usuarioRepositorie.findByPersonagemId(personagemId);
+    /**
+     * Login simples por username + senha.
+     * TODO: quando Spring Security for adicionado, gerar e retornar JWT aqui.
+     */
+    public LoginResponseDto login(LoginRequestDto dto) {
+        Usuario usuario = usuarioRepositorie.findByUsername(dto.username())
+                .orElseThrow(() -> new RuntimeException("Usuário ou senha inválidos."));
+
+        // TODO: trocar por BCrypt.matches(dto.password(), usuario.getPassword())
+        if (!usuario.getPassword().equals(dto.password())) {
+            throw new RuntimeException("Usuário ou senha inválidos.");
         }
-        else {
-            throw new RuntimeException("Personagem não encontrado");
-        }
+
+        return new LoginResponseDto(usuario.getId(), usuario.getUsername(), usuario.getEmail());
     }
 
-    @Transactional
-    public Optional<Personagem> findByPersonagensIn(List<Personagem> personagens) {
-        if (this.usuarioRepositorie.findByPersonagensIn(personagens).isPresent()) {
-            return usuarioRepositorie.findByPersonagensIn(personagens);
-        }
-        else {
-            throw new RuntimeException("Personagem não encontrado");
-        }
+    /** Busca dados públicos do usuário por ID */
+    public UsuarioResponseDto buscarPorId(Long id) {
+        Usuario usuario = usuarioRepositorie.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + id));
+        return UsuarioResponseDto.from(usuario);
     }
 
+    /** Atualiza username e email */
     @Transactional
-    public Usuario update(UsuarioRequestDto novoUsuario) {
-        Optional<Usuario> usuarioExistente = usuarioRepositorie.findByUsername(novoUsuario.username());
-        if (usuarioExistente.isPresent()) {
-            Usuario usuario = usuarioExistente.get();
-            usuario.setUsername(novoUsuario.username());
-            usuario.setEmail(novoUsuario.email());
-            usuario.setPassword(novoUsuario.password());
-            return usuarioRepositorie.save(usuario);
-        } else {
-            throw new RuntimeException("Usuário não encontrado");
-        }
+    public UsuarioResponseDto atualizar(Long id, UsuarioRequestDto dto) {
+        Usuario usuario = usuarioRepositorie.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + id));
+
+        usuario.setUsername(dto.username());
+        usuario.setEmail(dto.email());
+        // TODO: encode senha antes de salvar
+        usuario.setPassword(dto.password());
+
+        return UsuarioResponseDto.from(usuarioRepositorie.save(usuario));
     }
 
+    /** Remove o usuário e todos os seus personagens (cascade) */
     @Transactional
-    public void deleteById(Long id) {
-        Optional<Usuario> usuarioExistente = usuarioRepositorie.findById(id);
-        if (usuarioExistente.isPresent()) {
-            usuarioRepositorie.delete(usuarioExistente.get());
-        } else {
-            throw new RuntimeException("Usuário não encontrado");
+    public void deletar(Long id) {
+        if (!usuarioRepositorie.existsById(id)) {
+            throw new RuntimeException("Usuário não encontrado: " + id);
         }
+        usuarioRepositorie.deleteById(id);
     }
 }

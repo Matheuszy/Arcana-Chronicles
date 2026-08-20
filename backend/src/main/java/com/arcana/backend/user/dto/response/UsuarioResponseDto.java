@@ -1,12 +1,14 @@
 package com.arcana.backend.user.dto.response;
 
-import com.arcana.backend.character.model.Personagem;
-
-import java.util.List;
+import com.arcana.backend.user.model.Usuario;
 
 public record UsuarioResponseDto(
+        Long id,
         String username,
-        String passwqord,
-        List<Personagem> personagens
+        String email
+        // senha nunca exposta na resposta
 ) {
+    public static UsuarioResponseDto from(Usuario u) {
+        return new UsuarioResponseDto(u.getId(), u.getUsername(), u.getEmail());
+    }
 }
