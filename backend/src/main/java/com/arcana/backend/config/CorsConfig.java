@@ -1,50 +1,30 @@
 package com.arcana.backend.config;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
-
-import java.util.List;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Configuração global de CORS — substitui os @CrossOrigin individuais nos controllers.
+ * Configuração global de CORS via WebMvcConfigurer.
+ * Cobre todos os endpoints REST automaticamente.
  * Em produção, trocar "http://localhost:5173" pelo domínio real do frontend.
  */
 @Configuration
-public class CorsConfig {
+public class CorsConfig implements WebMvcConfigurer {
 
-    @Bean
-    public CorsFilter corsFilter() {
-        CorsConfiguration config = new CorsConfiguration();
-
-        // Origens permitidas
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
-
-        // Métodos HTTP permitidos
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-
-        // Headers que o frontend pode enviar (inclui os temporários X-Owner-Id e X-Display-Name)
-        config.setAllowedHeaders(List.of(
-                "Content-Type",
-                "Authorization",
-                "X-Owner-Id",
-                "X-Display-Name"
-        ));
-
-        // Headers que o frontend pode ler na resposta
-        config.setExposedHeaders(List.of("Authorization"));
-
-        // Permite cookies/credenciais (necessário quando JWT for implementado)
-        config.setAllowCredentials(true);
-
-        // Cache do preflight por 1 hora
-        config.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-
-        return new CorsFilter(source);
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOrigins("http://localhost:5173")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .allowedHeaders(
+                        "Content-Type",
+                        "Authorization",
+                        "X-Owner-Id",
+                        "X-Display-Name"
+                )
+                .exposedHeaders("Authorization")
+                .allowCredentials(true)
+                .maxAge(3600);
     }
 }
