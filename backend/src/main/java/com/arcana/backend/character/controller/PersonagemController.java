@@ -19,7 +19,6 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/characters")
-@CrossOrigin(origins = "http://localhost:5173") // porta padrão do Vite
 public class PersonagemController {
 
     private final PersonagemService personagemService;
