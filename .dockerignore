@@ -1,0 +1,22 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+
+# Dados locais
+*.log
+*.tmp
+
+# Node modules (se houver no root)
+node_modules
+
+# Backend
+backend/target
+backend/.mvn
+
+# Frontend
+frontend/node_modules
+frontend/dist
