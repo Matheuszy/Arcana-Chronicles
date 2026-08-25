@@ -18,10 +18,14 @@ import com.arcana.backend.user.repository.UsuarioRepositorie;
 import com.arcana.backend.user.service.UsuarioService;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.dto.response.UsuarioResponseDto;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
 
 
 @ExtendWith(MockitoExtension.class)
-class BackendApplicationTests {
+class UsuarioServiceTest {
 
 		@Mock
 		private UsuarioRepositorie repository;
@@ -44,6 +48,26 @@ class BackendApplicationTests {
 
 			verify(repository).save(any(Usuario.class));
 
+		}
+
+		@Test
+		void deveLancarExcecaoQuandoEmailJaExistir() {
+		
+			UsuarioRequestDto dto = new UsuarioRequestDto("theron", "joao@gmail.com", "12334");
+
+			Usuario existsUser = new Usuario("theron", "joao@gmail.com", "12334");
+			
+
+			when(repository.findByUsername(dto.username())).thenReturn(Optional.of(existsUser));
+
+			
+			RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+				service.criar(dto);
+			});
+
+			assertEquals("Username já está em uso: " + dto.username(), exception.getMessage());
+
+			verify(repository, never()).save(any(Usuario.class));
 		}
 
 }
