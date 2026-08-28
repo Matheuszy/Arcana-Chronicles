@@ -4,19 +4,15 @@ import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.service.PersonagemService;
+import com.arcana.backend.user.model.Usuario;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Endpoints consumidos pelo frontend em /api/characters
- *
- * Por ora o ownerId vem como header X-Owner-Id (temporário até ter Spring Security + JWT).
- * Quando o auth estiver pronto, trocar por: principal.getId() ou @AuthenticationPrincipal.
- */
 @RestController
 @RequestMapping("/api/characters")
 public class PersonagemController {
@@ -30,28 +26,28 @@ public class PersonagemController {
     /** GET /api/characters?kind=PLAYER */
     @GetMapping
     public ResponseEntity<List<PersonagemResponseDto>> listar(
-            @RequestHeader("X-Owner-Id") Long ownerId,
+            @AuthenticationPrincipal Usuario usuario,
             @RequestParam(required = false) TipoJogador kind) {
 
-        return ResponseEntity.ok(personagemService.listarPorUsuario(ownerId, kind));
+        return ResponseEntity.ok(personagemService.listarPorUsuario(usuario.getId(), kind));
     }
 
     /** GET /api/characters/{id} */
     @GetMapping("/{id}")
     public ResponseEntity<PersonagemResponseDto> buscarPorId(
             @PathVariable Long id,
-            @RequestHeader("X-Owner-Id") Long ownerId) {
+            @AuthenticationPrincipal Usuario usuario) {
 
-        return ResponseEntity.ok(personagemService.buscarPorId(id, ownerId));
+        return ResponseEntity.ok(personagemService.buscarPorId(id, usuario.getId()));
     }
 
     /** POST /api/characters */
     @PostMapping
     public ResponseEntity<PersonagemResponseDto> criar(
             @RequestBody @Valid PersonagemRequestDto dto,
-            @RequestHeader("X-Owner-Id") Long ownerId) {
+            @AuthenticationPrincipal Usuario usuario) {
 
-        PersonagemResponseDto criado = personagemService.criar(dto, ownerId);
+        PersonagemResponseDto criado = personagemService.criar(dto, usuario.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(criado);
     }
 
@@ -60,18 +56,19 @@ public class PersonagemController {
     public ResponseEntity<PersonagemResponseDto> atualizar(
             @PathVariable Long id,
             @RequestBody @Valid PersonagemRequestDto dto,
-            @RequestHeader("X-Owner-Id") Long ownerId) {
+            @AuthenticationPrincipal Usuario usuario) {
 
-        return ResponseEntity.ok(personagemService.atualizar(id, dto, ownerId));
+        return ResponseEntity.ok(personagemService.atualizar(id, dto, usuario.getId()));
     }
 
     /** DELETE /api/characters/{id} */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(
             @PathVariable Long id,
-            @RequestHeader("X-Owner-Id") Long ownerId) {
+            @AuthenticationPrincipal Usuario usuario) {
 
-        personagemService.deletar(id, ownerId);
+        personagemService.deletar(id, usuario.getId());
         return ResponseEntity.noContent().build();
     }
 }
+

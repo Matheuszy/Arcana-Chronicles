@@ -1,6 +1,5 @@
 package com.arcana.backend.character;
 
-import com.arcana.backend.character.model.Magia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
 import com.fasterxml.jackson.core.type.TypeReference;

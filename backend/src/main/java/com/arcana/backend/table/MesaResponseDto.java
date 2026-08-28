@@ -1,7 +1,6 @@
 package com.arcana.backend.table;
 
 import com.arcana.backend.table.model.Mesa;
-import com.arcana.backend.table.model.Participante;
 import com.arcana.backend.table.model.StatusMesa;
 
 import java.time.LocalDateTime;
