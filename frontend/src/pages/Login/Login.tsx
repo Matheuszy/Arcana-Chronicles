@@ -33,10 +33,11 @@ export default function Login() {
     try {
       if (mode === 'login') {
         const res = await authService.login(username.trim(), password);
-        chooseRole(role, res.username, res.id);
+        chooseRole(role, res.username, res.id, res.token);
       } else {
-        const res = await authService.register(username.trim(), email.trim(), password);
-        chooseRole(role, res.username, res.id);
+        await authService.register(username.trim(), email.trim(), password);
+        const res = await authService.login(username.trim(), password);
+        chooseRole(role, res.username, res.id, res.token);
       }
       navigate('/mesas');
     } catch (e: unknown) {
