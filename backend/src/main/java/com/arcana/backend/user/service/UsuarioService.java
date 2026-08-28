@@ -1,5 +1,6 @@
 package com.arcana.backend.user.service;
 
+import com.arcana.backend.config.security.TokenService;
 import com.arcana.backend.user.dto.request.LoginRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.dto.response.LoginResponseDto;
@@ -7,43 +8,49 @@ import com.arcana.backend.user.dto.response.UsuarioResponseDto;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import jakarta.transaction.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UsuarioService {
 
     private final UsuarioRepositorie usuarioRepositorie;
+    private final PasswordEncoder passwordEncoder;
+    private final TokenService tokenService;
 
-    public UsuarioService(UsuarioRepositorie usuarioRepositorie) {
+    public UsuarioService(UsuarioRepositorie usuarioRepositorie,
+                          PasswordEncoder passwordEncoder,
+                          TokenService tokenService) {
         this.usuarioRepositorie = usuarioRepositorie;
+        this.passwordEncoder = passwordEncoder;
+        this.tokenService = tokenService;
     }
 
-    /** Cadastra um novo usuário */
+    /** Cadastra um novo usuário com senha criptografada em BCrypt */
     @Transactional
     public UsuarioResponseDto criar(UsuarioRequestDto dto) {
         if (usuarioRepositorie.findByUsername(dto.username()).isPresent()) {
             throw new RuntimeException("Username já está em uso: " + dto.username());
         }
 
-        // TODO: quando Spring Security for adicionado, trocar por BCrypt.encode(dto.password())
-        Usuario usuario = new Usuario(dto.username(), dto.email(), dto.password());
+        String encodedPassword = passwordEncoder.encode(dto.password());
+        Usuario usuario = new Usuario(dto.username(), dto.email(), encodedPassword);
         return UsuarioResponseDto.from(usuarioRepositorie.save(usuario));
     }
 
     /**
-     * Login simples por username + senha.
-     * TODO: quando Spring Security for adicionado, gerar e retornar JWT aqui.
+     * Autentica usuário e retorna dados com Token JWT.
      */
     public LoginResponseDto login(LoginRequestDto dto) {
         Usuario usuario = usuarioRepositorie.findByUsername(dto.username())
                 .orElseThrow(() -> new RuntimeException("Usuário ou senha inválidos."));
 
-        // TODO: trocar por BCrypt.matches(dto.password(), usuario.getPassword())
-        if (!usuario.getPassword().equals(dto.password())) {
+        if (!passwordEncoder.matches(dto.password(), usuario.getPassword())) {
             throw new RuntimeException("Usuário ou senha inválidos.");
         }
 
-        return new LoginResponseDto(usuario.getId(), usuario.getUsername(), usuario.getEmail());
+        String token = tokenService.gerarToken(usuario);
+        return new LoginResponseDto(usuario.getId(), usuario.getUsername(), usuario.getEmail(), token);
     }
 
     /** Busca dados públicos do usuário por ID */
@@ -53,7 +60,7 @@ public class UsuarioService {
         return UsuarioResponseDto.from(usuario);
     }
 
-    /** Atualiza username e email */
+    /** Atualiza username, email e senha */
     @Transactional
     public UsuarioResponseDto atualizar(Long id, UsuarioRequestDto dto) {
         Usuario usuario = usuarioRepositorie.findById(id)
@@ -61,8 +68,9 @@ public class UsuarioService {
 
         usuario.setUsername(dto.username());
         usuario.setEmail(dto.email());
-        // TODO: encode senha antes de salvar
-        usuario.setPassword(dto.password());
+        if (dto.password() != null && !dto.password().isBlank()) {
+            usuario.setPassword(passwordEncoder.encode(dto.password()));
+        }
 
         return UsuarioResponseDto.from(usuarioRepositorie.save(usuario));
     }
@@ -76,3 +84,4 @@ public class UsuarioService {
         usuarioRepositorie.deleteById(id);
     }
 }
+
