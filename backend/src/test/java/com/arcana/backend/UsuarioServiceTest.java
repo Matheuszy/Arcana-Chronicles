@@ -1,73 +1,104 @@
 package com.arcana.backend;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import com.arcana.backend.config.security.TokenService;
+import com.arcana.backend.user.dto.request.LoginRequestDto;
+import com.arcana.backend.user.dto.request.UsuarioRequestDto;
+import com.arcana.backend.user.dto.response.LoginResponseDto;
+import com.arcana.backend.user.dto.response.UsuarioResponseDto;
+import com.arcana.backend.user.model.Usuario;
+import com.arcana.backend.user.repository.UsuarioRepositorie;
+import com.arcana.backend.user.service.UsuarioService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import com.arcana.backend.user.model.Usuario;
-import com.arcana.backend.user.repository.UsuarioRepositorie;
-import com.arcana.backend.user.service.UsuarioService;
-import com.arcana.backend.user.dto.request.UsuarioRequestDto;
-import com.arcana.backend.user.dto.response.UsuarioResponseDto;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.never;
-
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UsuarioServiceTest {
 
-		@Mock
-		private UsuarioRepositorie repository;
-		
-		@InjectMocks
-		private UsuarioService service;
+    @Mock
+    private UsuarioRepositorie repository;
 
-		@Test
-		void deveCadastrarUsuario(){
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
-			UsuarioRequestDto dto = new UsuarioRequestDto("joao", "joao@gmail.com", "12334");
-			Usuario newUser = new Usuario("joao", "joao@gmail.com", "12334");
-			when(repository.save(any(Usuario.class))).thenReturn(newUser);
+    @Mock
+    private TokenService tokenService;
 
-			UsuarioResponseDto dtoReturn = service.criar(dto);
+    @InjectMocks
+    private UsuarioService service;
 
-			assertNotNull(dtoReturn);
+    @Test
+    void deveCadastrarUsuario() {
+        UsuarioRequestDto dto = new UsuarioRequestDto("joao", "joao@gmail.com", "12334");
+        Usuario newUser = new Usuario("joao", "joao@gmail.com", "encodedPassword");
 
-			assertEquals("joao@gmail.com", dtoReturn.email());
+        when(passwordEncoder.encode("12334")).thenReturn("encodedPassword");
+        when(repository.save(any(Usuario.class))).thenReturn(newUser);
 
-			verify(repository).save(any(Usuario.class));
+        UsuarioResponseDto dtoReturn = service.criar(dto);
 
-		}
+        assertNotNull(dtoReturn);
+        assertEquals("joao@gmail.com", dtoReturn.email());
 
-		@Test
-		void deveLancarExcecaoQuandoEmailJaExistir() {
-		
-			UsuarioRequestDto dto = new UsuarioRequestDto("theron", "joao@gmail.com", "12334");
+        verify(passwordEncoder).encode("12334");
+        verify(repository).save(any(Usuario.class));
+    }
 
-			Usuario existsUser = new Usuario("theron", "joao@gmail.com", "12334");
-			
+    @Test
+    void deveLancarExcecaoQuandoUsernameJaExistir() {
+        UsuarioRequestDto dto = new UsuarioRequestDto("theron", "joao@gmail.com", "12334");
+        Usuario existsUser = new Usuario("theron", "joao@gmail.com", "12334");
 
-			when(repository.findByUsername(dto.username())).thenReturn(Optional.of(existsUser));
+        when(repository.findByUsername(dto.username())).thenReturn(Optional.of(existsUser));
 
-			
-			RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-				service.criar(dto);
-			});
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            service.criar(dto);
+        });
 
-			assertEquals("Username já está em uso: " + dto.username(), exception.getMessage());
+        assertEquals("Username já está em uso: " + dto.username(), exception.getMessage());
+        verify(repository, never()).save(any(Usuario.class));
+    }
 
-			verify(repository, never()).save(any(Usuario.class));
-		}
+    @Test
+    void deveAutenticarELogarUsuarioComTokenJwt() {
+        LoginRequestDto loginDto = new LoginRequestDto("joao", "12334");
+        Usuario user = new Usuario("joao", "joao@gmail.com", "encodedPassword");
+        user.setId(1L);
 
+        when(repository.findByUsername("joao")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("12334", "encodedPassword")).thenReturn(true);
+        when(tokenService.gerarToken(user)).thenReturn("mocked-jwt-token");
+
+        LoginResponseDto loginResponse = service.login(loginDto);
+
+        assertNotNull(loginResponse);
+        assertEquals("joao", loginResponse.username());
+        assertEquals("mocked-jwt-token", loginResponse.token());
+        assertEquals(1L, loginResponse.id());
+    }
+
+    @Test
+    void deveLancarExcecaoQuandoSenhaInvalidaNoLogin() {
+        LoginRequestDto loginDto = new LoginRequestDto("joao", "senha_errada");
+        Usuario user = new Usuario("joao", "joao@gmail.com", "encodedPassword");
+
+        when(repository.findByUsername("joao")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("senha_errada", "encodedPassword")).thenReturn(false);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            service.login(loginDto);
+        });
+
+        assertEquals("Usuário ou senha inválidos.", exception.getMessage());
+    }
 }
+
