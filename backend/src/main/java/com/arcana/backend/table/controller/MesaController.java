@@ -4,19 +4,15 @@ import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaResponseDto;
 import com.arcana.backend.table.model.StatusMesa;
 import com.arcana.backend.table.service.MesaService;
+import com.arcana.backend.user.model.Usuario;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Endpoints consumidos pelo frontend em /api/tables
- *
- * X-Owner-Id: ID do usuário logado (temporário até ter JWT).
- * X-Display-Name: nome de exibição do usuário (usado ao entrar na mesa).
- */
 @RestController
 @RequestMapping("/api/tables")
 public class MesaController {
@@ -43,10 +39,10 @@ public class MesaController {
     @PostMapping
     public ResponseEntity<MesaResponseDto> criar(
             @RequestBody @Valid MesaRequestDto dto,
-            @RequestHeader("X-Owner-Id") Long masterId) {
+            @AuthenticationPrincipal Usuario usuario) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mesaService.criar(dto, masterId));
+                .body(mesaService.criar(dto, usuario.getId()));
     }
 
     /**
@@ -57,11 +53,13 @@ public class MesaController {
     public ResponseEntity<MesaResponseDto> entrar(
             @PathVariable Long id,
             @RequestBody(required = false) EntrarRequest body,
-            @RequestHeader("X-Owner-Id") Long userId,
-            @RequestHeader("X-Display-Name") String displayName) {
+            @AuthenticationPrincipal Usuario usuario) {
 
         Long characterId = (body != null) ? body.characterId() : null;
-        return ResponseEntity.ok(mesaService.entrar(id, userId, displayName, characterId));
+        String displayName = (body != null && body.displayName() != null && !body.displayName().isBlank())
+                ? body.displayName()
+                : usuario.getUsername();
+        return ResponseEntity.ok(mesaService.entrar(id, usuario.getId(), displayName, characterId));
     }
 
     /**
@@ -72,22 +70,23 @@ public class MesaController {
     public ResponseEntity<MesaResponseDto> atualizarStatus(
             @PathVariable Long id,
             @RequestBody StatusRequest body,
-            @RequestHeader("X-Owner-Id") Long masterId) {
+            @AuthenticationPrincipal Usuario usuario) {
 
-        return ResponseEntity.ok(mesaService.atualizarStatus(id, body.status(), masterId));
+        return ResponseEntity.ok(mesaService.atualizarStatus(id, body.status(), usuario.getId()));
     }
 
     /** DELETE /api/tables/{id} */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(
             @PathVariable Long id,
-            @RequestHeader("X-Owner-Id") Long masterId) {
+            @AuthenticationPrincipal Usuario usuario) {
 
-        mesaService.deletar(id, masterId);
+        mesaService.deletar(id, usuario.getId());
         return ResponseEntity.noContent().build();
     }
 
     // ── records de request body ──────────────────────────────────────────────
-    record EntrarRequest(Long characterId) {}
+    record EntrarRequest(Long characterId, String displayName) {}
     record StatusRequest(StatusMesa status) {}
 }
+
