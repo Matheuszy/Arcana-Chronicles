@@ -9,8 +9,8 @@ import './App.css';
 
 /** Redireciona para /login se não houver sessão ativa */
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { userId } = useSession();
-  return userId ? <>{children}</> : <Navigate to="/login" replace />;
+  const { userId, token } = useSession();
+  return (userId && token) ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 function Shell() {
