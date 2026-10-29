@@ -1,5 +1,5 @@
 import { WS_BASE_URL } from './apiConfig';
-import { ChatMessage } from '../types/chat';
+import { ChatMessage, RollRequest } from '../types/chat';
 
 /** Extrai o "slug" de NPC mencionado com @, ex: "@arannis cuidado!" -> "arannis" */
 export const NPC_MENTION_REGEX = /@([a-zA-Z0-9_-]+)/;
@@ -52,9 +52,16 @@ class ChatService {
     });
   }
 
-  /** Envia o resultado de uma rolagem já calculada no cliente para exibir a todos na mesa */
-  sendRoll(message: ChatMessage): void {
-    this.send(message);
+  sendRoll(tableId: string, authorId: string, authorName: string, rollRequest: RollRequest): void {
+    this.send({
+      tableId,
+      authorId,
+      authorName,
+      type: 'ROLAGEM',
+      content: '',
+      rollRequest,
+      createdAt: new Date().toISOString(),
+    });
   }
 
   private send(message: ChatMessage): void {

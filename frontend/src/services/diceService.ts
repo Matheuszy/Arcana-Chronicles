@@ -1,41 +1,61 @@
-import { DiceRollResult } from '../types/chat';
+import { DICE_SIDES, RollMode, RollRequest } from '../types/chat';
 import { attributeModifier, Attributes } from '../types/character';
 
-/** Expressão aceita: NdM+K ou NdM-K, ex: "1d20+3", "2d6" */
-const DICE_REGEX = /^(\d*)d(\d+)([+-]\d+)?$/i;
+const ROLL_COMMAND_REGEX = /^\/r(?:olar)?\s+(\d*)d(\d+)\s*([+-]\s*\d+)?\s*(vantagem|desvantagem|adv|dis)?$/i;
 
-function rollDie(sides: number): number {
-  return Math.floor(Math.random() * sides) + 1;
+const MODE_ALIASES: Record<string, RollMode> = {
+  vantagem: 'VANTAGEM',
+  adv: 'VANTAGEM',
+  desvantagem: 'DESVANTAGEM',
+  dis: 'DESVANTAGEM',
+};
+
+export const MAX_DICE_QUANTITY = 20;
+export const MAX_MODIFIER = 20;
+
+export function isRollCommand(text: string): boolean {
+  return /^\/r(olar)?(\s|$)/i.test(text.trim());
+}
+
+export function validateRollRequest(request: RollRequest): string | null {
+  if (!(DICE_SIDES as readonly number[]).includes(request.lados)) {
+    return 'Use d4, d6, d8, d10, d12, d20 ou d100.';
+  }
+  if (!Number.isInteger(request.quantidade) || request.quantidade < 1 || request.quantidade > MAX_DICE_QUANTITY) {
+    return `A quantidade de dados deve estar entre 1 e ${MAX_DICE_QUANTITY}.`;
+  }
+  if (!Number.isInteger(request.modificador) || Math.abs(request.modificador) > MAX_MODIFIER) {
+    return `O modificador deve estar entre -${MAX_MODIFIER} e +${MAX_MODIFIER}.`;
+  }
+  if (request.modo !== 'NORMAL' && (request.lados !== 20 || request.quantidade !== 1)) {
+    return 'Vantagem e desvantagem só valem para 1d20.';
+  }
+  return null;
 }
 
 export const diceService = {
-  /** Rola uma expressão de dados livre, ex: "2d6+1" */
-  roll(expression: string): DiceRollResult {
-    const match = expression.trim().match(DICE_REGEX);
+  parseCommand(text: string): RollRequest {
+    const match = text.trim().match(ROLL_COMMAND_REGEX);
     if (!match) {
-      throw new Error(`Expressão de dado inválida: "${expression}". Use o formato NdM+K.`);
+      throw new Error('Comando inválido. Exemplos: /r 1d20+2, /r 2d6-1, /r 1d20 vantagem');
     }
-    const count = match[1] ? parseInt(match[1], 10) : 1;
-    const sides = parseInt(match[2], 10);
-    const modifier = match[3] ? parseInt(match[3], 10) : 0;
-
-    const rolls = Array.from({ length: count }, () => rollDie(sides));
-    const total = rolls.reduce((sum, r) => sum + r, 0) + modifier;
-
-    return { expression, rolls, modifier, total };
+    const request: RollRequest = {
+      quantidade: match[1] ? parseInt(match[1], 10) : 1,
+      lados: parseInt(match[2], 10),
+      modificador: match[3] ? parseInt(match[3].replace(/\s/g, ''), 10) : 0,
+      modo: match[4] ? MODE_ALIASES[match[4].toLowerCase()] : 'NORMAL',
+    };
+    const error = validateRollRequest(request);
+    if (error) throw new Error(error);
+    return request;
   },
 
-  /** Rolagem de teste de atributo: 1d20 + modificador do atributo escolhido */
-  rollAttributeCheck(attributes: Attributes, attributeKey: keyof Attributes): DiceRollResult {
-    const score = attributes[attributeKey];
-    const modifier = attributeModifier(score);
-    const roll = rollDie(20);
+  attributeCheckRequest(attributes: Attributes, attributeKey: keyof Attributes): RollRequest {
     return {
-      expression: `1d20 (${attributeKey})`,
-      rolls: [roll],
-      modifier,
-      total: roll + modifier,
-      attributeUsed: attributeKey,
+      lados: 20,
+      quantidade: 1,
+      modificador: attributeModifier(attributes[attributeKey]),
+      modo: 'NORMAL',
     };
   },
 };
