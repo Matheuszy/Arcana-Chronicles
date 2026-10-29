@@ -42,7 +42,7 @@ public class MesaController {
             @AuthenticationPrincipal Usuario usuario) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mesaService.criar(dto, usuario.getId()));
+                .body(mesaService.criar(dto, usuario.getId(), usuario.getUsername()));
     }
 
     /**
@@ -56,10 +56,16 @@ public class MesaController {
             @AuthenticationPrincipal Usuario usuario) {
 
         Long characterId = (body != null) ? body.characterId() : null;
-        String displayName = (body != null && body.displayName() != null && !body.displayName().isBlank())
-                ? body.displayName()
-                : usuario.getUsername();
-        return ResponseEntity.ok(mesaService.entrar(id, usuario.getId(), displayName, characterId));
+        return ResponseEntity.ok(mesaService.entrar(id, usuario.getId(), usuario.getUsername(), characterId));
+    }
+
+    /** POST /api/tables/{id}/sair */
+    @PostMapping("/{id}/sair")
+    public ResponseEntity<MesaResponseDto> sair(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.sair(id, usuario.getId()));
     }
 
     /**
@@ -75,6 +81,26 @@ public class MesaController {
         return ResponseEntity.ok(mesaService.atualizarStatus(id, body.status(), usuario.getId()));
     }
 
+    /** POST /api/tables/{id}/npcs/{npcId} */
+    @PostMapping("/{id}/npcs/{npcId}")
+    public ResponseEntity<MesaResponseDto> adicionarNpc(
+            @PathVariable Long id,
+            @PathVariable Long npcId,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.adicionarNpc(id, npcId, usuario.getId()));
+    }
+
+    /** DELETE /api/tables/{id}/npcs/{npcId} */
+    @DeleteMapping("/{id}/npcs/{npcId}")
+    public ResponseEntity<MesaResponseDto> removerNpc(
+            @PathVariable Long id,
+            @PathVariable Long npcId,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.removerNpc(id, npcId, usuario.getId()));
+    }
+
     /** DELETE /api/tables/{id} */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(
@@ -86,7 +112,7 @@ public class MesaController {
     }
 
     // ── records de request body ──────────────────────────────────────────────
-    record EntrarRequest(Long characterId, String displayName) {}
+    record EntrarRequest(Long characterId) {}
     record StatusRequest(StatusMesa status) {}
 }
 

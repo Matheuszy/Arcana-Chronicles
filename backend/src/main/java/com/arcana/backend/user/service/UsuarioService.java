@@ -1,5 +1,8 @@
 package com.arcana.backend.user.service;
 
+import com.arcana.backend.config.exception.CredenciaisInvalidasException;
+import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
+import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.config.security.TokenService;
 import com.arcana.backend.user.dto.request.LoginRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
@@ -8,6 +11,7 @@ import com.arcana.backend.user.dto.response.UsuarioResponseDto;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import jakarta.transaction.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +34,7 @@ public class UsuarioService {
     @Transactional
     public UsuarioResponseDto criar(UsuarioRequestDto dto) {
         if (usuarioRepositorie.findByUsername(dto.username()).isPresent()) {
-            throw new RuntimeException("Username já está em uso: " + dto.username());
+            throw new RegraDeNegocioException("Username já está em uso: " + dto.username());
         }
 
         String encodedPassword = passwordEncoder.encode(dto.password());
@@ -43,10 +47,10 @@ public class UsuarioService {
      */
     public LoginResponseDto login(LoginRequestDto dto) {
         Usuario usuario = usuarioRepositorie.findByUsername(dto.username())
-                .orElseThrow(() -> new RuntimeException("Usuário ou senha inválidos."));
+                .orElseThrow(() -> new CredenciaisInvalidasException("Usuário ou senha inválidos."));
 
         if (!passwordEncoder.matches(dto.password(), usuario.getPassword())) {
-            throw new RuntimeException("Usuário ou senha inválidos.");
+            throw new CredenciaisInvalidasException("Usuário ou senha inválidos.");
         }
 
         String token = tokenService.gerarToken(usuario);
@@ -54,17 +58,19 @@ public class UsuarioService {
     }
 
     /** Busca dados públicos do usuário por ID */
-    public UsuarioResponseDto buscarPorId(Long id) {
+    public UsuarioResponseDto buscarPorId(Long id, Long usuarioAutenticadoId) {
+        validarDonoDoRecurso(id, usuarioAutenticadoId);
         Usuario usuario = usuarioRepositorie.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + id));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado: " + id));
         return UsuarioResponseDto.from(usuario);
     }
 
     /** Atualiza username, email e senha */
     @Transactional
-    public UsuarioResponseDto atualizar(Long id, UsuarioRequestDto dto) {
+    public UsuarioResponseDto atualizar(Long id, UsuarioRequestDto dto, Long usuarioAutenticadoId) {
+        validarDonoDoRecurso(id, usuarioAutenticadoId);
         Usuario usuario = usuarioRepositorie.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + id));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado: " + id));
 
         usuario.setUsername(dto.username());
         usuario.setEmail(dto.email());
@@ -77,11 +83,18 @@ public class UsuarioService {
 
     /** Remove o usuário e todos os seus personagens (cascade) */
     @Transactional
-    public void deletar(Long id) {
+    public void deletar(Long id, Long usuarioAutenticadoId) {
+        validarDonoDoRecurso(id, usuarioAutenticadoId);
         if (!usuarioRepositorie.existsById(id)) {
-            throw new RuntimeException("Usuário não encontrado: " + id);
+            throw new RecursoNaoEncontradoException("Usuário não encontrado: " + id);
         }
         usuarioRepositorie.deleteById(id);
+    }
+
+    private void validarDonoDoRecurso(Long id, Long usuarioAutenticadoId) {
+        if (!id.equals(usuarioAutenticadoId)) {
+            throw new AccessDeniedException("Usuário não pode acessar dados de outro usuário.");
+        }
     }
 }
 

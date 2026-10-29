@@ -9,9 +9,5 @@ public record MesaRequestDto(
         @Size(max = 255)
         String name,
 
-        String description,
-
-        /** Nome do mestre para exibição */
-        @NotBlank(message = "Nome do mestre não pode ser vazio")
-        String masterName
+        String description
 ) {}

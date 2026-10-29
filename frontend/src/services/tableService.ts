@@ -19,10 +19,16 @@ export const tableService = {
     });
   },
 
-  join(tableId: string, characterId?: string, displayName?: string): Promise<GameTable> {
+  join(tableId: string, characterId?: string): Promise<GameTable> {
     return apiRequest<GameTable>(`${BASE_PATH}/${tableId}/entrar`, {
       method: 'POST',
-      body: JSON.stringify({ characterId, displayName }),
+      body: JSON.stringify({ characterId }),
+    });
+  },
+
+  leave(tableId: string): Promise<GameTable> {
+    return apiRequest<GameTable>(`${BASE_PATH}/${tableId}/sair`, {
+      method: 'POST',
     });
   },
 

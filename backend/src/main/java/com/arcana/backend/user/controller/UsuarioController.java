@@ -4,10 +4,12 @@ import com.arcana.backend.user.dto.request.LoginRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.dto.response.LoginResponseDto;
 import com.arcana.backend.user.dto.response.UsuarioResponseDto;
+import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.service.UsuarioService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,23 +41,30 @@ public class UsuarioController {
 
     /** GET /api/users/{id} — perfil */
     @GetMapping("/{id}")
-    public ResponseEntity<UsuarioResponseDto> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(usuarioService.buscarPorId(id));
+    public ResponseEntity<UsuarioResponseDto> buscarPorId(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        return ResponseEntity.ok(usuarioService.buscarPorId(id, usuarioAutenticado.getId()));
     }
 
     /** PUT /api/users/{id} — atualizar dados */
     @PutMapping("/{id}")
     public ResponseEntity<UsuarioResponseDto> atualizar(
             @PathVariable Long id,
-            @RequestBody @Valid UsuarioRequestDto dto) {
+            @RequestBody @Valid UsuarioRequestDto dto,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
 
-        return ResponseEntity.ok(usuarioService.atualizar(id, dto));
+        return ResponseEntity.ok(usuarioService.atualizar(id, dto, usuarioAutenticado.getId()));
     }
 
     /** DELETE /api/users/{id} */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        usuarioService.deletar(id);
+    public ResponseEntity<Void> deletar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        usuarioService.deletar(id, usuarioAutenticado.getId());
         return ResponseEntity.noContent().build();
     }
 }
