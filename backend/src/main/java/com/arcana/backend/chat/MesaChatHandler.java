@@ -8,6 +8,8 @@ import com.arcana.backend.chat.sessao.GerenciadorMesasAtivas;
 import com.arcana.backend.chat.sessao.MesaAtiva;
 import com.arcana.backend.table.AcessoMesaDto;
 import com.arcana.backend.table.MesaStatusAlteradoEvent;
+import com.arcana.backend.table.ParticipanteRemovidoEvent;
+import com.arcana.backend.table.ParticipantesAlteradosEvent;
 import com.arcana.backend.table.model.StatusMesa;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -169,6 +171,36 @@ public class MesaChatHandler extends TextWebSocketHandler {
             ChatMessage alteracao = eventoDaMesa(tableId, ChatMessage.Type.STATUS_MESA);
             alteracao.setContent(evento.status().name());
             broadcast(mesa, alteracao, null);
+        });
+    }
+
+    @TransactionalEventListener(fallbackExecution = true)
+    public void aoAlterarParticipantes(ParticipantesAlteradosEvent evento) {
+        gerenciadorMesas.buscar(evento.mesaId()).ifPresent(mesa ->
+                broadcast(mesa, eventoDaMesa(String.valueOf(evento.mesaId()), ChatMessage.Type.PARTICIPANTES), null));
+    }
+
+    @TransactionalEventListener(fallbackExecution = true)
+    public void aoRemoverParticipante(ParticipanteRemovidoEvent evento) {
+        String tableId = String.valueOf(evento.mesaId());
+
+        ChatMessage remocao = eventoDaMesa(tableId, ChatMessage.Type.REMOVIDO_DA_MESA);
+        remocao.setContent(evento.removidoPeloMestre() ? "O mestre removeu você da mesa." : "Você saiu da mesa.");
+        for (WebSocketSession sessao : gerenciadorMesas.desconectarUsuario(evento.mesaId(), evento.userId())) {
+            enviarParaSessao(sessao, remocao);
+            try {
+                sessao.close(CloseStatus.NORMAL.withReason("Removido da mesa"));
+            } catch (IOException | IllegalStateException ignored) {}
+        }
+
+        gerenciadorMesas.buscar(evento.mesaId()).ifPresent(mesa -> {
+            ChatMessage aviso = systemMessage(tableId, evento.removidoPeloMestre()
+                    ? "O mestre removeu " + evento.displayName() + " da mesa."
+                    : evento.displayName() + " deixou a mesa.");
+            mesa.registrar(aviso);
+            broadcast(mesa, aviso, null);
+            broadcast(mesa, eventoDaMesa(tableId, ChatMessage.Type.PARTICIPANTES), null);
+            broadcast(mesa, presenca(mesa, tableId), null);
         });
     }
 

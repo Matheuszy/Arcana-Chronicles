@@ -8,6 +8,8 @@ import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaStatusAlteradoEvent;
+import com.arcana.backend.table.ParticipanteRemovidoEvent;
+import com.arcana.backend.table.ParticipantesAlteradosEvent;
 import com.arcana.backend.table.model.Mesa;
 import com.arcana.backend.table.model.Participante;
 import com.arcana.backend.table.model.SolicitacaoEntrada;
@@ -490,6 +492,7 @@ class MesaServiceTest {
         assertEquals(1, mesa.getParticipants().size());
         assertEquals(2L, mesa.getParticipants().get(0).getUserId());
         assertEquals(100L, mesa.getParticipants().get(0).getCharacterId());
+        assertEquals(List.of(new ParticipantesAlteradosEvent(1L)), eventosPublicados);
         verify(mesaRepository).save(mesa);
     }
 
@@ -577,6 +580,64 @@ class MesaServiceTest {
         var resultado = service.sair(1L, 2L);
 
         assertTrue(resultado.participants().isEmpty());
+        assertEquals(List.of(new ParticipanteRemovidoEvent(1L, 2L, "joao", false)), eventosPublicados);
+    }
+
+    @Test
+    void deveNegarSaidaDeQuemNaoParticipaDaMesa() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.sair(1L, 2L));
+        verify(mesaRepository, never()).save(any());
+        assertTrue(eventosPublicados.isEmpty());
+    }
+
+    @Test
+    void devePermitirMestreRemoverJogadorDaMesa() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(1L, "gandalf", "MESTRE", null));
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(mesaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resultado = service.removerParticipante(1L, 2L, 1L);
+
+        assertEquals(1, resultado.participants().size());
+        assertEquals(1L, resultado.participants().get(0).userId());
+        assertEquals(List.of(new ParticipanteRemovidoEvent(1L, 2L, "joao", true)), eventosPublicados);
+    }
+
+    @Test
+    void deveNegarJogadorRemoverOutroParticipante() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        mesa.getParticipants().add(new Participante(3L, "maria", "JOGADOR", 200L));
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(AccessDeniedException.class, () -> service.removerParticipante(1L, 2L, 3L));
+        assertEquals(2, mesa.getParticipants().size());
+        assertTrue(eventosPublicados.isEmpty());
+    }
+
+    @Test
+    void deveNegarMestreRemoverASiMesmo() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(1L, "gandalf", "MESTRE", null));
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.removerParticipante(1L, 1L, 1L));
+        assertEquals(1, mesa.getParticipants().size());
+    }
+
+    @Test
+    void deveInformarQuandoUsuarioRemovidoNaoParticipaDaMesa() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+
+        assertThrows(RecursoNaoEncontradoException.class, () -> service.removerParticipante(1L, 2L, 1L));
+        verify(mesaRepository, never()).save(any());
     }
 
     @Test
@@ -593,6 +654,7 @@ class MesaServiceTest {
 
         assertEquals(1, resultado.participants().size());
         assertEquals(100L, resultado.participants().get(0).characterId());
+        assertEquals(List.of(new ParticipantesAlteradosEvent(1L)), eventosPublicados);
     }
 
     @Test

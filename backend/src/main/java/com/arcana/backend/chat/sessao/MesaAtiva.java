@@ -64,6 +64,18 @@ public class MesaAtiva {
         return Optional.ofNullable(conexoes.remove(sessionId));
     }
 
+    synchronized List<WebSocketSession> removerConexoesDoUsuario(Long userId) {
+        List<WebSocketSession> removidas = new ArrayList<>();
+        conexoes.values().removeIf(conexao -> {
+            boolean doUsuario = conexao.acesso().userId().equals(userId);
+            if (doUsuario) {
+                removidas.add(conexao.sessao());
+            }
+            return doUsuario;
+        });
+        return removidas;
+    }
+
     synchronized boolean vazia() {
         return conexoes.isEmpty();
     }

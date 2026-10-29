@@ -121,6 +121,15 @@ public class MesaController {
         return ResponseEntity.ok(mesaService.sair(id, usuario.getId()));
     }
 
+    @DeleteMapping("/{id}/participantes/{userId}")
+    public ResponseEntity<MesaResponseDto> removerParticipante(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.removerParticipante(id, userId, usuario.getId()));
+    }
+
     /**
      * PATCH /api/tables/{id}/status
      * Body: { "status": "EM_ANDAMENTO" }

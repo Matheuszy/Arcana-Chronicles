@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSession } from '../../context/SessionContext';
 import { tableService } from '../../services/tableService';
 import { characterService } from '../../services/characterService';
-import { chatService, ConnectionState } from '../../services/chatService';
+import { chatService, ConnectionState, ConnectionStatus, MAX_RECONNECT_ATTEMPTS } from '../../services/chatService';
 import { diceService, isRollCommand } from '../../services/diceService';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
@@ -33,6 +33,13 @@ type UnreadByChannel = Record<Channel, number>;
 const EMPTY_MESSAGES: MessagesByChannel = { CONVERSA: [], ROLAGENS: [], IMAGENS: [] };
 const NO_UNREAD: UnreadByChannel = { CONVERSA: 0, ROLAGENS: 0, IMAGENS: 0 };
 
+const CONNECTION_LABEL: Record<ConnectionState, string> = {
+  CONECTANDO: 'conectando...',
+  CONECTADO: 'conectado',
+  RECONECTANDO: 'reconectando...',
+  DESCONECTADO: 'desconectado',
+};
+
 const EMPTY_CHANNEL_TEXT: Record<Channel, string> = {
   CONVERSA: 'A mesa está silenciosa. Diga olá para o grupo.',
   ROLAGENS: 'Nenhuma rolagem ainda. Use o painel de dados ou digite /r 1d20+2 na conversa.',
@@ -41,6 +48,7 @@ const EMPTY_CHANNEL_TEXT: Record<Channel, string> = {
 
 export default function TableRoom() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { userId, token } = useSession();
 
   const [table, setTable] = useState<GameTable | null>(null);
@@ -57,13 +65,15 @@ export default function TableRoom() {
   const historyIds = useRef(new Set<string>());
   const [onlineUsers, setOnlineUsers] = useState<Presence[]>([]);
   const [sessionEndedReason, setSessionEndedReason] = useState<string | null>(null);
+  const [removedReason, setRemovedReason] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [status, setStatus] = useState<ConnectionState>('DESCONECTADO');
+  const [connection, setConnection] = useState<ConnectionStatus>({ state: 'CONECTANDO', attempt: 0 });
   const [draft, setDraft] = useState('');
   const [composerError, setComposerError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastUnknownReload = useRef('');
 
   const me = table?.participants.find((p) => String(p.userId) === String(userId));
   const isParticipant = Boolean(me);
@@ -87,18 +97,12 @@ export default function TableRoom() {
   useEffect(loadTable, [loadTable]);
 
   useEffect(() => {
-    if (!table) return;
-    const known = new Set(table.participants.map((p) => String(p.userId)));
-    const unknownKey = onlineUsers
-      .map((u) => String(u.userId))
-      .filter((uid) => !known.has(uid))
-      .sort()
-      .join(',');
-    if (unknownKey && unknownKey !== lastUnknownReload.current) {
-      lastUnknownReload.current = unknownKey;
-      loadTable();
-    }
-  }, [onlineUsers, table, loadTable]);
+    if (!id || connection.state !== 'RECONECTANDO') return;
+    tableService
+      .getById(id)
+      .then(setTable)
+      .catch(() => undefined);
+  }, [id, connection.state, connection.attempt]);
 
   useEffect(() => {
     if (!isParticipant) return;
@@ -135,7 +139,11 @@ export default function TableRoom() {
         setSessionEndedReason(msg.content);
         setOnlineUsers([]);
         loadTable();
-      } else if (msg.type === 'STATUS_MESA') {
+      } else if (msg.type === 'REMOVIDO_DA_MESA') {
+        setRemovedReason(msg.content);
+        setOnlineUsers([]);
+        loadTable();
+      } else if (msg.type === 'STATUS_MESA' || msg.type === 'PARTICIPANTES') {
         loadTable();
       } else {
         const channel = msg.canal ?? 'CONVERSA';
@@ -145,7 +153,7 @@ export default function TableRoom() {
         }
       }
     });
-    const offStatus = chatService.onStatusChange(setStatus);
+    const offStatus = chatService.onStatusChange(setConnection);
 
     return () => {
       offMessage();
@@ -171,6 +179,24 @@ export default function TableRoom() {
     if (confirmed) changeStatus('ENCERRADA');
   };
 
+  const leaveTable = async () => {
+    if (!id) return;
+    const confirmed = window.confirm(
+      'Sair da mesa? Você será desconectado e precisará pedir para entrar de novo ao mestre.',
+    );
+    if (!confirmed) return;
+
+    setLeaving(true);
+    setLeaveError(null);
+    try {
+      await tableService.leave(id);
+      navigate('/mesas');
+    } catch (e: unknown) {
+      setLeaveError(e instanceof Error ? e.message : 'Erro ao sair da mesa.');
+      setLeaving(false);
+    }
+  };
+
   const changeCharacter = async (characterId: string) => {
     if (!id) return;
     setCharacterError(null);
@@ -185,8 +211,10 @@ export default function TableRoom() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, activeChannel]);
 
-  const connected = status === 'CONECTADO' && !sessionEndedReason;
+  const connected = connection.state === 'CONECTADO' && !sessionEndedReason;
   const canSend = connected && !isPaused;
+  const reconnecting = connection.state === 'RECONECTANDO' && !sessionEndedReason;
+  const connectionLost = connection.state === 'DESCONECTADO' && !sessionEndedReason && !removedReason;
 
   const selectChannel = (channel: Channel) => {
     activeChannelRef.current = channel;
@@ -244,9 +272,13 @@ export default function TableRoom() {
     return (
       <section className="room-blocked card">
         <h2>{table.name}</h2>
-        <p className="muted">
-          Você ainda não participa desta mesa. Peça para entrar na lista de mesas e aguarde o mestre aceitar.
-        </p>
+        {removedReason ? (
+          <p className="muted">{removedReason} Para voltar, peça para entrar de novo na lista de mesas.</p>
+        ) : (
+          <p className="muted">
+            Você ainda não participa desta mesa. Peça para entrar na lista de mesas e aguarde o mestre aceitar.
+          </p>
+        )}
         <Link className="btn btn-ghost" to="/mesas">Voltar para as mesas</Link>
       </section>
     );
@@ -268,7 +300,9 @@ export default function TableRoom() {
       <aside className="room-side card">
         <h2>{table.name}</h2>
         <p className="muted">{table.description}</p>
-        <p className={`conn conn--${status.toLowerCase()}`}>● {status.toLowerCase()}</p>
+        <p className={`conn conn--${connection.state.toLowerCase()}`} role="status">
+          ● {CONNECTION_LABEL[connection.state]}
+        </p>
         {!isMaster && <p className="muted table-status">Mesa {TABLE_STATUS_LABEL[table.status].toLowerCase()}</p>}
 
         {!isMaster && (
@@ -287,6 +321,10 @@ export default function TableRoom() {
               ))}
             </select>
             {characterError && <p className="roll-error">{characterError}</p>}
+            <button className="btn btn-danger leave-table" onClick={leaveTable} disabled={leaving}>
+              {leaving ? 'Saindo...' : 'Sair da mesa'}
+            </button>
+            {leaveError && <p className="roll-error">{leaveError}</p>}
           </div>
         )}
 
@@ -320,7 +358,8 @@ export default function TableRoom() {
             tableId={id}
             participants={table.participants}
             onlineUserIds={onlineUsers.map((u) => String(u.userId))}
-            canViewSheets={isMaster}
+            isMaster={isMaster}
+            onParticipantRemoved={setTable}
           />
         )}
 
@@ -367,6 +406,24 @@ export default function TableRoom() {
             <span>{sessionEndedReason} O histórico do chat foi apagado.</span>
             <button className="btn btn-ghost" onClick={() => setConnectionAttempt((n) => n + 1)}>
               Conectar de novo
+            </button>
+          </div>
+        )}
+        {reconnecting && (
+          <div className="connection-banner connection-banner--reconnecting" role="alert">
+            <span>
+              Conexão com a mesa perdida. Tentando reconectar ({connection.attempt} de {MAX_RECONNECT_ATTEMPTS})...
+            </span>
+            <button className="btn btn-ghost" onClick={() => chatService.reconnectNow()}>
+              Tentar agora
+            </button>
+          </div>
+        )}
+        {connectionLost && (
+          <div className="session-ended" role="alert">
+            <span>Não foi possível reconectar à mesa. Verifique sua conexão e tente de novo.</span>
+            <button className="btn btn-ghost" onClick={() => setConnectionAttempt((n) => n + 1)}>
+              Tentar de novo
             </button>
           </div>
         )}
@@ -442,7 +499,13 @@ export default function TableRoom() {
                 }}
                 onKeyUp={(e) => e.key === 'Enter' && canSend && sendDraft()}
                 disabled={!canSend}
-                placeholder={isPaused ? 'Mesa pausada pelo mestre' : 'Fale com a mesa ou role com /r 1d20+2'}
+                placeholder={
+                  !connected
+                    ? 'Aguardando conexão com a mesa...'
+                    : isPaused
+                      ? 'Mesa pausada pelo mestre'
+                      : 'Fale com a mesa ou role com /r 1d20+2'
+                }
               />
               <button className="btn btn-primary" onClick={sendDraft} disabled={!canSend || !draft.trim()}>
                 Enviar
