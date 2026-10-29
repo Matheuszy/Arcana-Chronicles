@@ -22,26 +22,6 @@
   margin-bottom: 0.4rem;
 }
 
-.filters {
-  display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.75rem;
-}
-
-.chip {
-  background: transparent;
-  border: 1px solid var(--ink-700);
-  color: var(--parchment-dim);
-  padding: 0.4em 0.9em;
-  border-radius: 999px;
-  font-size: 0.82rem;
-}
-.chip.active, .chip:hover {
-  border-color: var(--ember);
-  color: var(--ember-bright);
-}
-
 .muted { color: var(--parchment-dim); }
 
 .empty {

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
+import LoadError from '../../components/LoadError';
 import {
   attributeModifier,
   Attributes,
@@ -62,19 +63,47 @@ export default function CharacterForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState<Character>(EMPTY_CHARACTER);
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(EMPTY_CHARACTER));
+  const [loading, setLoading] = useState(Boolean(id));
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [newSpell, setNewSpell] = useState<Spell>({ ...EMPTY_SPELL });
 
-  useEffect(() => {
+  const loadCharacter = useCallback(() => {
     if (!id) return;
-    characterService.getById(id).then((char) =>
-      setForm({
-        ...EMPTY_CHARACTER,
-        ...char,
-        spellSlots: { ...EMPTY_SPELL_SLOTS, ...(char.spellSlots ?? {}) },
+    setLoading(true);
+    setLoadError(null);
+    characterService
+      .getById(id)
+      .then((char) => {
+        const loaded: Character = {
+          ...EMPTY_CHARACTER,
+          ...char,
+          spellSlots: { ...EMPTY_SPELL_SLOTS, ...(char.spellSlots ?? {}) },
+        };
+        setForm(loaded);
+        setSavedSnapshot(JSON.stringify(loaded));
       })
-    );
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Erro ao carregar a ficha.'))
+      .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(loadCharacter, [loadCharacter]);
+
+  const dirty = JSON.stringify(form) !== savedSnapshot;
+
+  useEffect(() => {
+    if (!dirty || saving) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, saving]);
+
+  const cancel = () => {
+    if (dirty && !window.confirm('Descartar as alterações desta ficha?')) return;
+    navigate('/fichas');
+  };
 
   const isNpcOrMonster = form.kind !== 'PLAYER';
 
@@ -148,10 +177,11 @@ export default function CharacterForm() {
 
   const save = async () => {
     if (!form.name.trim()) {
-      alert('Dê um nome ao personagem antes de salvar.');
+      setSaveError('Dê um nome ao personagem antes de salvar.');
       return;
     }
     setSaving(true);
+    setSaveError(null);
     try {
       if (id) {
         await characterService.update(id, form);
@@ -159,10 +189,30 @@ export default function CharacterForm() {
         await characterService.create(form);
       }
       navigate('/fichas');
-    } catch {
+    } catch (e: unknown) {
+      setSaveError(e instanceof Error ? e.message : 'Erro ao salvar a ficha.');
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <section className="page">
+        <p className="muted">Abrindo a ficha...</p>
+      </section>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <section className="page">
+        <LoadError title="Não foi possível abrir a ficha" message={loadError} onRetry={loadCharacter} />
+        <button type="button" className="btn btn-ghost back-to-list" onClick={() => navigate('/fichas')}>
+          Voltar para as fichas
+        </button>
+      </section>
+    );
+  }
 
   return (
     <section className="page">
@@ -446,8 +496,9 @@ export default function CharacterForm() {
         )}
 
         {/* ── Ações ── */}
+        {saveError && <p className="form-error save-error" role="alert">{saveError}</p>}
         <div className="actions">
-          <button type="button" className="btn btn-ghost" onClick={() => navigate('/fichas')}>
+          <button type="button" className="btn btn-ghost" onClick={cancel}>
             Cancelar
           </button>
           <button type="submit" className="btn btn-primary" disabled={saving}>

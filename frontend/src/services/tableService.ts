@@ -64,6 +64,12 @@ export const tableService = {
     });
   },
 
+  removeParticipant(tableId: string, userId: string): Promise<GameTable> {
+    return apiRequest<GameTable>(`${BASE_PATH}/${tableId}/participantes/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+
   updateStatus(tableId: string, status: GameTable['status']): Promise<GameTable> {
     return apiRequest<GameTable>(`${BASE_PATH}/${tableId}/status`, {
       method: 'PATCH',

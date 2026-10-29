@@ -6,13 +6,29 @@ const AUTH_PROTOCOL = 'arcana.jwt';
 /** Extrai o "slug" de NPC mencionado com @, ex: "@arannis cuidado!" -> "arannis" */
 export const NPC_MENTION_REGEX = /@([a-zA-Z0-9_-]+)/;
 
-export type ConnectionState = 'CONECTADO' | 'DESCONECTADO' | 'ERRO';
+export type ConnectionState = 'CONECTANDO' | 'CONECTADO' | 'RECONECTANDO' | 'DESCONECTADO';
+
+export interface ConnectionStatus {
+  state: ConnectionState;
+  attempt: number;
+}
+
+export const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000];
+export const MAX_RECONNECT_ATTEMPTS = 8;
+
+const NORMAL_CLOSURE = 1000;
+const POLICY_VIOLATION = 1008;
+const FINAL_CLOSE_CODES = new Set([NORMAL_CLOSURE, POLICY_VIOLATION]);
 
 type MessageListener = (message: ChatMessage) => void;
-type StatusListener = (state: ConnectionState) => void;
+type StatusListener = (status: ConnectionStatus) => void;
 
 class ChatService {
   private socket?: WebSocket;
+  private target?: { tableId: string; token: string };
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private attempt = 0;
+  private status: ConnectionStatus = { state: 'DESCONECTADO', attempt: 0 };
   private messageListeners = new Set<MessageListener>();
   private statusListeners = new Set<StatusListener>();
 
@@ -23,21 +39,65 @@ class ChatService {
 
   onStatusChange(listener: StatusListener): () => void {
     this.statusListeners.add(listener);
+    listener(this.status);
     return () => this.statusListeners.delete(listener);
   }
 
   connect(tableId: string, token: string): void {
     this.disconnect();
-    this.socket = new WebSocket(`${WS_BASE_URL}/mesas/${tableId}`, [AUTH_PROTOCOL, token]);
+    this.target = { tableId, token };
+    this.attempt = 0;
+    window.addEventListener('online', this.handleOnline);
+    this.open('CONECTANDO');
+  }
 
-    this.socket.onopen = () => this.statusListeners.forEach((fn) => fn('CONECTADO'));
-    this.socket.onclose = () => this.statusListeners.forEach((fn) => fn('DESCONECTADO'));
-    this.socket.onerror = () => this.statusListeners.forEach((fn) => fn('ERRO'));
+  reconnectNow(): void {
+    if (!this.target || this.socket || this.status.state !== 'RECONECTANDO') return;
+    clearTimeout(this.reconnectTimer);
+    this.open('RECONECTANDO');
+  }
 
-    this.socket.onmessage = (event: MessageEvent<string>) => {
+  private open(state: ConnectionState): void {
+    if (!this.target) return;
+    this.setStatus(state, this.attempt);
+
+    const socket = new WebSocket(`${WS_BASE_URL}/mesas/${this.target.tableId}`, [AUTH_PROTOCOL, this.target.token]);
+    this.socket = socket;
+
+    socket.onopen = () => {
+      this.attempt = 0;
+      this.setStatus('CONECTADO', 0);
+    };
+
+    socket.onclose = (event: CloseEvent) => {
+      if (this.socket !== socket) return;
+      this.socket = undefined;
+      this.handleClose(event.code);
+    };
+
+    socket.onmessage = (event: MessageEvent<string>) => {
       const message: ChatMessage = JSON.parse(event.data);
       this.messageListeners.forEach((fn) => fn(message));
     };
+  }
+
+  private handleClose(code: number): void {
+    if (FINAL_CLOSE_CODES.has(code) || this.attempt >= MAX_RECONNECT_ATTEMPTS) {
+      this.setStatus('DESCONECTADO', this.attempt);
+      return;
+    }
+
+    const delay = RECONNECT_DELAYS_MS[Math.min(this.attempt, RECONNECT_DELAYS_MS.length - 1)];
+    this.attempt += 1;
+    this.setStatus('RECONECTANDO', this.attempt);
+    this.reconnectTimer = setTimeout(() => this.open('RECONECTANDO'), delay);
+  }
+
+  private handleOnline = () => this.reconnectNow();
+
+  private setStatus(state: ConnectionState, attempt: number): void {
+    this.status = { state, attempt };
+    this.statusListeners.forEach((fn) => fn(this.status));
   }
 
   /** Envia texto puro; o backend detecta @menção e aciona a IA do NPC quando aplicável */
@@ -78,8 +138,13 @@ class ChatService {
   }
 
   disconnect(): void {
-    this.socket?.close();
+    clearTimeout(this.reconnectTimer);
+    window.removeEventListener('online', this.handleOnline);
+    this.target = undefined;
+    const socket = this.socket;
     this.socket = undefined;
+    socket?.close();
+    this.setStatus('DESCONECTADO', 0);
   }
 }
 

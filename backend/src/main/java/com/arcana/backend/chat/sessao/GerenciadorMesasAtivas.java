@@ -5,6 +5,8 @@ import com.arcana.backend.table.SessoesAtivasDeMesa;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +45,19 @@ public class GerenciadorMesasAtivas implements SessoesAtivasDeMesa {
             return mesa;
         });
         return Optional.ofNullable(saida[0]);
+    }
+
+    public List<WebSocketSession> desconectarUsuario(Long mesaId, Long userId) {
+        List<WebSocketSession> removidas = new ArrayList<>();
+        mesas.computeIfPresent(mesaId, (id, mesa) -> {
+            removidas.addAll(mesa.removerConexoesDoUsuario(userId));
+            if (mesa.vazia()) {
+                mesa.cancelarEncerramento();
+                return null;
+            }
+            return mesa;
+        });
+        return removidas;
     }
 
     public Optional<MesaAtiva> encerrar(Long mesaId) {

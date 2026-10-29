@@ -116,7 +116,10 @@ public class PersonagemService {
         }
 
         // Perícias
-        personagem.setSkills(dto.skills() != null ? dto.skills() : List.of());
+        personagem.getSkills().clear();
+        if (dto.skills() != null) {
+            personagem.getSkills().addAll(dto.skills());
+        }
 
         // Magias — substitui a lista inteira
         personagem.getSpells().clear();

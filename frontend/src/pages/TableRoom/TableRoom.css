@@ -77,6 +77,15 @@
 .request-actions { display: flex; gap: 0.35rem; }
 .request-actions .btn,
 .participant-item .btn { padding: 0.3em 0.65em; font-size: 0.8rem; }
+.participant-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+.participants-count {
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--parchment-dim);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.leave-table { width: 100%; margin-top: 0.5rem; }
 
 .presence-dot {
   display: inline-block;
@@ -143,8 +152,24 @@
   letter-spacing: 0.06em;
 }
 .conn--conectado { color: var(--ok); }
-.conn--desconectado { color: var(--parchment-dim); }
-.conn--erro { color: var(--seal); }
+.conn--conectando,
+.conn--reconectando { color: var(--ember-bright); }
+.conn--desconectado { color: var(--seal); }
+
+.connection-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.85rem;
+}
+.connection-banner .btn { padding: 0.3em 0.7em; font-size: 0.8rem; }
+.connection-banner--reconnecting {
+  background: rgba(201, 150, 47, 0.1);
+  border-bottom: 1px solid var(--ember-bright);
+  color: var(--ember-bright);
+}
 
 .section-title {
   font-size: 0.85rem;
