@@ -3,11 +3,16 @@ package com.arcana.backend.config.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 
@@ -72,9 +77,37 @@ public class GlobalExceptionHandler {
                         detalhes));
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleRotaInexistente(
+            NoResourceFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "Rota não encontrada.", request);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMetodoNaoSuportado(
+            HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "Método " + ex.getMethod() + " não suportado nesta rota.", request);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleCorpoIlegivel(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Corpo da requisição ausente ou inválido.", request);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleParametroInvalido(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Parâmetro inválido: " + ex.getName() + ".", request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGenerico(
             Exception ex, HttpServletRequest request) {
+        if (ex instanceof ErrorResponse erroDoFramework && erroDoFramework.getStatusCode().is4xxClientError()) {
+            HttpStatus status = HttpStatus.valueOf(erroDoFramework.getStatusCode().value());
+            return build(status, status.getReasonPhrase(), request);
+        }
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno no servidor.", request);
     }
 

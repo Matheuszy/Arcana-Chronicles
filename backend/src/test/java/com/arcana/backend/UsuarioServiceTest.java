@@ -5,6 +5,7 @@ import com.arcana.backend.user.dto.request.LoginRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.dto.response.LoginResponseDto;
 import com.arcana.backend.user.dto.response.UsuarioResponseDto;
+import com.arcana.backend.user.model.PapelUsuario;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import com.arcana.backend.user.service.UsuarioService;
@@ -39,7 +40,7 @@ class UsuarioServiceTest {
 
     @Test
     void deveCadastrarUsuario() {
-        UsuarioRequestDto dto = new UsuarioRequestDto("joao", "joao@gmail.com", "12334");
+        UsuarioRequestDto dto = new UsuarioRequestDto("joao", "joao@gmail.com", "12334", PapelUsuario.JOGADOR);
         Usuario newUser = new Usuario("joao", "joao@gmail.com", "encodedPassword");
 
         when(passwordEncoder.encode("12334")).thenReturn("encodedPassword");
@@ -55,8 +56,20 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void deveGravarPapelEscolhidoNoCadastro() {
+        UsuarioRequestDto dto = new UsuarioRequestDto("gandalf", "gandalf@arcana.com", "123456", PapelUsuario.MESTRE);
+
+        when(passwordEncoder.encode("123456")).thenReturn("encodedPassword");
+        when(repository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UsuarioResponseDto dtoReturn = service.criar(dto);
+
+        assertEquals(PapelUsuario.MESTRE, dtoReturn.papel());
+    }
+
+    @Test
     void deveLancarExcecaoQuandoUsernameJaExistir() {
-        UsuarioRequestDto dto = new UsuarioRequestDto("theron", "joao@gmail.com", "12334");
+        UsuarioRequestDto dto = new UsuarioRequestDto("theron", "joao@gmail.com", "12334", PapelUsuario.JOGADOR);
         Usuario existsUser = new Usuario("theron", "joao@gmail.com", "12334");
 
         when(repository.findByUsername(dto.username())).thenReturn(Optional.of(existsUser));
@@ -72,7 +85,7 @@ class UsuarioServiceTest {
     @Test
     void deveAutenticarELogarUsuarioComTokenJwt() {
         LoginRequestDto loginDto = new LoginRequestDto("joao", "12334");
-        Usuario user = new Usuario("joao", "joao@gmail.com", "encodedPassword");
+        Usuario user = new Usuario("joao", "joao@gmail.com", "encodedPassword", PapelUsuario.MESTRE);
         user.setId(1L);
 
         when(repository.findByUsername("joao")).thenReturn(Optional.of(user));
@@ -85,6 +98,7 @@ class UsuarioServiceTest {
         assertEquals("joao", loginResponse.username());
         assertEquals("mocked-jwt-token", loginResponse.token());
         assertEquals(1L, loginResponse.id());
+        assertEquals(PapelUsuario.MESTRE, loginResponse.papel());
     }
 
     @Test
@@ -122,7 +136,7 @@ class UsuarioServiceTest {
 
     @Test
     void deveNegarAtualizarDadosDeOutroUsuario() {
-        UsuarioRequestDto dto = new UsuarioRequestDto("joao", "joao@gmail.com", "12334");
+        UsuarioRequestDto dto = new UsuarioRequestDto("joao", "joao@gmail.com", "12334", PapelUsuario.JOGADOR);
 
         assertThrows(AccessDeniedException.class, () -> service.atualizar(1L, dto, 2L));
         verify(repository, never()).findById(any());

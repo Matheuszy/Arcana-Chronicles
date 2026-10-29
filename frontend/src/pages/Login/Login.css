@@ -103,6 +103,12 @@
   box-shadow: 0 0 0 3px rgba(91, 75, 158, 0.2);
 }
 
+.role-hint {
+  font-size: 0.8rem;
+  color: var(--parchment-dim);
+  margin: 0.5rem 0 0;
+}
+
 .role-pill--mestre:hover { border-color: var(--ember); }
 .role-pill--mestre.active {
   border-color: var(--ember);

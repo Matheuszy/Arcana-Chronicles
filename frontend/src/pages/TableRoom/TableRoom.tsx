@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { useSession } from '../../context/SessionContext';
 import { tableService } from '../../services/tableService';
 import { characterService } from '../../services/characterService';
@@ -10,6 +10,8 @@ import { Character, Attributes } from '../../types/character';
 import { ChatMessage, RollRequest } from '../../types/chat';
 import DiceRoller from './DiceRoller';
 import DiceRollMessage from './DiceRollMessage';
+import JoinRequestsPanel from './JoinRequestsPanel';
+import ParticipantsPanel from './ParticipantsPanel';
 import './TableRoom.css';
 
 const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
@@ -23,24 +25,45 @@ const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
 
 export default function TableRoom() {
   const { id } = useParams();
-  const { role, displayName } = useSession();
+  const { userId, displayName } = useSession();
   const authorId = useMemo(() => displayName || 'anônimo', [displayName]);
 
   const [table, setTable] = useState<GameTable | null>(null);
+  const [tableError, setTableError] = useState<string | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
-  const [activeCharacterId, setActiveCharacterId] = useState<string>('');
+  const [characterError, setCharacterError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<ConnectionState>('DESCONECTADO');
   const [draft, setDraft] = useState('');
   const [composerError, setComposerError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const activeCharacter = characters.find((c) => c.id === activeCharacterId);
+  const me = table?.participants.find((p) => String(p.userId) === String(userId));
+  const isParticipant = Boolean(me);
+  const isMaster = table !== null && String(table.masterId) === String(userId);
+  const activeCharacterId = me?.characterId ? String(me.characterId) : '';
+  const activeCharacter = characters.find((c) => String(c.id) === activeCharacterId);
+
+  const loadTable = useCallback(() => {
+    if (!id) return;
+    tableService
+      .getById(id)
+      .then((loaded) => {
+        setTable(loaded);
+        setTableError(null);
+      })
+      .catch((e: unknown) => setTableError(e instanceof Error ? e.message : 'Erro ao carregar a mesa.'));
+  }, [id]);
+
+  useEffect(loadTable, [loadTable]);
 
   useEffect(() => {
-    if (!id) return;
-    tableService.getById(id).then(setTable).catch(() => {});
+    if (!isParticipant || isMaster) return;
     characterService.list('PLAYER').then(setCharacters).catch(() => {});
+  }, [isParticipant, isMaster]);
+
+  useEffect(() => {
+    if (!id || !isParticipant) return;
 
     chatService.connect(id);
     const offMessage = chatService.onMessage((msg) => setMessages((prev) => [...prev, msg]));
@@ -51,7 +74,17 @@ export default function TableRoom() {
       offStatus();
       chatService.disconnect();
     };
-  }, [id]);
+  }, [id, isParticipant]);
+
+  const changeCharacter = async (characterId: string) => {
+    if (!id) return;
+    setCharacterError(null);
+    try {
+      setTable(await tableService.changeCharacter(id, characterId || undefined));
+    } catch (e: unknown) {
+      setCharacterError(e instanceof Error ? e.message : 'Erro ao trocar de personagem.');
+    }
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -87,20 +120,50 @@ export default function TableRoom() {
     sendRoll(diceService.attributeCheckRequest(activeCharacter.attributes, key));
   };
 
+  if (tableError) {
+    return (
+      <section className="room-blocked card">
+        <h2>Não foi possível abrir a mesa</h2>
+        <p className="muted">{tableError}</p>
+        <Link className="btn btn-ghost" to="/mesas">Voltar para as mesas</Link>
+      </section>
+    );
+  }
+
+  if (!table) {
+    return (
+      <section className="room-blocked card">
+        <p className="muted">Carregando mesa...</p>
+      </section>
+    );
+  }
+
+  if (!isParticipant) {
+    return (
+      <section className="room-blocked card">
+        <h2>{table.name}</h2>
+        <p className="muted">
+          Você ainda não participa desta mesa. Peça para entrar na lista de mesas e aguarde o mestre aceitar.
+        </p>
+        <Link className="btn btn-ghost" to="/mesas">Voltar para as mesas</Link>
+      </section>
+    );
+  }
+
   return (
     <section className="room">
       <aside className="room-side card">
-        <h2>{table?.name ?? 'Carregando mesa...'}</h2>
-        <p className="muted">{table?.description}</p>
+        <h2>{table.name}</h2>
+        <p className="muted">{table.description}</p>
         <p className={`conn conn--${status.toLowerCase()}`}>● {status.toLowerCase()}</p>
 
-        {role === 'JOGADOR' && (
+        {!isMaster && (
           <div className="field">
-            <label htmlFor="activeCharacter">Seu personagem</label>
+            <label htmlFor="activeCharacter">Seu personagem nesta mesa</label>
             <select
               id="activeCharacter"
               value={activeCharacterId}
-              onChange={(e) => setActiveCharacterId(e.target.value)}
+              onChange={(e) => changeCharacter(e.target.value)}
             >
               <option value="">Selecione...</option>
               {characters.map((c) => (
@@ -109,7 +172,14 @@ export default function TableRoom() {
                 </option>
               ))}
             </select>
+            {characterError && <p className="roll-error">{characterError}</p>}
           </div>
+        )}
+
+        {isMaster && id && <JoinRequestsPanel tableId={id} onAccepted={loadTable} />}
+
+        {id && (
+          <ParticipantsPanel tableId={id} participants={table.participants} canViewSheets={isMaster} />
         )}
 
         <h3 className="section-title">Rolar dados</h3>

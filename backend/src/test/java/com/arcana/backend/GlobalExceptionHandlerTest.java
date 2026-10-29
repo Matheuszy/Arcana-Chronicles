@@ -10,8 +10,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -61,6 +67,38 @@ class GlobalExceptionHandlerTest {
                 new CredenciaisInvalidasException("Usuário ou senha inválidos."), request);
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    }
+
+    @Test
+    void deveRetornar404ParaRotaInexistente() {
+        var response = handler.handleRotaInexistente(
+                new NoResourceFoundException(HttpMethod.POST, "/api/tables/1/entrar", "api/tables/1/entrar"), request);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void deveRetornar405ParaMetodoNaoSuportado() {
+        var response = handler.handleMetodoNaoSuportado(
+                new HttpRequestMethodNotSupportedException("PUT"), request);
+
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED, response.getStatusCode());
+    }
+
+    @Test
+    void deveRetornar400ParaCorpoInvalido() {
+        var response = handler.handleCorpoIlegivel(
+                new HttpMessageNotReadableException("JSON inválido", new MockHttpInputMessage(new byte[0])), request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void deveManterStatusDeErroDoClienteVindoDoFramework() {
+        var response = handler.handleGenerico(
+                new HttpMediaTypeNotSupportedException("text/plain"), request);
+
+        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, response.getStatusCode());
     }
 
     @Test
