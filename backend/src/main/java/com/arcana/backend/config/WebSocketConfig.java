@@ -10,7 +10,8 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
  * Registra o handler WebSocket na rota que o frontend usa:
  * ws://localhost:8080/ws/mesas/{tableId}
  *
- * allowedOrigins: liberado para o Vite em dev (porta 5173).
+ * allowedOrigins: liberado para o Vite em dev (porta 5173) e para o
+ * frontend servido via Docker/Nginx (porta 4200).
  * Em produção, substituir pelo domínio real.
  */
 @Configuration
@@ -27,6 +28,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry
             .addHandler(mesaChatHandler, "/ws/mesas/*")
-            .setAllowedOrigins("http://localhost:5173");
+            .setAllowedOrigins("http://localhost:5173", "http://localhost:4200");
     }
 }
