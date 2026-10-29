@@ -97,19 +97,151 @@
   align-self: center;
 }
 
-.roll {
+.roll-expr { color: var(--parchment-dim); font-size: 0.8rem; }
+.roll-total { color: var(--ember-bright); font-weight: 700; font-size: 1.1rem; }
+
+.die-button--active {
+  border-color: var(--ember);
+  color: var(--ember-bright);
+}
+
+.roll-hint { font-size: 0.78rem; margin: 0.25rem 0 0; }
+.roll-hint code { font-family: var(--font-mono); color: var(--parchment); }
+
+.roll-panel {
+  margin-top: 0.6rem;
+  padding: 0.75rem;
+  background: var(--ink-800);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-md);
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
   gap: 0.6rem;
+}
+.roll-panel-title {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--ember-bright);
+}
+.roll-panel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.roll-panel-row input { width: 100%; }
+.roll-modes { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.roll-mode { padding: 0.35em 0.6em; font-size: 0.78rem; }
+.roll-mode--active {
+  border-color: var(--arcane-bright);
+  color: var(--arcane-bright);
+}
+.roll-panel-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+.roll-error { color: var(--seal); font-size: 0.82rem; margin: 0; }
+.composer-error { padding: 0 1.25rem; }
+
+.dice-roll {
   font-family: var(--font-mono);
   background: var(--ink-800);
   border: 1px solid var(--ink-700);
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.9rem;
+  padding: 0.6rem 0.9rem;
+  min-width: 220px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
-.roll-expr { color: var(--parchment-dim); font-size: 0.8rem; }
-.roll-breakdown { color: var(--parchment-dim); font-size: 0.85rem; }
-.roll-total { color: var(--ember-bright); font-weight: 700; font-size: 1.1rem; }
+.dice-roll-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.45rem;
+}
+.roll-mode-tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--arcane-bright);
+  border: 1px solid var(--arcane);
+  border-radius: var(--radius-sm);
+  padding: 0 0.35em;
+}
+.dice-roll-body {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.dice-faces { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.die-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  height: 2.1rem;
+  padding: 0 0.3rem;
+  border-radius: var(--radius-sm);
+  background: var(--parchment);
+  color: #1a1410;
+  font-weight: 700;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.25);
+}
+.die-face[data-sides='20'] { clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); min-width: 2.4rem; height: 2.4rem; }
+.die-face[data-sides='4'] { clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 0.7rem; min-width: 2.4rem; height: 2.4rem; font-size: 0.8rem; }
+.die-face[data-sides='8'] { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); min-width: 2.4rem; height: 2.4rem; }
+.die-face--descartado {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+.dice-modifier, .dice-equals { color: var(--parchment-dim); }
+.dice-roll .roll-total { font-size: 1.35rem; }
+
+.dice-roll--rolando .die-face {
+  animation: die-tumble 0.18s ease-in-out infinite alternate;
+}
+.dice-roll--revelado .die-face {
+  animation: die-land 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.dice-roll--revelado .roll-total {
+  animation: total-pop 0.4s ease-out;
+}
+
+.dice-roll--critico {
+  border-color: var(--ember);
+  box-shadow: 0 0 18px rgba(230, 184, 89, 0.45);
+}
+.dice-roll--critico .die-face:not(.die-face--descartado) { background: var(--ember-bright); }
+.dice-roll--falha {
+  border-color: var(--seal);
+  box-shadow: 0 0 18px rgba(140, 59, 59, 0.5);
+}
+.dice-roll--falha .die-face:not(.die-face--descartado) { background: #c96b6b; }
+.dice-outcome {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dice-roll--critico .dice-outcome { color: var(--ember-bright); }
+.dice-roll--falha .dice-outcome { color: #c96b6b; }
+
+@keyframes die-tumble {
+  from { transform: rotate(-14deg) translateY(-2px) scale(0.95); }
+  to { transform: rotate(14deg) translateY(2px) scale(1.05); }
+}
+@keyframes die-land {
+  0% { transform: scale(1.3) rotate(-8deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes total-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-roll--rolando .die-face,
+  .dice-roll--revelado .die-face,
+  .dice-roll--revelado .roll-total { animation: none; }
+}
 
 .composer {
   display: flex;
