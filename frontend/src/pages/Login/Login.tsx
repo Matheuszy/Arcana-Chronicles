@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../../services/authService';
-import { useSession, UserRole } from '../../context/SessionContext';
+import { AccountRole, authService } from '../../services/authService';
+import { useSession } from '../../context/SessionContext';
 import './Login.css';
 
 type Mode = 'login' | 'register';
@@ -14,7 +14,7 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('JOGADOR');
+  const [role, setRole] = useState<AccountRole>('JOGADOR');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -31,14 +31,11 @@ export default function Login() {
 
     setLoading(true);
     try {
-      if (mode === 'login') {
-        const res = await authService.login(username.trim(), password);
-        chooseRole(role, res.username, res.id, res.token);
-      } else {
-        await authService.register(username.trim(), email.trim(), password);
-        const res = await authService.login(username.trim(), password);
-        chooseRole(role, res.username, res.id, res.token);
+      if (mode === 'register') {
+        await authService.register(username.trim(), email.trim(), password, role);
       }
+      const res = await authService.login(username.trim(), password);
+      chooseRole(res.papel, res.username, res.id, res.token);
       navigate('/mesas');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro ao conectar com o servidor.');
@@ -116,9 +113,9 @@ export default function Login() {
             />
           </div>
 
-          {/* Papel */}
+          {mode === 'register' && (
           <div className="field">
-            <label>Seu papel nesta sessão</label>
+            <label>Tipo de conta</label>
             <div className="role-pills">
               <button
                 type="button"
@@ -135,7 +132,11 @@ export default function Login() {
                 ☾ Mestre
               </button>
             </div>
+            <p className="role-hint">
+              O tipo de conta não pode ser alterado depois. Para jogar com outro papel, crie outra conta.
+            </p>
           </div>
+          )}
 
           {error && <p className="login-error">{error}</p>}
 

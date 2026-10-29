@@ -73,3 +73,20 @@
 .table-card h3 { font-size: 1.2rem; margin: 0; }
 .table-card .desc { color: var(--parchment-dim); font-size: 0.88rem; min-height: 2.6em; }
 .table-card .master { font-size: 0.8rem; color: var(--parchment-dim); }
+
+.join-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.join-panel label { font-size: 0.8rem; color: var(--parchment-dim); }
+
+.join-note { font-size: 0.85rem; margin: 0; }
+.join-note--pending { color: var(--ember-bright); }
+.join-note--refused { color: var(--seal); }
+
+.join-error {
+  font-size: 0.82rem;
+  color: var(--seal);
+  margin: 0;
+}

@@ -1,5 +1,6 @@
 package com.arcana.backend.table.service;
 
+import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
@@ -7,14 +8,21 @@ import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaResponseDto;
+import com.arcana.backend.table.SolicitacaoEntradaResponseDto;
 import com.arcana.backend.table.model.Mesa;
 import com.arcana.backend.table.model.Participante;
+import com.arcana.backend.table.model.SolicitacaoEntrada;
 import com.arcana.backend.table.model.StatusMesa;
+import com.arcana.backend.table.model.StatusSolicitacao;
 import com.arcana.backend.table.repository.MesaRepository;
+import com.arcana.backend.table.repository.SolicitacaoEntradaRepository;
+import com.arcana.backend.user.model.PapelUsuario;
 import jakarta.transaction.Transactional;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -22,10 +30,17 @@ public class MesaService {
 
     private final MesaRepository mesaRepository;
     private final PersonagemRepository personagemRepository;
+    private final SolicitacaoEntradaRepository solicitacaoRepository;
+    private final Clock clock;
 
-    public MesaService(MesaRepository mesaRepository, PersonagemRepository personagemRepository) {
+    public MesaService(MesaRepository mesaRepository,
+                       PersonagemRepository personagemRepository,
+                       SolicitacaoEntradaRepository solicitacaoRepository,
+                       Clock clock) {
         this.mesaRepository = mesaRepository;
         this.personagemRepository = personagemRepository;
+        this.solicitacaoRepository = solicitacaoRepository;
+        this.clock = clock;
     }
 
     /** Lista todas as mesas (frontend usa GET /api/tables sem filtro) */
@@ -44,7 +59,11 @@ public class MesaService {
 
     /** Cria uma nova mesa — o mestre entra automaticamente como participante */
     @Transactional
-    public MesaResponseDto criar(MesaRequestDto dto, Long masterId, String masterName) {
+    public MesaResponseDto criar(MesaRequestDto dto, Long masterId, String masterName, PapelUsuario papel) {
+        if (papel != PapelUsuario.MESTRE) {
+            throw new AccessDeniedException("Apenas contas de mestre podem criar mesas.");
+        }
+
         Mesa mesa = new Mesa();
         mesa.setName(dto.name());
         mesa.setDescription(dto.description());
@@ -59,35 +78,117 @@ public class MesaService {
         return MesaResponseDto.from(mesaRepository.save(mesa));
     }
 
-    /**
-     * Jogador entra na mesa — endpoint POST /api/tables/{id}/entrar
-     * Evita duplicatas: se o usuário já estiver na mesa, apenas atualiza o personagem.
-     */
     @Transactional
-    public MesaResponseDto entrar(Long mesaId, Long userId, String displayName, Long characterId) {
+    public SolicitacaoEntradaResponseDto solicitarEntrada(
+            Long mesaId, Long userId, String displayName, PapelUsuario papel, Long characterId) {
+
+        if (papel != PapelUsuario.JOGADOR) {
+            throw new AccessDeniedException("Contas de mestre não entram em mesas como jogador.");
+        }
+
         Mesa mesa = findOrThrow(mesaId);
 
-        boolean jaParticipa = mesa.getParticipants().stream()
-                .anyMatch(p -> p.getUserId().equals(userId));
+        if (participaDaMesa(mesa, userId)) {
+            throw new RegraDeNegocioException("Você já participa desta mesa.");
+        }
 
-        if (!jaParticipa && mesa.getStatus() != StatusMesa.ABERTA) {
+        if (mesa.getStatus() != StatusMesa.ABERTA) {
             throw new RegraDeNegocioException("A mesa não está aberta para novos jogadores.");
         }
+
+        if (solicitacaoRepository.existsByMesaIdAndUserIdAndStatus(mesaId, userId, StatusSolicitacao.PENDENTE)) {
+            throw new RegraDeNegocioException("Você já tem uma solicitação pendente nesta mesa.");
+        }
+
+        validarEsperaAposRecusa(mesaId, userId);
+        validarPersonagemProprioEJogavel(characterId, userId);
+
+        SolicitacaoEntrada solicitacao = new SolicitacaoEntrada(mesaId, userId, displayName, characterId);
+        return paraResposta(solicitacaoRepository.save(solicitacao));
+    }
+
+    public SolicitacaoEntradaResponseDto buscarMinhaSolicitacao(Long mesaId, Long userId) {
+        findOrThrow(mesaId);
+        return solicitacaoRepository.findFirstByMesaIdAndUserIdOrderByCreatedAtDesc(mesaId, userId)
+                .map(this::paraResposta)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Nenhuma solicitação de entrada nesta mesa."));
+    }
+
+    public List<SolicitacaoEntradaResponseDto> listarSolicitacoesPendentes(Long mesaId, Long masterId) {
+        Mesa mesa = findOrThrow(mesaId);
+        validarMestreDaMesa(mesa, masterId, "Apenas o mestre pode ver as solicitações de entrada.");
+
+        return solicitacaoRepository.findByMesaIdAndStatusOrderByCreatedAtAsc(mesaId, StatusSolicitacao.PENDENTE)
+                .stream()
+                .map(this::paraResposta)
+                .toList();
+    }
+
+    @Transactional
+    public SolicitacaoEntradaResponseDto aceitarSolicitacao(Long mesaId, Long solicitacaoId, Long masterId) {
+        Mesa mesa = findOrThrow(mesaId);
+        validarMestreDaMesa(mesa, masterId, "Apenas o mestre pode aceitar solicitações de entrada.");
+        SolicitacaoEntrada solicitacao = buscarSolicitacaoPendenteDaMesa(mesaId, solicitacaoId);
+
+        if (mesa.getStatus() != StatusMesa.ABERTA) {
+            throw new RegraDeNegocioException("A mesa não está aberta para novos jogadores.");
+        }
+
+        Long characterId = solicitacao.getCharacterId();
+        if (characterId != null) {
+            validarPersonagemProprioEJogavel(characterId, solicitacao.getUserId());
+        }
+
+        if (!participaDaMesa(mesa, solicitacao.getUserId())) {
+            mesa.getParticipants().add(new Participante(
+                    solicitacao.getUserId(), solicitacao.getDisplayName(), "JOGADOR", characterId));
+            mesaRepository.save(mesa);
+        }
+
+        return decidir(solicitacao, StatusSolicitacao.ACEITA);
+    }
+
+    @Transactional
+    public SolicitacaoEntradaResponseDto recusarSolicitacao(Long mesaId, Long solicitacaoId, Long masterId) {
+        Mesa mesa = findOrThrow(mesaId);
+        validarMestreDaMesa(mesa, masterId, "Apenas o mestre pode recusar solicitações de entrada.");
+        SolicitacaoEntrada solicitacao = buscarSolicitacaoPendenteDaMesa(mesaId, solicitacaoId);
+
+        return decidir(solicitacao, StatusSolicitacao.RECUSADA);
+    }
+
+    public PersonagemResponseDto buscarFichaDeParticipante(Long mesaId, Long characterId, Long masterId) {
+        Mesa mesa = findOrThrow(mesaId);
+        validarMestreDaMesa(mesa, masterId, "Apenas o mestre da mesa pode ver fichas de outros participantes.");
+
+        Participante participante = mesa.getParticipants().stream()
+                .filter(p -> characterId.equals(p.getCharacterId()))
+                .findFirst()
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Nenhum participante desta mesa usa o personagem " + characterId + "."));
+
+        Personagem personagem = personagemRepository.findById(characterId)
+                .filter(p -> p.getOwner().getId().equals(participante.getUserId()))
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Personagem não encontrado: " + characterId));
+
+        return PersonagemResponseDto.from(personagem);
+    }
+
+    @Transactional
+    public MesaResponseDto trocarPersonagem(Long mesaId, Long userId, Long characterId) {
+        Mesa mesa = findOrThrow(mesaId);
+
+        Participante participante = mesa.getParticipants().stream()
+                .filter(p -> p.getUserId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new RegraDeNegocioException(
+                        "Você ainda não participa desta mesa. Envie uma solicitação de entrada."));
 
         if (characterId != null) {
             validarPersonagemProprioEJogavel(characterId, userId);
         }
 
-        if (jaParticipa) {
-            mesa.getParticipants().stream()
-                    .filter(p -> p.getUserId().equals(userId))
-                    .findFirst()
-                    .ifPresent(p -> p.setCharacterId(characterId));
-        } else {
-            mesa.getParticipants().add(
-                    new Participante(userId, displayName, "JOGADOR", characterId));
-        }
-
+        participante.setCharacterId(characterId);
         return MesaResponseDto.from(mesaRepository.save(mesa));
     }
 
@@ -165,6 +266,55 @@ public class MesaService {
     private Mesa findOrThrow(Long id) {
         return mesaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Mesa não encontrada: " + id));
+    }
+
+    private void validarMestreDaMesa(Mesa mesa, Long userId, String mensagem) {
+        if (!mesa.getMasterId().equals(userId)) {
+            throw new AccessDeniedException(mensagem);
+        }
+    }
+
+    private SolicitacaoEntrada buscarSolicitacaoPendenteDaMesa(Long mesaId, Long solicitacaoId) {
+        SolicitacaoEntrada solicitacao = solicitacaoRepository.findById(solicitacaoId)
+                .filter(s -> s.getMesaId().equals(mesaId))
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Solicitação não encontrada nesta mesa: " + solicitacaoId));
+
+        if (solicitacao.getStatus() != StatusSolicitacao.PENDENTE) {
+            throw new RegraDeNegocioException("Esta solicitação já foi decidida.");
+        }
+
+        return solicitacao;
+    }
+
+    private SolicitacaoEntradaResponseDto decidir(SolicitacaoEntrada solicitacao, StatusSolicitacao decisao) {
+        solicitacao.setStatus(decisao);
+        solicitacao.setDecidedAt(agora());
+        return paraResposta(solicitacaoRepository.save(solicitacao));
+    }
+
+    private void validarEsperaAposRecusa(Long mesaId, Long userId) {
+        solicitacaoRepository.findFirstByMesaIdAndUserIdOrderByCreatedAtDesc(mesaId, userId)
+                .map(ultima -> ultima.tempoAteNovaSolicitacao(agora()))
+                .filter(restante -> !restante.isZero())
+                .ifPresent(restante -> {
+                    long minutos = Math.max(1, (restante.toSeconds() + 59) / 60);
+                    throw new RegraDeNegocioException(
+                            "Sua solicitação foi recusada. Você poderá solicitar novamente em "
+                                    + minutos + (minutos == 1 ? " minuto." : " minutos."));
+                });
+    }
+
+    private SolicitacaoEntradaResponseDto paraResposta(SolicitacaoEntrada solicitacao) {
+        return SolicitacaoEntradaResponseDto.from(solicitacao, agora());
+    }
+
+    private LocalDateTime agora() {
+        return LocalDateTime.now(clock);
+    }
+
+    private boolean participaDaMesa(Mesa mesa, Long userId) {
+        return mesa.getParticipants().stream().anyMatch(p -> p.getUserId().equals(userId));
     }
 
     private void validarPersonagemProprioEJogavel(Long characterId, Long userId) {

@@ -32,7 +32,11 @@ public class Usuario implements UserDetails {
     @Column(nullable = false)
     @JsonIgnore
     private String password;
-    
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PapelUsuario papel = PapelUsuario.JOGADOR;
+
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<Personagem> personagens = new ArrayList<>();
@@ -45,9 +49,20 @@ public class Usuario implements UserDetails {
         this.password = password;
     }
 
+    public Usuario(String username, String email, String password, PapelUsuario papel) {
+        this(username, email, password);
+        this.papel = papel;
+    }
+
+    public boolean isMestre() {
+        return papel == PapelUsuario.MESTRE;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        return List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_" + papel.name()));
     }
 
     @Override

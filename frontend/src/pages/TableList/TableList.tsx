@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { tableService } from '../../services/tableService';
 import { useSession } from '../../context/SessionContext';
 import { GameTable } from '../../types/table';
+import JoinRequestPanel from './JoinRequestPanel';
 import './TableList.css';
 
 const STATUS_LABEL: Record<GameTable['status'], string> = {
@@ -12,9 +13,10 @@ const STATUS_LABEL: Record<GameTable['status'], string> = {
 };
 
 export default function TableList() {
-  const { role } = useSession();
+  const { role, userId } = useSession();
   const navigate = useNavigate();
   const [tables, setTables] = useState<GameTable[]>([]);
+  const [joiningTableId, setJoiningTableId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -48,6 +50,39 @@ export default function TableList() {
   const enterTable = (table: GameTable) => {
     if (!table.id) return;
     navigate(`/mesas/${table.id}`);
+  };
+
+  const participates = (table: GameTable) =>
+    table.participants?.some((p) => String(p.userId) === String(userId)) ?? false;
+
+  const renderAction = (table: GameTable) => {
+    if (!table.id) return null;
+
+    if (participates(table)) {
+      return (
+        <button className="btn btn-primary" onClick={() => enterTable(table)}>
+          Entrar na mesa
+        </button>
+      );
+    }
+
+    if (role === 'MESTRE') {
+      return <p className="muted join-note">Mesa de outro mestre.</p>;
+    }
+
+    if (table.status !== 'ABERTA') {
+      return <p className="muted join-note">A mesa não está aceitando novos jogadores.</p>;
+    }
+
+    if (joiningTableId === table.id) {
+      return <JoinRequestPanel tableId={table.id} />;
+    }
+
+    return (
+      <button className="btn btn-primary" onClick={() => setJoiningTableId(table.id ?? null)}>
+        Pedir para entrar
+      </button>
+    );
   };
 
   return (
@@ -112,9 +147,7 @@ export default function TableList() {
               <h3>{t.name}</h3>
               <p className="desc">{t.description || 'Sem descrição.'}</p>
               <p className="master">Mestre: {t.masterName}</p>
-              <button className="btn btn-primary" onClick={() => enterTable(t)}>
-                Entrar na mesa
-              </button>
+              {renderAction(t)}
             </article>
           ))}
         </div>

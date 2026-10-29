@@ -1,4 +1,5 @@
-import { GameTable } from '../types/table';
+import { Character } from '../types/character';
+import { GameTable, JoinRequest } from '../types/table';
 import { apiRequest } from './httpClient';
 
 const BASE_PATH = '/tables';
@@ -19,9 +20,40 @@ export const tableService = {
     });
   },
 
-  join(tableId: string, characterId?: string): Promise<GameTable> {
-    return apiRequest<GameTable>(`${BASE_PATH}/${tableId}/entrar`, {
+  requestJoin(tableId: string, characterId: string): Promise<JoinRequest> {
+    return apiRequest<JoinRequest>(`${BASE_PATH}/${tableId}/solicitacoes`, {
       method: 'POST',
+      body: JSON.stringify({ characterId }),
+    });
+  },
+
+  myJoinRequest(tableId: string): Promise<JoinRequest> {
+    return apiRequest<JoinRequest>(`${BASE_PATH}/${tableId}/solicitacoes/minha`);
+  },
+
+  pendingJoinRequests(tableId: string): Promise<JoinRequest[]> {
+    return apiRequest<JoinRequest[]>(`${BASE_PATH}/${tableId}/solicitacoes`);
+  },
+
+  acceptJoinRequest(tableId: string, requestId: number): Promise<JoinRequest> {
+    return apiRequest<JoinRequest>(`${BASE_PATH}/${tableId}/solicitacoes/${requestId}/aceitar`, {
+      method: 'POST',
+    });
+  },
+
+  rejectJoinRequest(tableId: string, requestId: number): Promise<JoinRequest> {
+    return apiRequest<JoinRequest>(`${BASE_PATH}/${tableId}/solicitacoes/${requestId}/recusar`, {
+      method: 'POST',
+    });
+  },
+
+  participantSheet(tableId: string, characterId: string): Promise<Character> {
+    return apiRequest<Character>(`${BASE_PATH}/${tableId}/fichas/${characterId}`);
+  },
+
+  changeCharacter(tableId: string, characterId?: string): Promise<GameTable> {
+    return apiRequest<GameTable>(`${BASE_PATH}/${tableId}/personagem`, {
+      method: 'PATCH',
       body: JSON.stringify({ characterId }),
     });
   },

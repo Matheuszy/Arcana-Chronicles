@@ -1,0 +1,5 @@
+ALTER TABLE usuarios
+    ADD COLUMN papel VARCHAR(20) NOT NULL DEFAULT 'JOGADOR';
+
+ALTER TABLE usuarios
+    ADD CONSTRAINT chk_usuarios_papel CHECK (papel IN ('MESTRE', 'JOGADOR'));
