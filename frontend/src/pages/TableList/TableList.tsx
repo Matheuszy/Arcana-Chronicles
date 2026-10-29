@@ -12,7 +12,7 @@ const STATUS_LABEL: Record<GameTable['status'], string> = {
 };
 
 export default function TableList() {
-  const { role, displayName } = useSession();
+  const { role } = useSession();
   const navigate = useNavigate();
   const [tables, setTables] = useState<GameTable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +36,6 @@ export default function TableList() {
     const table = await tableService.create({
       name: newName.trim(),
       description: newDescription.trim(),
-      masterName: displayName,
       status: 'ABERTA',
     });
     setCreating(false);

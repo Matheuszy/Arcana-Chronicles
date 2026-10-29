@@ -7,11 +7,13 @@ import com.arcana.backend.character.model.Magia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
+import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -53,7 +55,7 @@ public class PersonagemService {
     @Transactional
     public PersonagemResponseDto criar(PersonagemRequestDto dto, Long ownerId) {
         Usuario owner = usuarioRepositorie.findById(ownerId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + ownerId));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado: " + ownerId));
 
         Personagem personagem = new Personagem();
         mapDtoToEntity(dto, personagem);
@@ -81,10 +83,10 @@ public class PersonagemService {
 
     private Personagem findAndValidateOwner(Long id, Long ownerId) {
         Personagem personagem = personagemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Personagem não encontrado: " + id));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Personagem não encontrado: " + id));
 
         if (!personagem.getOwner().getId().equals(ownerId)) {
-            throw new RuntimeException("Acesso negado: personagem não pertence a este usuário.");
+            throw new AccessDeniedException("Personagem não pertence a este usuário.");
         }
         return personagem;
     }
