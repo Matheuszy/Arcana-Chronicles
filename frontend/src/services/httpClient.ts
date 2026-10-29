@@ -13,6 +13,23 @@ function getToken(): string | null {
   }
 }
 
+export class ApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+  }
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  const text = await response.text();
+  try {
+    const body = JSON.parse(text) as { message?: string; details?: string[] };
+    const details = body.details?.length ? ` ${body.details.join(' ')}` : '';
+    return body.message ? `${body.message}${details}` : fallback;
+  } catch {
+    return text || fallback;
+  }
+}
+
 export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
   const token = getToken();
@@ -36,13 +53,11 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
       localStorage.removeItem(STORAGE_KEY);
       window.location.href = '/login';
     }
-    const text = await response.text();
-    throw new Error(text || 'Não autorizado (sessão expirada).');
+    throw new ApiError(401, await readErrorMessage(response, 'Não autorizado (sessão expirada).'));
   }
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Erro ${response.status}`);
+    throw new ApiError(response.status, await readErrorMessage(response, `Erro ${response.status}`));
   }
 
   if (response.status === 204) {

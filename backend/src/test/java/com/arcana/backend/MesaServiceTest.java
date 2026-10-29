@@ -4,12 +4,18 @@ import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
+import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.model.Mesa;
+import com.arcana.backend.table.model.Participante;
+import com.arcana.backend.table.model.SolicitacaoEntrada;
 import com.arcana.backend.table.model.StatusMesa;
+import com.arcana.backend.table.model.StatusSolicitacao;
 import com.arcana.backend.table.repository.MesaRepository;
+import com.arcana.backend.table.repository.SolicitacaoEntradaRepository;
 import com.arcana.backend.table.service.MesaService;
+import com.arcana.backend.user.model.PapelUsuario;
 import com.arcana.backend.user.model.Usuario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +24,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.util.List;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,11 +43,104 @@ class MesaServiceTest {
     @Mock
     private PersonagemRepository personagemRepository;
 
+    @Mock
+    private SolicitacaoEntradaRepository solicitacaoRepository;
+
+    private static final LocalDateTime AGORA = LocalDateTime.of(2026, 10, 29, 15, 0);
+
     private MesaService service;
 
     @BeforeEach
     void setUp() {
-        service = new MesaService(mesaRepository, personagemRepository);
+        Clock relogio = Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
+        service = new MesaService(mesaRepository, personagemRepository, solicitacaoRepository, relogio);
+    }
+
+    private SolicitacaoEntrada solicitacaoRecusadaHa(Duration tempoDesdeARecusa) {
+        SolicitacaoEntrada solicitacao = new SolicitacaoEntrada(1L, 2L, "joao", 100L);
+        solicitacao.setStatus(StatusSolicitacao.RECUSADA);
+        solicitacao.setDecidedAt(AGORA.minus(tempoDesdeARecusa));
+        return solicitacao;
+    }
+
+    @Test
+    void deveNegarNovaSolicitacaoAntesDe15MinutosDaRecusa() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(solicitacaoRepository.findFirstByMesaIdAndUserIdOrderByCreatedAtDesc(1L, 2L))
+                .thenReturn(Optional.of(solicitacaoRecusadaHa(Duration.ofMinutes(5))));
+
+        RegraDeNegocioException erro = assertThrows(RegraDeNegocioException.class,
+                () -> service.solicitarEntrada(1L, 2L, "joao", PapelUsuario.JOGADOR, 100L));
+
+        assertTrue(erro.getMessage().contains("10 minutos"));
+        verify(solicitacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void devePermitirNovaSolicitacaoApos15MinutosDaRecusa() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(solicitacaoRepository.findFirstByMesaIdAndUserIdOrderByCreatedAtDesc(1L, 2L))
+                .thenReturn(Optional.of(solicitacaoRecusadaHa(Duration.ofMinutes(15))));
+        when(personagemRepository.findById(100L))
+                .thenReturn(Optional.of(personagemDoJogador(2L, TipoJogador.PLAYER)));
+        when(solicitacaoRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resultado = service.solicitarEntrada(1L, 2L, "joao", PapelUsuario.JOGADOR, 100L);
+
+        assertEquals(StatusSolicitacao.PENDENTE, resultado.status());
+    }
+
+    @Test
+    void deveInformarSegundosRestantesNaSolicitacaoRecusada() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(solicitacaoRepository.findFirstByMesaIdAndUserIdOrderByCreatedAtDesc(1L, 2L))
+                .thenReturn(Optional.of(solicitacaoRecusadaHa(Duration.ofMinutes(14))));
+
+        var resultado = service.buscarMinhaSolicitacao(1L, 2L);
+
+        assertEquals(60, resultado.segundosAteNovaSolicitacao());
+    }
+
+    @Test
+    void devePermitirMestreVerFichaDeParticipanteDaPropriaMesa() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(personagemRepository.findById(100L))
+                .thenReturn(Optional.of(personagemDoJogador(2L, TipoJogador.PLAYER)));
+
+        var ficha = service.buscarFichaDeParticipante(1L, 100L, 1L);
+
+        assertEquals("Thorn", ficha.name());
+    }
+
+    @Test
+    void deveNegarJogadorVerFichaDeOutroParticipante() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        mesa.getParticipants().add(new Participante(3L, "maria", "JOGADOR", 200L));
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(AccessDeniedException.class, () -> service.buscarFichaDeParticipante(1L, 100L, 3L));
+        verify(personagemRepository, never()).findById(any());
+    }
+
+    @Test
+    void deveNegarMestreVerFichaDePersonagemQueNaoEstaNaMesa() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+
+        assertThrows(RecursoNaoEncontradoException.class, () -> service.buscarFichaDeParticipante(1L, 100L, 1L));
+        verify(personagemRepository, never()).findById(any());
+    }
+
+    private Mesa mesaAbertaDoMestre(Long masterId) {
+        Mesa mesa = new Mesa();
+        mesa.setId(1L);
+        mesa.setMasterId(masterId);
+        mesa.setStatus(StatusMesa.ABERTA);
+        return mesa;
     }
 
     private Personagem personagemDoJogador(Long ownerId, TipoJogador kind) {
@@ -61,12 +165,21 @@ class MesaServiceTest {
         MesaRequestDto dto = new MesaRequestDto("Mesa dos Bravos", "Uma aventura épica");
         when(mesaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var resultado = service.criar(dto, 1L, "gandalf");
+        var resultado = service.criar(dto, 1L, "gandalf", PapelUsuario.MESTRE);
 
         assertEquals("gandalf", resultado.masterName());
         assertEquals(1L, resultado.masterId());
         assertEquals("MESTRE", resultado.participants().get(0).role());
         assertEquals("gandalf", resultado.participants().get(0).displayName());
+    }
+
+    @Test
+    void deveNegarCriacaoDeMesaPorContaDeJogador() {
+        MesaRequestDto dto = new MesaRequestDto("Mesa dos Bravos", "Uma aventura épica");
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.criar(dto, 2L, "joao", PapelUsuario.JOGADOR));
+        verify(mesaRepository, never()).save(any());
     }
 
     @Test
@@ -95,49 +208,212 @@ class MesaServiceTest {
     }
 
     @Test
-    void deveNegarEntradaDeNovoJogadorQuandoMesaNaoEstaAberta() {
-        Mesa mesa = new Mesa();
-        mesa.setId(1L);
-        mesa.setMasterId(1L);
+    void deveCriarSolicitacaoPendenteSemAdicionarParticipante() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(personagemRepository.findById(100L))
+                .thenReturn(Optional.of(personagemDoJogador(2L, TipoJogador.PLAYER)));
+        when(solicitacaoRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resultado = service.solicitarEntrada(1L, 2L, "joao", PapelUsuario.JOGADOR, 100L);
+
+        assertEquals(StatusSolicitacao.PENDENTE, resultado.status());
+        assertEquals(100L, resultado.characterId());
+        assertTrue(mesa.getParticipants().isEmpty());
+        verify(mesaRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarSolicitacaoDeContaDeMestre() {
+        assertThrows(AccessDeniedException.class,
+                () -> service.solicitarEntrada(1L, 3L, "saruman", PapelUsuario.MESTRE, 100L));
+        verify(solicitacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarSolicitacaoQuandoMesaNaoEstaAberta() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
         mesa.setStatus(StatusMesa.EM_ANDAMENTO);
 
         when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
 
         assertThrows(RegraDeNegocioException.class,
-                () -> service.entrar(1L, 2L, "joao", null));
-        verify(mesaRepository, never()).save(any());
+                () -> service.solicitarEntrada(1L, 2L, "joao", PapelUsuario.JOGADOR, 100L));
+        verify(solicitacaoRepository, never()).save(any());
     }
 
     @Test
-    void deveNegarEntradaComPersonagemDeOutroUsuario() {
-        Mesa mesa = new Mesa();
-        mesa.setId(1L);
-        mesa.setMasterId(1L);
-        mesa.setStatus(StatusMesa.ABERTA);
+    void deveNegarSolicitacaoDeQuemJaParticipa() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
 
         when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.solicitarEntrada(1L, 2L, "joao", PapelUsuario.JOGADOR, 100L));
+        verify(solicitacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarSegundaSolicitacaoEnquantoHouverUmaPendente() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(solicitacaoRepository.existsByMesaIdAndUserIdAndStatus(1L, 2L, StatusSolicitacao.PENDENTE))
+                .thenReturn(true);
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.solicitarEntrada(1L, 2L, "joao", PapelUsuario.JOGADOR, 100L));
+        verify(solicitacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarSolicitacaoComPersonagemDeOutroUsuario() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
         when(personagemRepository.findById(100L))
                 .thenReturn(Optional.of(personagemDoJogador(99L, TipoJogador.PLAYER)));
 
         assertThrows(AccessDeniedException.class,
-                () -> service.entrar(1L, 2L, "joao", 100L));
-        verify(mesaRepository, never()).save(any());
+                () -> service.solicitarEntrada(1L, 2L, "joao", PapelUsuario.JOGADOR, 100L));
+        verify(solicitacaoRepository, never()).save(any());
     }
 
     @Test
-    void deveNegarEntradaComPersonagemQueNaoEhDoTipoJogador() {
-        Mesa mesa = new Mesa();
-        mesa.setId(1L);
-        mesa.setMasterId(1L);
-        mesa.setStatus(StatusMesa.ABERTA);
-
-        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+    void deveNegarSolicitacaoComPersonagemQueNaoEhDoTipoJogador() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
         when(personagemRepository.findById(100L))
                 .thenReturn(Optional.of(personagemDoJogador(2L, TipoJogador.MONSTER)));
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.entrar(1L, 2L, "joao", 100L));
+                () -> service.solicitarEntrada(1L, 2L, "joao", PapelUsuario.JOGADOR, 100L));
+        verify(solicitacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRetornarUltimaSolicitacaoDoProprioUsuario() {
+        SolicitacaoEntrada solicitacao = new SolicitacaoEntrada(1L, 2L, "joao", 100L);
+        solicitacao.setStatus(StatusSolicitacao.RECUSADA);
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(solicitacaoRepository.findFirstByMesaIdAndUserIdOrderByCreatedAtDesc(1L, 2L))
+                .thenReturn(Optional.of(solicitacao));
+
+        var resultado = service.buscarMinhaSolicitacao(1L, 2L);
+
+        assertEquals(StatusSolicitacao.RECUSADA, resultado.status());
+    }
+
+    @Test
+    void deveNegarTrocaDePersonagemDeQuemNaoParticipa() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.trocarPersonagem(1L, 2L, 100L));
         verify(mesaRepository, never()).save(any());
+    }
+
+    private SolicitacaoEntrada solicitacaoPendente(Long mesaId) {
+        SolicitacaoEntrada solicitacao = new SolicitacaoEntrada(mesaId, 2L, "joao", 100L);
+        solicitacao.setId(50L);
+        return solicitacao;
+    }
+
+    @Test
+    void deveListarSolicitacoesPendentesParaOMestre() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(solicitacaoRepository.findByMesaIdAndStatusOrderByCreatedAtAsc(1L, StatusSolicitacao.PENDENTE))
+                .thenReturn(List.of(solicitacaoPendente(1L)));
+
+        var resultado = service.listarSolicitacoesPendentes(1L, 1L);
+
+        assertEquals(1, resultado.size());
+        assertEquals(StatusSolicitacao.PENDENTE, resultado.get(0).status());
+    }
+
+    @Test
+    void deveNegarListagemDeSolicitacoesPorQuemNaoEhMestre() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+
+        assertThrows(AccessDeniedException.class, () -> service.listarSolicitacoesPendentes(1L, 2L));
+        verify(solicitacaoRepository, never()).findByMesaIdAndStatusOrderByCreatedAtAsc(any(), any());
+    }
+
+    @Test
+    void deveAdicionarParticipanteAoAceitarSolicitacao() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(solicitacaoRepository.findById(50L)).thenReturn(Optional.of(solicitacaoPendente(1L)));
+        when(personagemRepository.findById(100L))
+                .thenReturn(Optional.of(personagemDoJogador(2L, TipoJogador.PLAYER)));
+        when(solicitacaoRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resultado = service.aceitarSolicitacao(1L, 50L, 1L);
+
+        assertEquals(StatusSolicitacao.ACEITA, resultado.status());
+        assertNotNull(resultado.decidedAt());
+        assertEquals(1, mesa.getParticipants().size());
+        assertEquals(2L, mesa.getParticipants().get(0).getUserId());
+        assertEquals(100L, mesa.getParticipants().get(0).getCharacterId());
+        verify(mesaRepository).save(mesa);
+    }
+
+    @Test
+    void deveRecusarSolicitacaoSemAdicionarParticipante() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(solicitacaoRepository.findById(50L)).thenReturn(Optional.of(solicitacaoPendente(1L)));
+        when(solicitacaoRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resultado = service.recusarSolicitacao(1L, 50L, 1L);
+
+        assertEquals(StatusSolicitacao.RECUSADA, resultado.status());
+        assertNotNull(resultado.decidedAt());
+        assertTrue(mesa.getParticipants().isEmpty());
+        verify(mesaRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarDecisaoDeSolicitacaoPorQuemNaoEhMestre() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+
+        assertThrows(AccessDeniedException.class, () -> service.aceitarSolicitacao(1L, 50L, 2L));
+        assertThrows(AccessDeniedException.class, () -> service.recusarSolicitacao(1L, 50L, 2L));
+        verify(solicitacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarDecisaoDeSolicitacaoJaDecidida() {
+        SolicitacaoEntrada solicitacao = solicitacaoPendente(1L);
+        solicitacao.setStatus(StatusSolicitacao.RECUSADA);
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(solicitacaoRepository.findById(50L)).thenReturn(Optional.of(solicitacao));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.aceitarSolicitacao(1L, 50L, 1L));
+        verify(solicitacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarDecisaoDeSolicitacaoDeOutraMesa() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(solicitacaoRepository.findById(50L)).thenReturn(Optional.of(solicitacaoPendente(9L)));
+
+        assertThrows(RecursoNaoEncontradoException.class, () -> service.aceitarSolicitacao(1L, 50L, 1L));
+        verify(solicitacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarAceiteQuandoMesaNaoEstaMaisAberta() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.setStatus(StatusMesa.EM_ANDAMENTO);
+
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(solicitacaoRepository.findById(50L)).thenReturn(Optional.of(solicitacaoPendente(1L)));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.aceitarSolicitacao(1L, 50L, 1L));
+        assertTrue(mesa.getParticipants().isEmpty());
+        verify(solicitacaoRepository, never()).save(any());
     }
 
     @Test
@@ -157,7 +433,7 @@ class MesaServiceTest {
         Mesa mesa = new Mesa();
         mesa.setId(1L);
         mesa.setMasterId(1L);
-        mesa.getParticipants().add(new com.arcana.backend.table.model.Participante(2L, "joao", "JOGADOR", null));
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", null));
 
         when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
         when(mesaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -168,18 +444,16 @@ class MesaServiceTest {
     }
 
     @Test
-    void devePermitirEntradaComPersonagemProprioDoTipoJogador() {
-        Mesa mesa = new Mesa();
-        mesa.setId(1L);
-        mesa.setMasterId(1L);
-        mesa.setStatus(StatusMesa.ABERTA);
+    void devePermitirParticipanteTrocarParaOutroPersonagemProprio() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 50L));
 
         when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
         when(personagemRepository.findById(100L))
                 .thenReturn(Optional.of(personagemDoJogador(2L, TipoJogador.PLAYER)));
         when(mesaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var resultado = service.entrar(1L, 2L, "joao", 100L);
+        var resultado = service.trocarPersonagem(1L, 2L, 100L);
 
         assertEquals(1, resultado.participants().size());
         assertEquals(100L, resultado.participants().get(0).characterId());

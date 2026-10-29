@@ -1,7 +1,10 @@
 package com.arcana.backend.table.controller;
 
+import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaResponseDto;
+import com.arcana.backend.table.SolicitacaoEntradaRequestDto;
+import com.arcana.backend.table.SolicitacaoEntradaResponseDto;
 import com.arcana.backend.table.model.StatusMesa;
 import com.arcana.backend.table.service.MesaService;
 import com.arcana.backend.user.model.Usuario;
@@ -42,21 +45,71 @@ public class MesaController {
             @AuthenticationPrincipal Usuario usuario) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mesaService.criar(dto, usuario.getId(), usuario.getUsername()));
+                .body(mesaService.criar(dto, usuario.getId(), usuario.getUsername(), usuario.getPapel()));
     }
 
-    /**
-     * POST /api/tables/{id}/entrar
-     * Body: { "characterId": 42 }  (opcional)
-     */
-    @PostMapping("/{id}/entrar")
-    public ResponseEntity<MesaResponseDto> entrar(
+    @PostMapping("/{id}/solicitacoes")
+    public ResponseEntity<SolicitacaoEntradaResponseDto> solicitarEntrada(
             @PathVariable Long id,
-            @RequestBody(required = false) EntrarRequest body,
+            @RequestBody @Valid SolicitacaoEntradaRequestDto dto,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(mesaService.solicitarEntrada(
+                        id, usuario.getId(), usuario.getUsername(), usuario.getPapel(), dto.characterId()));
+    }
+
+    @GetMapping("/{id}/solicitacoes/minha")
+    public ResponseEntity<SolicitacaoEntradaResponseDto> buscarMinhaSolicitacao(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.buscarMinhaSolicitacao(id, usuario.getId()));
+    }
+
+    @GetMapping("/{id}/solicitacoes")
+    public ResponseEntity<List<SolicitacaoEntradaResponseDto>> listarSolicitacoesPendentes(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.listarSolicitacoesPendentes(id, usuario.getId()));
+    }
+
+    @PostMapping("/{id}/solicitacoes/{solicitacaoId}/aceitar")
+    public ResponseEntity<SolicitacaoEntradaResponseDto> aceitarSolicitacao(
+            @PathVariable Long id,
+            @PathVariable Long solicitacaoId,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.aceitarSolicitacao(id, solicitacaoId, usuario.getId()));
+    }
+
+    @PostMapping("/{id}/solicitacoes/{solicitacaoId}/recusar")
+    public ResponseEntity<SolicitacaoEntradaResponseDto> recusarSolicitacao(
+            @PathVariable Long id,
+            @PathVariable Long solicitacaoId,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.recusarSolicitacao(id, solicitacaoId, usuario.getId()));
+    }
+
+    @GetMapping("/{id}/fichas/{characterId}")
+    public ResponseEntity<PersonagemResponseDto> buscarFichaDeParticipante(
+            @PathVariable Long id,
+            @PathVariable Long characterId,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.buscarFichaDeParticipante(id, characterId, usuario.getId()));
+    }
+
+    @PatchMapping("/{id}/personagem")
+    public ResponseEntity<MesaResponseDto> trocarPersonagem(
+            @PathVariable Long id,
+            @RequestBody(required = false) TrocarPersonagemRequest body,
             @AuthenticationPrincipal Usuario usuario) {
 
         Long characterId = (body != null) ? body.characterId() : null;
-        return ResponseEntity.ok(mesaService.entrar(id, usuario.getId(), usuario.getUsername(), characterId));
+        return ResponseEntity.ok(mesaService.trocarPersonagem(id, usuario.getId(), characterId));
     }
 
     /** POST /api/tables/{id}/sair */
@@ -112,7 +165,7 @@ public class MesaController {
     }
 
     // ── records de request body ──────────────────────────────────────────────
-    record EntrarRequest(Long characterId) {}
+    record TrocarPersonagemRequest(Long characterId) {}
     record StatusRequest(StatusMesa status) {}
 }
 

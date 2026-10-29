@@ -1,5 +1,7 @@
 import { API_BASE_URL } from './apiConfig';
 
+export type AccountRole = 'MESTRE' | 'JOGADOR';
+
 const BASE_URL = `${API_BASE_URL}/users`;
 
 async function handle<T>(res: Response): Promise<T> {
@@ -14,6 +16,7 @@ export interface LoginResponse {
   id: number;
   username: string;
   email: string;
+  papel: AccountRole;
   token: string;
 }
 
@@ -21,6 +24,7 @@ export interface RegisterResponse {
   id: number;
   username: string;
   email: string;
+  papel: AccountRole;
 }
 
 export const authService = {
@@ -32,11 +36,11 @@ export const authService = {
     }).then((r) => handle<LoginResponse>(r));
   },
 
-  register(username: string, email: string, password: string): Promise<RegisterResponse> {
+  register(username: string, email: string, password: string, papel: AccountRole): Promise<RegisterResponse> {
     return fetch(`${BASE_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, email, password, papel }),
     }).then((r) => handle<RegisterResponse>(r));
   },
 };

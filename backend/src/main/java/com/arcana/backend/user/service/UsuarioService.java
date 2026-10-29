@@ -38,7 +38,7 @@ public class UsuarioService {
         }
 
         String encodedPassword = passwordEncoder.encode(dto.password());
-        Usuario usuario = new Usuario(dto.username(), dto.email(), encodedPassword);
+        Usuario usuario = new Usuario(dto.username(), dto.email(), encodedPassword, dto.papel());
         return UsuarioResponseDto.from(usuarioRepositorie.save(usuario));
     }
 
@@ -54,7 +54,7 @@ public class UsuarioService {
         }
 
         String token = tokenService.gerarToken(usuario);
-        return new LoginResponseDto(usuario.getId(), usuario.getUsername(), usuario.getEmail(), token);
+        return new LoginResponseDto(usuario.getId(), usuario.getUsername(), usuario.getEmail(), usuario.getPapel(), token);
     }
 
     /** Busca dados públicos do usuário por ID */
