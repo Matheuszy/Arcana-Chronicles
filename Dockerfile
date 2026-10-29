@@ -22,9 +22,6 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 # Copia o jar gerado
 COPY --from=backend-build /app/backend/target/*.jar app.jar
 
-# Copia o arquivo .env
-COPY backend/.env .
-
 # Cria diretório para Flyway migrations
 RUN mkdir -p /app/resources/db/migration
 
