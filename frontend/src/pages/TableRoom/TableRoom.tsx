@@ -5,13 +5,15 @@ import { tableService } from '../../services/tableService';
 import { characterService } from '../../services/characterService';
 import { chatService, ConnectionState } from '../../services/chatService';
 import { diceService, isRollCommand } from '../../services/diceService';
-import { GameTable } from '../../types/table';
+import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
-import { ChatMessage, Presence, RollRequest } from '../../types/chat';
+import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
 import DiceRoller from './DiceRoller';
 import DiceRollMessage from './DiceRollMessage';
+import ImageComposer from './ImageComposer';
 import JoinRequestsPanel from './JoinRequestsPanel';
 import ParticipantsPanel from './ParticipantsPanel';
+import PrivateSheetsPanel from './PrivateSheetsPanel';
 import './TableRoom.css';
 
 const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
@@ -23,6 +25,20 @@ const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
   'carisma',
 ];
 
+const MASTER_STATUS_OPTIONS: TableStatus[] = ['ABERTA', 'EM_ANDAMENTO', 'PAUSADA'];
+
+type MessagesByChannel = Record<Channel, ChatMessage[]>;
+type UnreadByChannel = Record<Channel, number>;
+
+const EMPTY_MESSAGES: MessagesByChannel = { CONVERSA: [], ROLAGENS: [], IMAGENS: [] };
+const NO_UNREAD: UnreadByChannel = { CONVERSA: 0, ROLAGENS: 0, IMAGENS: 0 };
+
+const EMPTY_CHANNEL_TEXT: Record<Channel, string> = {
+  CONVERSA: 'A mesa está silenciosa. Diga olá para o grupo.',
+  ROLAGENS: 'Nenhuma rolagem ainda. Use o painel de dados ou digite /r 1d20+2 na conversa.',
+  IMAGENS: 'Nenhuma imagem compartilhada nesta sessão.',
+};
+
 export default function TableRoom() {
   const { id } = useParams();
   const { userId, token } = useSession();
@@ -30,12 +46,19 @@ export default function TableRoom() {
   const [table, setTable] = useState<GameTable | null>(null);
   const [tableError, setTableError] = useState<string | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
+  const [charactersLoading, setCharactersLoading] = useState(false);
+  const [charactersError, setCharactersError] = useState<string | null>(null);
   const [characterError, setCharacterError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const [messages, setMessages] = useState<MessagesByChannel>(EMPTY_MESSAGES);
+  const [activeChannel, setActiveChannel] = useState<Channel>('CONVERSA');
+  const [unread, setUnread] = useState<UnreadByChannel>(NO_UNREAD);
+  const activeChannelRef = useRef<Channel>('CONVERSA');
+  const historyIds = useRef(new Set<string>());
   const [onlineUsers, setOnlineUsers] = useState<Presence[]>([]);
   const [sessionEndedReason, setSessionEndedReason] = useState<string | null>(null);
   const [connectionAttempt, setConnectionAttempt] = useState(0);
-  const [closingError, setClosingError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionState>('DESCONECTADO');
   const [draft, setDraft] = useState('');
   const [composerError, setComposerError] = useState<string | null>(null);
@@ -46,6 +69,7 @@ export default function TableRoom() {
   const isParticipant = Boolean(me);
   const isMaster = table !== null && String(table.masterId) === String(userId);
   const isClosed = table?.status === 'ENCERRADA';
+  const isPaused = table?.status === 'PAUSADA';
   const activeCharacterId = me?.characterId ? String(me.characterId) : '';
   const activeCharacter = characters.find((c) => String(c.id) === activeCharacterId);
 
@@ -77,8 +101,14 @@ export default function TableRoom() {
   }, [onlineUsers, table, loadTable]);
 
   useEffect(() => {
-    if (!isParticipant || isMaster) return;
-    characterService.list('PLAYER').then(setCharacters).catch(() => {});
+    if (!isParticipant) return;
+    setCharactersLoading(true);
+    setCharactersError(null);
+    characterService
+      .list(isMaster ? undefined : 'PLAYER')
+      .then(setCharacters)
+      .catch((e: unknown) => setCharactersError(e instanceof Error ? e.message : 'Erro ao carregar suas fichas.'))
+      .finally(() => setCharactersLoading(false));
   }, [isParticipant, isMaster]);
 
   useEffect(() => {
@@ -88,7 +118,16 @@ export default function TableRoom() {
     chatService.connect(id, token);
     const offMessage = chatService.onMessage((msg) => {
       if (msg.type === 'HISTORICO') {
-        setMessages(msg.historico ?? []);
+        const restored: MessagesByChannel = {
+          CONVERSA: msg.historico?.CONVERSA ?? [],
+          ROLAGENS: msg.historico?.ROLAGENS ?? [],
+          IMAGENS: msg.historico?.IMAGENS ?? [],
+        };
+        historyIds.current = new Set(
+          CHANNELS.flatMap((c) => restored[c]).flatMap((m) => (m.id ? [m.id] : [])),
+        );
+        setMessages(restored);
+        setUnread(NO_UNREAD);
         setOnlineUsers(msg.presentes ?? []);
       } else if (msg.type === 'PRESENCA') {
         setOnlineUsers(msg.presentes ?? []);
@@ -96,8 +135,14 @@ export default function TableRoom() {
         setSessionEndedReason(msg.content);
         setOnlineUsers([]);
         loadTable();
+      } else if (msg.type === 'STATUS_MESA') {
+        loadTable();
       } else {
-        setMessages((prev) => [...prev, msg]);
+        const channel = msg.canal ?? 'CONVERSA';
+        setMessages((prev) => ({ ...prev, [channel]: [...prev[channel], msg] }));
+        if (channel !== activeChannelRef.current) {
+          setUnread((prev) => ({ ...prev, [channel]: prev[channel] + 1 }));
+        }
       }
     });
     const offStatus = chatService.onStatusChange(setStatus);
@@ -109,18 +154,21 @@ export default function TableRoom() {
     };
   }, [id, isParticipant, token, isClosed, connectionAttempt, loadTable]);
 
-  const closeTable = async () => {
+  const changeStatus = async (newStatus: TableStatus) => {
     if (!id) return;
-    const confirmed = window.confirm(
-      'Encerrar a mesa? A sessão termina para todos e o histórico do chat é apagado.',
-    );
-    if (!confirmed) return;
-    setClosingError(null);
+    setStatusError(null);
     try {
-      setTable(await tableService.updateStatus(id, 'ENCERRADA'));
+      setTable(await tableService.updateStatus(id, newStatus));
     } catch (e: unknown) {
-      setClosingError(e instanceof Error ? e.message : 'Erro ao encerrar a mesa.');
+      setStatusError(e instanceof Error ? e.message : 'Erro ao alterar o status da mesa.');
     }
+  };
+
+  const closeTable = () => {
+    const confirmed = window.confirm(
+      'Encerrar a mesa? A sessão termina para todos, o histórico do chat é apagado e a mesa não poderá ser reaberta.',
+    );
+    if (confirmed) changeStatus('ENCERRADA');
   };
 
   const changeCharacter = async (characterId: string) => {
@@ -135,12 +183,20 @@ export default function TableRoom() {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, activeChannel]);
 
   const connected = status === 'CONECTADO' && !sessionEndedReason;
+  const canSend = connected && !isPaused;
+
+  const selectChannel = (channel: Channel) => {
+    activeChannelRef.current = channel;
+    setActiveChannel(channel);
+    setUnread((prev) => ({ ...prev, [channel]: 0 }));
+  };
 
   const sendRoll = (request: RollRequest) => {
     chatService.sendRoll(request);
+    selectChannel('ROLAGENS');
   };
 
   const sendDraft = () => {
@@ -213,6 +269,7 @@ export default function TableRoom() {
         <h2>{table.name}</h2>
         <p className="muted">{table.description}</p>
         <p className={`conn conn--${status.toLowerCase()}`}>● {status.toLowerCase()}</p>
+        {!isMaster && <p className="muted table-status">Mesa {TABLE_STATUS_LABEL[table.status].toLowerCase()}</p>}
 
         {!isMaster && (
           <div className="field">
@@ -235,10 +292,24 @@ export default function TableRoom() {
 
         {isMaster && (
           <div className="master-actions">
+            <div className="field">
+              <label htmlFor="tableStatus">Status da mesa</label>
+              <select
+                id="tableStatus"
+                value={table.status}
+                onChange={(e) => changeStatus(e.target.value as TableStatus)}
+              >
+                {MASTER_STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {TABLE_STATUS_LABEL[option]}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button className="btn btn-danger" onClick={closeTable}>
               Encerrar mesa
             </button>
-            {closingError && <p className="roll-error">{closingError}</p>}
+            {statusError && <p className="roll-error">{statusError}</p>}
           </div>
         )}
 
@@ -253,8 +324,20 @@ export default function TableRoom() {
           />
         )}
 
+        <PrivateSheetsPanel
+          title={isMaster ? 'Meus personagens e NPCs' : 'Minha ficha'}
+          characters={isMaster ? characters : activeCharacter ? [activeCharacter] : []}
+          loading={charactersLoading}
+          error={charactersError}
+          emptyText={
+            isMaster
+              ? 'Você ainda não criou personagens ou NPCs.'
+              : 'Selecione seu personagem nesta mesa para consultar a ficha.'
+          }
+        />
+
         <h3 className="section-title">Rolar dados</h3>
-        <DiceRoller disabled={!connected} onRoll={sendRoll} />
+        <DiceRoller disabled={!canSend} onRoll={sendRoll} />
         <p className="muted roll-hint">
           Ou digite no chat: <code>/r 1d20+2</code>, <code>/r 1d20 vantagem</code>
         </p>
@@ -268,7 +351,7 @@ export default function TableRoom() {
                   key={key}
                   className="btn btn-ghost"
                   onClick={() => rollAttribute(key)}
-                  disabled={!connected}
+                  disabled={!canSend}
                 >
                   {key.slice(0, 3).toUpperCase()}
                 </button>
@@ -287,50 +370,100 @@ export default function TableRoom() {
             </button>
           </div>
         )}
+        {isPaused && !sessionEndedReason && (
+          <div className="session-paused">
+            A mesa está pausada pelo mestre. Mensagens e rolagens ficam bloqueadas até ela ser retomada.
+          </div>
+        )}
+        <div className="channel-tabs" role="tablist">
+          {CHANNELS.map((channel) => (
+            <button
+              key={channel}
+              role="tab"
+              aria-selected={activeChannel === channel}
+              className={`channel-tab ${activeChannel === channel ? 'channel-tab--active' : ''}`}
+              onClick={() => selectChannel(channel)}
+            >
+              {CHANNEL_LABEL[channel]}
+              {unread[channel] > 0 && <span className="badge">{unread[channel]}</span>}
+            </button>
+          ))}
+        </div>
         <div className="messages" ref={scrollRef}>
-          {messages.length === 0 && (
-            <p className="muted center">
-              A mesa está silenciosa. Use @nomedonpc para chamar um NPC, ou role um dado ao lado.
-            </p>
-          )}
-          {messages.map((m, i) => (
-            <div key={m.id ?? i} className={`msg msg--${m.type.toLowerCase()}`}>
-              <div className="msg-head">
-                <span className="author">{m.authorName}</span>
-                <span className="time">
-                  {new Date(m.createdAt).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-
-              {m.type === 'ROLAGEM' && m.diceResult ? (
-                <DiceRollMessage result={m.diceResult} animate />
-              ) : (
-                <p className="content">{m.content}</p>
+          {CHANNELS.map((channel) => (
+            <div key={channel} role="tabpanel" hidden={activeChannel !== channel} className="channel-panel">
+              {messages[channel].length === 0 && (
+                <p className="muted center">{EMPTY_CHANNEL_TEXT[channel]}</p>
               )}
+              {messages[channel].map((m, i) => (
+                <div key={m.id ?? i} className={`msg msg--${m.type.toLowerCase()}`}>
+                  <div className="msg-head">
+                    <span className="author">{m.authorName}</span>
+                    <span className="time">
+                      {new Date(m.createdAt).toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+
+                  {m.type === 'ROLAGEM' && m.diceResult ? (
+                    <DiceRollMessage
+                      result={m.diceResult}
+                      animate={!m.id || !historyIds.current.has(m.id)}
+                    />
+                  ) : m.type === 'IMAGEM' && m.image ? (
+                    <button
+                      className="chat-image-button"
+                      onClick={() => setExpandedImage(m.image?.dataUrl ?? null)}
+                      title="Ampliar imagem"
+                    >
+                      <img className="chat-image" src={m.image.dataUrl} alt={`Imagem enviada por ${m.authorName}`} />
+                    </button>
+                  ) : (
+                    <p className="content">{m.content}</p>
+                  )}
+                </div>
+              ))}
             </div>
           ))}
         </div>
 
-        {composerError && <p className="roll-error composer-error">{composerError}</p>}
-        <div className="composer">
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              setComposerError(null);
-            }}
-            onKeyUp={(e) => e.key === 'Enter' && sendDraft()}
-            placeholder="Fale com a mesa, use @nomedonpc ou role com /r 1d20+2"
-          />
-          <button className="btn btn-primary" onClick={sendDraft} disabled={!draft.trim()}>
-            Enviar
+        {activeChannel === 'CONVERSA' && (
+          <>
+            {composerError && <p className="roll-error composer-error">{composerError}</p>}
+            <div className="composer">
+              <input
+                type="text"
+                value={draft}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  setComposerError(null);
+                }}
+                onKeyUp={(e) => e.key === 'Enter' && canSend && sendDraft()}
+                disabled={!canSend}
+                placeholder={isPaused ? 'Mesa pausada pelo mestre' : 'Fale com a mesa ou role com /r 1d20+2'}
+              />
+              <button className="btn btn-primary" onClick={sendDraft} disabled={!canSend || !draft.trim()}>
+                Enviar
+              </button>
+            </div>
+          </>
+        )}
+
+        {activeChannel === 'IMAGENS' && (
+          <ImageComposer disabled={!canSend} onSend={(dataUrl) => chatService.sendImage(dataUrl)} />
+        )}
+      </div>
+
+      {expandedImage && (
+        <div className="image-lightbox" role="dialog" aria-modal="true" onClick={() => setExpandedImage(null)}>
+          <img src={expandedImage} alt="Imagem ampliada" />
+          <button className="btn btn-ghost" onClick={() => setExpandedImage(null)}>
+            Fechar
           </button>
         </div>
-      </div>
+      )}
     </section>
   );
 }

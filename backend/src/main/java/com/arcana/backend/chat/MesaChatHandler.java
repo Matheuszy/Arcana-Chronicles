@@ -1,11 +1,14 @@
 package com.arcana.backend.chat;
 
 import com.arcana.backend.chat.dice.RolagemDadosService;
+import com.arcana.backend.chat.imagem.ValidadorImagem;
+import com.arcana.backend.chat.model.Canal;
 import com.arcana.backend.chat.model.ChatMessage;
 import com.arcana.backend.chat.sessao.GerenciadorMesasAtivas;
 import com.arcana.backend.chat.sessao.MesaAtiva;
 import com.arcana.backend.table.AcessoMesaDto;
-import com.arcana.backend.table.MesaEncerradaEvent;
+import com.arcana.backend.table.MesaStatusAlteradoEvent;
+import com.arcana.backend.table.model.StatusMesa;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +25,9 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -43,6 +48,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final RolagemDadosService rolagemDadosService;
+    private final ValidadorImagem validadorImagem;
     private final GerenciadorMesasAtivas gerenciadorMesas;
     private final TaskScheduler agendador;
     private final Clock clock;
@@ -50,19 +56,25 @@ public class MesaChatHandler extends TextWebSocketHandler {
 
     private final Map<String, WebSocketSession> sessoesComEnvioSerializado = new ConcurrentHashMap<>();
 
-    private static final int LIMITE_TEMPO_ENVIO_MS = 5_000;
-    private static final int LIMITE_BUFFER_ENVIO_BYTES = 512 * 1024;
+    private static final int LIMITE_TEMPO_ENVIO_MS = 15_000;
+    private static final int LIMITE_BUFFER_ENVIO_BYTES = 16 * 1024 * 1024;
     private static final Set<ChatMessage.Type> TIPOS_ENVIADOS_PELO_CLIENTE =
-            EnumSet.of(ChatMessage.Type.TEXTO, ChatMessage.Type.ROLAGEM);
+            EnumSet.of(ChatMessage.Type.TEXTO, ChatMessage.Type.ROLAGEM, ChatMessage.Type.IMAGEM);
+    private static final Map<Canal, String> ERRO_CANAL_ERRADO = Map.of(
+            Canal.CONVERSA, "Mensagens de texto só podem ser enviadas no canal de conversa.",
+            Canal.ROLAGENS, "Rolagens só podem ser enviadas no canal de rolagens.",
+            Canal.IMAGENS, "Imagens só podem ser enviadas no canal de imagens.");
 
     public MesaChatHandler(ObjectMapper objectMapper,
                            RolagemDadosService rolagemDadosService,
+                           ValidadorImagem validadorImagem,
                            GerenciadorMesasAtivas gerenciadorMesas,
                            @Qualifier("chatTaskScheduler") TaskScheduler agendador,
                            Clock clock,
                            @Value("${arcana.chat.tolerancia-mestre:60s}") Duration toleranciaMestre) {
         this.objectMapper = objectMapper;
         this.rolagemDadosService = rolagemDadosService;
+        this.validadorImagem = validadorImagem;
         this.gerenciadorMesas = gerenciadorMesas;
         this.agendador = agendador;
         this.clock = clock;
@@ -97,10 +109,14 @@ public class MesaChatHandler extends TextWebSocketHandler {
             broadcast(mesa, aviso, sessaoSegura);
         }
 
+        Map<Canal, List<ChatMessage>> historico = new EnumMap<>(mesa.historicoPorCanal());
+        List<ChatMessage> imagens = historico.put(Canal.IMAGENS, List.of());
+
         ChatMessage sincronizacao = eventoDaMesa(tableId, ChatMessage.Type.HISTORICO);
-        sincronizacao.setHistorico(mesa.historico());
+        sincronizacao.setHistorico(historico);
         sincronizacao.setPresentes(mesa.presentes());
         enviarParaSessao(session, sincronizacao);
+        imagens.forEach(imagem -> enviarParaSessao(session, imagem));
 
         broadcast(mesa, presenca(mesa, tableId), sessaoSegura);
     }
@@ -134,9 +150,38 @@ public class MesaChatHandler extends TextWebSocketHandler {
     }
 
     @TransactionalEventListener(fallbackExecution = true)
-    public void aoEncerrarMesa(MesaEncerradaEvent evento) {
-        gerenciadorMesas.encerrar(evento.mesaId())
-                .ifPresent(mesa -> finalizarSessao(mesa, "O mestre encerrou a mesa."));
+    public void aoAlterarStatusDaMesa(MesaStatusAlteradoEvent evento) {
+        if (evento.status() == StatusMesa.ENCERRADA) {
+            gerenciadorMesas.encerrar(evento.mesaId())
+                    .ifPresent(mesa -> finalizarSessao(mesa, "O mestre encerrou a mesa."));
+            return;
+        }
+
+        gerenciadorMesas.buscar(evento.mesaId()).ifPresent(mesa -> {
+            StatusMesa anterior = mesa.alterarStatus(evento.status());
+            if (anterior == evento.status()) return;
+
+            String tableId = String.valueOf(evento.mesaId());
+            ChatMessage aviso = systemMessage(tableId, avisoDeStatus(anterior, evento.status()));
+            mesa.registrar(aviso);
+            broadcast(mesa, aviso, null);
+
+            ChatMessage alteracao = eventoDaMesa(tableId, ChatMessage.Type.STATUS_MESA);
+            alteracao.setContent(evento.status().name());
+            broadcast(mesa, alteracao, null);
+        });
+    }
+
+    private String avisoDeStatus(StatusMesa anterior, StatusMesa novo) {
+        if (novo == StatusMesa.PAUSADA) {
+            return "O mestre pausou a mesa. Mensagens e rolagens estão bloqueadas.";
+        }
+        if (anterior == StatusMesa.PAUSADA) {
+            return "O mestre retomou a mesa.";
+        }
+        return novo == StatusMesa.ABERTA
+                ? "A mesa está aberta para novos jogadores."
+                : "A mesa está em andamento e não aceita novos jogadores.";
     }
 
     private void agendarEncerramentoPorAusenciaDoMestre(MesaAtiva mesa) {
@@ -194,6 +239,19 @@ public class MesaChatHandler extends TextWebSocketHandler {
             return;
         }
 
+        Canal canalDoTipo = Canal.doTipo(message.getType());
+        if (message.getCanal() != null && message.getCanal() != canalDoTipo) {
+            enviarParaSessao(session, systemMessage(tableId, ERRO_CANAL_ERRADO.get(canalDoTipo)));
+            return;
+        }
+        message.setCanal(canalDoTipo);
+
+        if (mesa.pausada()) {
+            enviarParaSessao(session, systemMessage(tableId,
+                    "A mesa está pausada. Mensagens e rolagens estão bloqueadas até o mestre retomar."));
+            return;
+        }
+
         if (message.getType() == ChatMessage.Type.TEXTO) {
             String erro = validarTexto(message.getContent());
             if (erro != null) {
@@ -202,6 +260,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
             }
             message.setDiceResult(null);
             message.setRollRequest(null);
+            message.setImage(null);
         }
 
         if (message.getType() == ChatMessage.Type.ROLAGEM) {
@@ -211,6 +270,19 @@ public class MesaChatHandler extends TextWebSocketHandler {
                 enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
                 return;
             }
+            message.setImage(null);
+        }
+
+        if (message.getType() == ChatMessage.Type.IMAGEM) {
+            try {
+                message.setImage(validadorImagem.validar(message.getImage()));
+            } catch (IllegalArgumentException e) {
+                enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
+                return;
+            }
+            message.setContent("compartilhou uma imagem.");
+            message.setDiceResult(null);
+            message.setRollRequest(null);
         }
 
         // TODO: quando IA estiver integrada, verificar mentionedNpcId aqui
@@ -281,6 +353,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
     private ChatMessage eventoDaMesa(String tableId, ChatMessage.Type type) {
         ChatMessage msg = systemMessage(tableId, null);
         msg.setType(type);
+        msg.setCanal(null);
         return msg;
     }
 
@@ -291,6 +364,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         msg.setAuthorId("sistema");
         msg.setAuthorName("Sistema");
         msg.setType(ChatMessage.Type.SISTEMA);
+        msg.setCanal(Canal.CONVERSA);
         msg.setContent(content);
         msg.setCreatedAt(Instant.now().toString());
         return msg;

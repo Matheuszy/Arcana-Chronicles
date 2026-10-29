@@ -1,6 +1,7 @@
 package com.arcana.backend.chat.sessao;
 
 import com.arcana.backend.table.AcessoMesaDto;
+import com.arcana.backend.table.SessoesAtivasDeMesa;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -10,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 @Component
-public class GerenciadorMesasAtivas {
+public class GerenciadorMesasAtivas implements SessoesAtivasDeMesa {
 
     public record Entrada(MesaAtiva mesa, boolean primeiraConexaoDoUsuario) {}
 
@@ -21,7 +22,7 @@ public class GerenciadorMesasAtivas {
     public Entrada entrar(AcessoMesaDto acesso, String sessionId, WebSocketSession sessao) {
         boolean[] primeira = new boolean[1];
         MesaAtiva mesa = mesas.compute(acesso.mesaId(), (id, existente) -> {
-            MesaAtiva ativa = existente != null ? existente : new MesaAtiva(id);
+            MesaAtiva ativa = existente != null ? existente : new MesaAtiva(id, acesso.statusMesa());
             primeira[0] = ativa.adicionarConexao(sessionId, sessao, acesso);
             return ativa;
         });
@@ -63,5 +64,10 @@ public class GerenciadorMesasAtivas {
 
     public Optional<MesaAtiva> buscar(Long mesaId) {
         return Optional.ofNullable(mesas.get(mesaId));
+    }
+
+    @Override
+    public boolean possuiSessaoAtiva(Long mesaId) {
+        return mesas.containsKey(mesaId);
     }
 }

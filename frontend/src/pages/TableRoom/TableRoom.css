@@ -34,8 +34,17 @@
 }
 .session-ended .btn { padding: 0.3em 0.7em; font-size: 0.8rem; }
 
-.master-actions { margin-top: 0.5rem; }
+.session-paused {
+  padding: 0.75rem 1.25rem;
+  background: rgba(200, 190, 170, 0.08);
+  border-bottom: 1px solid var(--ink-700);
+  color: var(--parchment-dim);
+  font-size: 0.85rem;
+}
+
+.master-actions { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
 .master-actions .btn { width: 100%; }
+.table-status { font-size: 0.8rem; margin: 0; }
 
 .badge {
   margin-left: 0.5rem;
@@ -170,6 +179,82 @@
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+}
+
+.channel-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.channel-panel[hidden] { display: none; }
+
+.chat-image-button {
+  display: block;
+  padding: 0;
+  margin-top: 0.35rem;
+  background: none;
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.chat-image {
+  display: block;
+  max-width: min(320px, 100%);
+  max-height: 240px;
+  object-fit: contain;
+}
+
+.image-composer { align-items: center; justify-content: space-between; }
+.image-composer-hint { margin: 0; font-size: 0.8rem; }
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: rgba(10, 8, 6, 0.85);
+  cursor: zoom-out;
+}
+
+.image-lightbox img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
+
+.private-sheets-hint { font-size: 0.78rem; margin: 0 0 0.4rem; }
+
+.channel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--ink-700);
+  padding: 0 0.75rem;
+}
+
+.channel-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--parchment-dim);
+  padding: 0.75rem 1rem 0.6rem;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.channel-tab:hover { color: var(--parchment); }
+
+.channel-tab--active {
+  color: var(--ember-bright);
+  border-bottom-color: var(--ember);
 }
 
 .msg { max-width: 85%; }

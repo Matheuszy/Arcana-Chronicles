@@ -3,11 +3,14 @@ package com.arcana.backend;
 import com.arcana.backend.chat.AutenticacaoHandshakeInterceptor;
 import com.arcana.backend.chat.MesaChatHandler;
 import com.arcana.backend.chat.dice.RolagemDadosService;
+import com.arcana.backend.chat.imagem.ValidadorImagem;
 import com.arcana.backend.chat.sessao.GerenciadorMesasAtivas;
+import com.arcana.backend.chat.model.Canal;
 import com.arcana.backend.chat.model.ChatMessage;
 import com.arcana.backend.chat.sessao.MesaAtiva;
 import com.arcana.backend.table.AcessoMesaDto;
-import com.arcana.backend.table.MesaEncerradaEvent;
+import com.arcana.backend.table.MesaStatusAlteradoEvent;
+import com.arcana.backend.table.model.StatusMesa;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,12 +60,12 @@ class MesaChatHandlerTest {
                 return 3;
             }
         };
-        handler = new MesaChatHandler(objectMapper, new RolagemDadosService(sempreQuatro), gerenciador,
+        handler = new MesaChatHandler(objectMapper, new RolagemDadosService(sempreQuatro), new ValidadorImagem(), gerenciador,
                 agendador, Clock.fixed(Instant.parse("2026-10-29T15:00:00Z"), ZoneOffset.UTC), Duration.ofSeconds(60));
 
-        remetente = sessaoAutenticada("a", new AcessoMesaDto(1L, 2L, "joao", "JOGADOR"));
-        outroJogador = sessaoAutenticada("b", new AcessoMesaDto(1L, 3L, "maria", "JOGADOR"));
-        jogadorDeOutraMesa = sessaoAutenticada("c", new AcessoMesaDto(9L, 4L, "pedro", "JOGADOR"));
+        remetente = sessaoAutenticada("a", new AcessoMesaDto(1L, 2L, "joao", "JOGADOR", StatusMesa.ABERTA));
+        outroJogador = sessaoAutenticada("b", new AcessoMesaDto(1L, 3L, "maria", "JOGADOR", StatusMesa.ABERTA));
+        jogadorDeOutraMesa = sessaoAutenticada("c", new AcessoMesaDto(9L, 4L, "pedro", "JOGADOR", StatusMesa.ABERTA));
         handler.afterConnectionEstablished(remetente);
         handler.afterConnectionEstablished(outroJogador);
         handler.afterConnectionEstablished(jogadorDeOutraMesa);
@@ -174,14 +177,14 @@ class MesaChatHandlerTest {
     void deveEnviarHistoricoEPresentesParaQuemConecta() throws Exception {
         enviarTexto(remetente, "a porta está trancada");
 
-        WebSocketSession mestre = sessaoAutenticada("m", new AcessoMesaDto(1L, 1L, "gandalf", "MESTRE"));
+        WebSocketSession mestre = sessaoAutenticada("m", new AcessoMesaDto(1L, 1L, "gandalf", "MESTRE", StatusMesa.ABERTA));
         handler.afterConnectionEstablished(mestre);
 
         JsonNode sincronizacao = mensagensRecebidas(mestre).get(0);
         assertEquals("HISTORICO", sincronizacao.get("type").asText());
 
         List<String> conteudos = new ArrayList<>();
-        sincronizacao.get("historico").forEach(m -> conteudos.add(m.get("content").asText()));
+        sincronizacao.get("historico").get("CONVERSA").forEach(m -> conteudos.add(m.get("content").asText()));
         assertTrue(conteudos.contains("a porta está trancada"));
         assertTrue(conteudos.contains("gandalf entrou na mesa."));
 
@@ -190,9 +193,125 @@ class MesaChatHandlerTest {
         assertEquals("gandalf", presentes.get(0).get("displayName").asText());
     }
 
+    private static final String ROLAGEM_D20 = """
+            {"type":"ROLAGEM","rollRequest":{"lados":20,"quantidade":1,"modificador":0,"modo":"NORMAL"}}
+            """;
+
+    @Test
+    void deveSepararTextoERolagemEmCanaisProprios() throws Exception {
+        enviarTexto(remetente, "vou atacar");
+        handler.handleMessage(remetente, new TextMessage(ROLAGEM_D20));
+
+        List<JsonNode> recebidas = mensagensRecebidas(outroJogador);
+        assertEquals("CONVERSA", recebidas.get(0).get("canal").asText());
+        assertEquals("ROLAGENS", recebidas.get(1).get("canal").asText());
+
+        MesaAtiva mesa = gerenciador.buscar(1L).orElseThrow();
+        assertEquals(List.of("vou atacar"),
+                mesa.historico(Canal.CONVERSA).stream()
+                        .filter(m -> m.getType() == ChatMessage.Type.TEXTO).map(ChatMessage::getContent).toList());
+        assertEquals(1, mesa.historico(Canal.ROLAGENS).size());
+        assertEquals(ChatMessage.Type.ROLAGEM, mesa.historico(Canal.ROLAGENS).get(0).getType());
+        assertTrue(mesa.historico(Canal.IMAGENS).isEmpty());
+    }
+
+    @Test
+    void deveEnviarHistoricoSeparadoPorCanalParaQuemConecta() throws Exception {
+        enviarTexto(remetente, "vou atacar");
+        handler.handleMessage(remetente, new TextMessage(ROLAGEM_D20));
+
+        WebSocketSession mestre = sessaoAutenticada("m", new AcessoMesaDto(1L, 1L, "gandalf", "MESTRE", StatusMesa.ABERTA));
+        handler.afterConnectionEstablished(mestre);
+
+        JsonNode historico = mensagensRecebidas(mestre).get(0).get("historico");
+        assertEquals(1, historico.get("ROLAGENS").size());
+        assertEquals("ROLAGEM", historico.get("ROLAGENS").get(0).get("type").asText());
+        assertEquals(0, historico.get("IMAGENS").size());
+        historico.get("CONVERSA").forEach(m -> assertNotEquals("ROLAGEM", m.get("type").asText()));
+    }
+
+    @Test
+    void deveRecusarMensagemEnviadaNoCanalErrado() throws Exception {
+        handler.handleMessage(remetente, new TextMessage("""
+                {"type":"TEXTO","canal":"ROLAGENS","content":"oi"}
+                """));
+        handler.handleMessage(remetente, new TextMessage("""
+                {"type":"ROLAGEM","canal":"CONVERSA","rollRequest":{"lados":20,"quantidade":1,"modificador":0,"modo":"NORMAL"}}
+                """));
+
+        List<JsonNode> doRemetente = mensagensRecebidas(remetente);
+        assertEquals("Mensagens de texto só podem ser enviadas no canal de conversa.", doRemetente.get(0).get("content").asText());
+        assertEquals("Rolagens só podem ser enviadas no canal de rolagens.", doRemetente.get(1).get("content").asText());
+        assertTrue(mensagensRecebidas(outroJogador).isEmpty());
+        assertTrue(gerenciador.buscar(1L).orElseThrow().historico(Canal.ROLAGENS).isEmpty());
+    }
+
+    private void enviarImagem(WebSocketSession sessao, byte[] conteudo) throws Exception {
+        handler.handleMessage(sessao, new TextMessage(objectMapper.writeValueAsString(Map.of(
+                "type", "IMAGEM",
+                "canal", "IMAGENS",
+                "image", ValidadorImagemTest.comoDataUrl("image/png", conteudo)))));
+    }
+
+    @Test
+    void deveTransmitirImagemValidaNoCanalDeImagens() throws Exception {
+        enviarImagem(remetente, ValidadorImagemTest.PNG);
+
+        JsonNode recebida = mensagensRecebidas(outroJogador).get(0);
+        assertEquals("IMAGEM", recebida.get("type").asText());
+        assertEquals("IMAGENS", recebida.get("canal").asText());
+        assertEquals("image/png", recebida.get("image").get("mimeType").asText());
+        assertEquals("joao", recebida.get("authorName").asText());
+        assertEquals(1, gerenciador.buscar(1L).orElseThrow().historico(Canal.IMAGENS).size());
+    }
+
+    @Test
+    void deveRecusarImagemInvalidaApenasParaQuemEnviou() throws Exception {
+        enviarImagem(remetente, "não sou imagem".getBytes());
+
+        assertTrue(mensagensRecebidas(remetente).get(0).get("content").asText().startsWith("Formato não suportado"));
+        assertTrue(mensagensRecebidas(outroJogador).isEmpty());
+        assertTrue(gerenciador.buscar(1L).orElseThrow().historico(Canal.IMAGENS).isEmpty());
+    }
+
+    @Test
+    void deveGuardarApenasAsUltimasImagensDaSessao() throws Exception {
+        for (int i = 0; i < MesaAtiva.LIMITE_IMAGENS + 3; i++) {
+            enviarImagem(remetente, ValidadorImagemTest.PNG);
+        }
+
+        assertEquals(MesaAtiva.LIMITE_IMAGENS, gerenciador.buscar(1L).orElseThrow().historico(Canal.IMAGENS).size());
+    }
+
+    @Test
+    void deveEnviarImagensDaSessaoSeparadasDoHistoricoParaQuemConecta() throws Exception {
+        enviarImagem(remetente, ValidadorImagemTest.PNG);
+        enviarImagem(remetente, ValidadorImagemTest.PNG);
+
+        WebSocketSession mestre = sessaoAutenticada("m", new AcessoMesaDto(1L, 1L, "gandalf", "MESTRE", StatusMesa.ABERTA));
+        handler.afterConnectionEstablished(mestre);
+
+        List<JsonNode> recebidas = mensagensRecebidas(mestre);
+        assertEquals("HISTORICO", recebidas.get(0).get("type").asText());
+        assertEquals(0, recebidas.get(0).get("historico").get("IMAGENS").size());
+        assertEquals("IMAGEM", recebidas.get(1).get("type").asText());
+        assertEquals("IMAGEM", recebidas.get(2).get("type").asText());
+    }
+
+    @Test
+    void deveBloquearImagemComAMesaPausada() throws Exception {
+        handler.aoAlterarStatusDaMesa(new MesaStatusAlteradoEvent(1L, StatusMesa.PAUSADA));
+        clearInvocations(remetente, outroJogador);
+
+        enviarImagem(remetente, ValidadorImagemTest.PNG);
+
+        assertTrue(mensagensRecebidas(remetente).get(0).get("content").asText().startsWith("A mesa está pausada."));
+        assertTrue(mensagensRecebidas(outroJogador).isEmpty());
+    }
+
     @Test
     void deveAvisarOsDemaisQuandoAlguemEntraOuSai() throws Exception {
-        WebSocketSession novoJogador = sessaoAutenticada("n", new AcessoMesaDto(1L, 5L, "ana", "JOGADOR"));
+        WebSocketSession novoJogador = sessaoAutenticada("n", new AcessoMesaDto(1L, 5L, "ana", "JOGADOR", StatusMesa.ABERTA));
         handler.afterConnectionEstablished(novoJogador);
 
         List<JsonNode> aoEntrar = mensagensRecebidas(outroJogador);
@@ -210,7 +329,7 @@ class MesaChatHandlerTest {
 
     @Test
     void naoDeveRepetirAvisoQuandoMesmoUsuarioAbreOutraAba() throws Exception {
-        WebSocketSession segundaAba = sessaoAutenticada("a2", new AcessoMesaDto(1L, 2L, "joao", "JOGADOR"));
+        WebSocketSession segundaAba = sessaoAutenticada("a2", new AcessoMesaDto(1L, 2L, "joao", "JOGADOR", StatusMesa.ABERTA));
 
         handler.afterConnectionEstablished(segundaAba);
         handler.afterConnectionClosed(segundaAba, CloseStatus.NORMAL);
@@ -244,7 +363,7 @@ class MesaChatHandlerTest {
     void deveIgnorarHistoricoForjadoPeloCliente() throws Exception {
         String payload = """
                 {"type":"TEXTO","content":"oi",
-                 "historico":[{"type":"SISTEMA","content":"falso"}],
+                 "historico":{"CONVERSA":[{"type":"SISTEMA","content":"falso"}]},
                  "presentes":[{"userId":99,"displayName":"fantasma","role":"MESTRE"}]}
                 """;
 
@@ -261,13 +380,13 @@ class MesaChatHandlerTest {
             enviarTexto(remetente, "mensagem " + i);
         }
 
-        List<ChatMessage> historico = gerenciador.buscar(1L).orElseThrow().historico();
+        List<ChatMessage> historico = gerenciador.buscar(1L).orElseThrow().historico(Canal.CONVERSA);
         assertEquals(MesaAtiva.LIMITE_HISTORICO, historico.size());
         assertEquals("mensagem " + (MesaAtiva.LIMITE_HISTORICO + 9), historico.get(historico.size() - 1).getContent());
     }
 
     private WebSocketSession conectarMestre(String sessionId) throws Exception {
-        WebSocketSession mestre = sessaoAutenticada(sessionId, new AcessoMesaDto(1L, 1L, "gandalf", "MESTRE"));
+        WebSocketSession mestre = sessaoAutenticada(sessionId, new AcessoMesaDto(1L, 1L, "gandalf", "MESTRE", StatusMesa.ABERTA));
         handler.afterConnectionEstablished(mestre);
         return mestre;
     }
@@ -330,7 +449,7 @@ class MesaChatHandlerTest {
 
     @Test
     void deveEncerrarSessaoImediatamenteQuandoMestreEncerraAMesa() throws Exception {
-        handler.aoEncerrarMesa(new MesaEncerradaEvent(1L));
+        handler.aoAlterarStatusDaMesa(new MesaStatusAlteradoEvent(1L, StatusMesa.ENCERRADA));
 
         JsonNode evento = mensagensRecebidas(outroJogador).get(0);
         assertEquals("SESSAO_ENCERRADA", evento.get("type").asText());
@@ -338,5 +457,61 @@ class MesaChatHandlerTest {
         verify(remetente).close(any(CloseStatus.class));
         assertTrue(gerenciador.buscar(1L).isEmpty());
         verify(jogadorDeOutraMesa, never()).close(any(CloseStatus.class));
+    }
+
+    @Test
+    void deveAvisarAMesaQuandoOMestrePausa() throws Exception {
+        handler.aoAlterarStatusDaMesa(new MesaStatusAlteradoEvent(1L, StatusMesa.PAUSADA));
+
+        List<JsonNode> recebidas = mensagensRecebidas(outroJogador);
+        assertEquals("O mestre pausou a mesa. Mensagens e rolagens estão bloqueadas.",
+                recebidas.get(0).get("content").asText());
+        assertEquals("STATUS_MESA", recebidas.get(1).get("type").asText());
+        assertEquals("PAUSADA", recebidas.get(1).get("content").asText());
+        assertTrue(mensagensRecebidas(jogadorDeOutraMesa).isEmpty());
+    }
+
+    @Test
+    void deveBloquearMensagensERolagensEnquantoAMesaEstaPausada() throws Exception {
+        handler.aoAlterarStatusDaMesa(new MesaStatusAlteradoEvent(1L, StatusMesa.PAUSADA));
+        clearInvocations(remetente, outroJogador);
+
+        enviarTexto(remetente, "alguém aí?");
+        handler.handleMessage(remetente, new TextMessage("""
+                {"type":"ROLAGEM","rollRequest":{"lados":20,"quantidade":1,"modificador":0,"modo":"NORMAL"}}
+                """));
+
+        List<JsonNode> doRemetente = mensagensRecebidas(remetente);
+        assertEquals(2, doRemetente.size());
+        assertTrue(doRemetente.get(0).get("content").asText().startsWith("A mesa está pausada."));
+        assertTrue(mensagensRecebidas(outroJogador).isEmpty());
+    }
+
+    @Test
+    void deveLiberarMensagensQuandoOMestreRetomaAMesa() throws Exception {
+        handler.aoAlterarStatusDaMesa(new MesaStatusAlteradoEvent(1L, StatusMesa.PAUSADA));
+        handler.aoAlterarStatusDaMesa(new MesaStatusAlteradoEvent(1L, StatusMesa.EM_ANDAMENTO));
+        clearInvocations(outroJogador);
+
+        enviarTexto(remetente, "voltamos");
+
+        assertEquals("voltamos", mensagensRecebidas(outroJogador).get(0).get("content").asText());
+        List<String> historico = gerenciador.buscar(1L).orElseThrow().historico(Canal.CONVERSA).stream()
+                .map(ChatMessage::getContent).toList();
+        assertTrue(historico.contains("O mestre retomou a mesa."));
+    }
+
+    @Test
+    void deveBloquearMensagensAoConectarEmMesaJaPausada() throws Exception {
+        WebSocketSession jogador = sessaoAutenticada("p", new AcessoMesaDto(7L, 2L, "joao", "JOGADOR", StatusMesa.PAUSADA));
+        WebSocketSession colega = sessaoAutenticada("q", new AcessoMesaDto(7L, 3L, "maria", "JOGADOR", StatusMesa.PAUSADA));
+        handler.afterConnectionEstablished(jogador);
+        handler.afterConnectionEstablished(colega);
+        clearInvocations(jogador, colega);
+
+        enviarTexto(jogador, "olá");
+
+        assertTrue(mensagensRecebidas(jogador).get(0).get("content").asText().startsWith("A mesa está pausada."));
+        assertTrue(mensagensRecebidas(colega).isEmpty());
     }
 }

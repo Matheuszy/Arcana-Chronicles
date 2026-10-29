@@ -1,27 +1,14 @@
 import { useState } from 'react';
 import { tableService } from '../../services/tableService';
-import { Attributes, Character, attributeModifier } from '../../types/character';
+import { Character } from '../../types/character';
 import { TableParticipant } from '../../types/table';
-
-const ATTRIBUTE_LABEL: Record<keyof Attributes, string> = {
-  forca: 'FOR',
-  destreza: 'DES',
-  constituicao: 'CON',
-  inteligencia: 'INT',
-  sabedoria: 'SAB',
-  carisma: 'CAR',
-};
+import CharacterSheet from './CharacterSheet';
 
 interface ParticipantsPanelProps {
   tableId: string;
   participants: TableParticipant[];
   onlineUserIds: string[];
   canViewSheets: boolean;
-}
-
-function formatModifier(score: number): string {
-  const mod = attributeModifier(score);
-  return mod >= 0 ? `+${mod}` : String(mod);
 }
 
 export default function ParticipantsPanel({
@@ -76,30 +63,7 @@ export default function ParticipantsPanel({
       </ul>
       {error && <p className="roll-error">{error}</p>}
 
-      {sheet && (
-        <div className="sheet-view">
-          <div className="sheet-view-head">
-            <strong>{sheet.name}</strong>
-            <button className="btn btn-ghost" onClick={() => setSheet(null)}>
-              Fechar
-            </button>
-          </div>
-          <p className="muted">
-            Nível {sheet.level} · PV {sheet.hpCurrent}/{sheet.hpMax} · CA {sheet.armorClass}
-          </p>
-          <div className="sheet-attributes">
-            {(Object.keys(ATTRIBUTE_LABEL) as (keyof Attributes)[]).map((key) => (
-              <div key={key} className="sheet-attribute">
-                <span className="sheet-attribute-label">{ATTRIBUTE_LABEL[key]}</span>
-                <span className="sheet-attribute-score">{sheet.attributes[key]}</span>
-                <span className="sheet-attribute-mod">{formatModifier(sheet.attributes[key])}</span>
-              </div>
-            ))}
-          </div>
-          {sheet.equipment && <p className="sheet-text"><strong>Equipamento:</strong> {sheet.equipment}</p>}
-          {sheet.backstory && <p className="sheet-text"><strong>História:</strong> {sheet.backstory}</p>}
-        </div>
-      )}
+      {sheet && <CharacterSheet character={sheet} onClose={() => setSheet(null)} />}
     </div>
   );
 }
