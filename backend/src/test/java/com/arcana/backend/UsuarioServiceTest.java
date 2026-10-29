@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -99,6 +100,38 @@ class UsuarioServiceTest {
         });
 
         assertEquals("Usuário ou senha inválidos.", exception.getMessage());
+    }
+
+    @Test
+    void devePermitirBuscarPorIdQuandoForOProprioUsuario() {
+        Usuario user = new Usuario("joao", "joao@gmail.com", "encodedPassword");
+        user.setId(1L);
+
+        when(repository.findById(1L)).thenReturn(Optional.of(user));
+
+        UsuarioResponseDto dto = service.buscarPorId(1L, 1L);
+
+        assertEquals("joao", dto.username());
+    }
+
+    @Test
+    void deveNegarBuscarPorIdDeOutroUsuario() {
+        assertThrows(AccessDeniedException.class, () -> service.buscarPorId(1L, 2L));
+        verify(repository, never()).findById(any());
+    }
+
+    @Test
+    void deveNegarAtualizarDadosDeOutroUsuario() {
+        UsuarioRequestDto dto = new UsuarioRequestDto("joao", "joao@gmail.com", "12334");
+
+        assertThrows(AccessDeniedException.class, () -> service.atualizar(1L, dto, 2L));
+        verify(repository, never()).findById(any());
+    }
+
+    @Test
+    void deveNegarDeletarContaDeOutroUsuario() {
+        assertThrows(AccessDeniedException.class, () -> service.deletar(1L, 2L));
+        verify(repository, never()).deleteById(any());
     }
 }
 
