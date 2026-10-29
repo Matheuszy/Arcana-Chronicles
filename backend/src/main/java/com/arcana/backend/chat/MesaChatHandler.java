@@ -1,11 +1,13 @@
 package com.arcana.backend.chat;
 
+import com.arcana.backend.chat.dice.RolagemDadosService;
 import com.arcana.backend.chat.model.ChatMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
@@ -28,12 +30,18 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public class MesaChatHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
+    private final RolagemDadosService rolagemDadosService;
 
     /** tableId → conjunto de sessões ativas nessa mesa */
     private final Map<String, Set<WebSocketSession>> rooms = new ConcurrentHashMap<>();
+    private final Map<String, WebSocketSession> sessoesComEnvioSerializado = new ConcurrentHashMap<>();
 
-    public MesaChatHandler(ObjectMapper objectMapper) {
+    private static final int LIMITE_TEMPO_ENVIO_MS = 5_000;
+    private static final int LIMITE_BUFFER_ENVIO_BYTES = 512 * 1024;
+
+    public MesaChatHandler(ObjectMapper objectMapper, RolagemDadosService rolagemDadosService) {
         this.objectMapper = objectMapper;
+        this.rolagemDadosService = rolagemDadosService;
     }
 
     // ── Ciclo de vida da sessão ───────────────────────────────────────────────
@@ -41,7 +49,10 @@ public class MesaChatHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         String tableId = extractTableId(session);
-        rooms.computeIfAbsent(tableId, k -> new CopyOnWriteArraySet<>()).add(session);
+        WebSocketSession sessaoSegura = new ConcurrentWebSocketSessionDecorator(
+                session, LIMITE_TEMPO_ENVIO_MS, LIMITE_BUFFER_ENVIO_BYTES);
+        sessoesComEnvioSerializado.put(session.getId(), sessaoSegura);
+        rooms.computeIfAbsent(tableId, k -> new CopyOnWriteArraySet<>()).add(sessaoSegura);
 
         // Notifica a sala que alguém entrou
         ChatMessage entrada = systemMessage(tableId, "Um aventureiro entrou na sala.");
@@ -51,9 +62,10 @@ public class MesaChatHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String tableId = extractTableId(session);
+        WebSocketSession sessaoSegura = sessoesComEnvioSerializado.remove(session.getId());
         Set<WebSocketSession> room = rooms.get(tableId);
-        if (room != null) {
-            room.remove(session);
+        if (room != null && sessaoSegura != null) {
+            room.remove(sessaoSegura);
             if (room.isEmpty()) rooms.remove(tableId);
         }
     }
@@ -74,10 +86,33 @@ public class MesaChatHandler extends TextWebSocketHandler {
 
         String tableId = message.getTableId();
 
+        if (message.getType() == ChatMessage.Type.ROLAGEM) {
+            try {
+                aplicarRolagemDoServidor(message);
+            } catch (IllegalArgumentException e) {
+                enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
+                return;
+            }
+        }
+
         // TODO: quando IA estiver integrada, verificar mentionedNpcId aqui
         // e gerar uma ChatMessage do tipo NPC_RESPOSTA assincronamente
 
         broadcast(tableId, message, null);
+    }
+
+    private void aplicarRolagemDoServidor(ChatMessage message) {
+        ChatMessage.DiceRollResult resultado = rolagemDadosService.rolar(message.getRollRequest());
+        message.setDiceResult(resultado);
+        message.setRollRequest(null);
+        message.setContent(rolagemDadosService.descrever(resultado));
+    }
+
+    private void enviarParaSessao(WebSocketSession session, ChatMessage message) {
+        WebSocketSession destino = sessoesComEnvioSerializado.getOrDefault(session.getId(), session);
+        try {
+            destino.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+        } catch (IOException | IllegalStateException ignored) {}
     }
 
     @Override
@@ -104,7 +139,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
             if (s.equals(exclude) || !s.isOpen()) continue;
             try {
                 s.sendMessage(new TextMessage(payload));
-            } catch (IOException ignored) {}
+            } catch (IOException | IllegalStateException ignored) {}
         }
     }
 

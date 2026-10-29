@@ -4,13 +4,14 @@ import { useSession } from '../../context/SessionContext';
 import { tableService } from '../../services/tableService';
 import { characterService } from '../../services/characterService';
 import { chatService, ConnectionState } from '../../services/chatService';
-import { diceService } from '../../services/diceService';
+import { diceService, isRollCommand } from '../../services/diceService';
 import { GameTable } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
-import { ChatMessage } from '../../types/chat';
+import { ChatMessage, RollRequest } from '../../types/chat';
+import DiceRoller from './DiceRoller';
+import DiceRollMessage from './DiceRollMessage';
 import './TableRoom.css';
 
-const QUICK_DICE = ['1d20', '1d12', '1d10', '1d8', '1d6', '1d4', '1d100'];
 const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
   'forca',
   'destreza',
@@ -31,7 +32,7 @@ export default function TableRoom() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<ConnectionState>('DESCONECTADO');
   const [draft, setDraft] = useState('');
-  const [customExpression, setCustomExpression] = useState('');
+  const [composerError, setComposerError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const activeCharacter = characters.find((c) => c.id === activeCharacterId);
@@ -56,48 +57,34 @@ export default function TableRoom() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  const sendDraft = () => {
-    if (!id || !draft.trim()) return;
-    chatService.sendText(id, authorId, displayName || 'Anônimo', draft.trim());
-    setDraft('');
-  };
+  const connected = status === 'CONECTADO';
 
-  const rollQuick = (expression: string) => {
+  const sendRoll = (request: RollRequest) => {
     if (!id) return;
-    const result = diceService.roll(expression);
-    chatService.sendRoll({
-      tableId: id,
-      authorId,
-      authorName: displayName || 'Anônimo',
-      type: 'ROLAGEM',
-      content: `rolou ${expression}`,
-      diceResult: result,
-      createdAt: new Date().toISOString(),
-    });
+    chatService.sendRoll(id, authorId, displayName || 'Anônimo', request);
   };
 
-  const rollCustom = () => {
-    if (!customExpression.trim()) return;
-    try {
-      rollQuick(customExpression.trim());
-      setCustomExpression('');
-    } catch (e) {
-      alert((e as Error).message);
+  const sendDraft = () => {
+    const text = draft.trim();
+    if (!id || !text) return;
+
+    if (isRollCommand(text)) {
+      try {
+        sendRoll(diceService.parseCommand(text));
+      } catch (e) {
+        setComposerError((e as Error).message);
+        return;
+      }
+    } else {
+      chatService.sendText(id, authorId, displayName || 'Anônimo', text);
     }
+    setDraft('');
+    setComposerError(null);
   };
 
   const rollAttribute = (key: keyof Attributes) => {
-    if (!id || !activeCharacter) return;
-    const result = diceService.rollAttributeCheck(activeCharacter.attributes, key);
-    chatService.sendRoll({
-      tableId: id,
-      authorId,
-      authorName: displayName || 'Anônimo',
-      type: 'ROLAGEM',
-      content: `testou ${key} com ${activeCharacter.name}`,
-      diceResult: result,
-      createdAt: new Date().toISOString(),
-    });
+    if (!activeCharacter) return;
+    sendRoll(diceService.attributeCheckRequest(activeCharacter.attributes, key));
   };
 
   return (
@@ -125,38 +112,23 @@ export default function TableRoom() {
           </div>
         )}
 
-        <h3 className="section-title">Rolagem rápida</h3>
-        <div className="quick-dice">
-          {QUICK_DICE.map((d) => (
-            <button key={d} className="btn btn-ghost" onClick={() => rollQuick(d)}>
-              {d}
-            </button>
-          ))}
-        </div>
-
-        <div className="field">
-          <label htmlFor="customExpression">Expressão livre</label>
-          <div className="inline-input">
-            <input
-              id="customExpression"
-              type="text"
-              value={customExpression}
-              onChange={(e) => setCustomExpression(e.target.value)}
-              placeholder="ex: 2d6+3"
-              onKeyUp={(e) => e.key === 'Enter' && rollCustom()}
-            />
-            <button className="btn btn-primary" onClick={rollCustom}>
-              Rolar
-            </button>
-          </div>
-        </div>
+        <h3 className="section-title">Rolar dados</h3>
+        <DiceRoller disabled={!connected} onRoll={sendRoll} />
+        <p className="muted roll-hint">
+          Ou digite no chat: <code>/r 1d20+2</code>, <code>/r 1d20 vantagem</code>
+        </p>
 
         {activeCharacter && (
           <>
             <h3 className="section-title">Teste de atributo</h3>
             <div className="quick-dice">
               {ATTRIBUTE_KEYS.map((key) => (
-                <button key={key} className="btn btn-ghost" onClick={() => rollAttribute(key)}>
+                <button
+                  key={key}
+                  className="btn btn-ghost"
+                  onClick={() => rollAttribute(key)}
+                  disabled={!connected}
+                >
                   {key.slice(0, 3).toUpperCase()}
                 </button>
               ))}
@@ -185,15 +157,7 @@ export default function TableRoom() {
               </div>
 
               {m.type === 'ROLAGEM' && m.diceResult ? (
-                <div className="roll">
-                  <span className="roll-expr">{m.diceResult.expression}</span>
-                  <span className="roll-breakdown">
-                    [{m.diceResult.rolls.join(', ')}]
-                    {m.diceResult.modifier !== 0 &&
-                      ` ${m.diceResult.modifier >= 0 ? '+' : ''}${m.diceResult.modifier}`}
-                  </span>
-                  <span className="roll-total">{m.diceResult.total}</span>
-                </div>
+                <DiceRollMessage result={m.diceResult} animate />
               ) : (
                 <p className="content">{m.content}</p>
               )}
@@ -201,13 +165,17 @@ export default function TableRoom() {
           ))}
         </div>
 
+        {composerError && <p className="roll-error composer-error">{composerError}</p>}
         <div className="composer">
           <input
             type="text"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setComposerError(null);
+            }}
             onKeyUp={(e) => e.key === 'Enter' && sendDraft()}
-            placeholder="Fale com a mesa... use @nomedonpc para chamar alguém"
+            placeholder="Fale com a mesa, use @nomedonpc ou role com /r 1d20+2"
           />
           <button className="btn btn-primary" onClick={sendDraft} disabled={!draft.trim()}>
             Enviar
