@@ -11,7 +11,7 @@ import java.util.List;
 public class ChatMessage {
 
     public enum Type {
-        TEXTO, ROLAGEM, NPC_RESPOSTA, SISTEMA
+        TEXTO, ROLAGEM, NPC_RESPOSTA, SISTEMA, HISTORICO, PRESENCA, SESSAO_ENCERRADA
     }
 
     private String id;
@@ -24,6 +24,8 @@ public class ChatMessage {
     private PedidoRolagem rollRequest;
     private String mentionedNpcId;
     private String createdAt;
+    private List<ChatMessage> historico;
+    private List<Presenca> presentes;
 
     // ── DiceRollResult aninhado ───────────────────────────────────────────────
 
@@ -91,4 +93,8 @@ public class ChatMessage {
     public void setMentionedNpcId(String mentionedNpcId) { this.mentionedNpcId = mentionedNpcId; }
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public List<ChatMessage> getHistorico() { return historico; }
+    public void setHistorico(List<ChatMessage> historico) { this.historico = historico; }
+    public List<Presenca> getPresentes() { return presentes; }
+    public void setPresentes(List<Presenca> presentes) { this.presentes = presentes; }
 }

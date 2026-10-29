@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useSession } from '../../context/SessionContext';
 import { tableService } from '../../services/tableService';
@@ -7,7 +7,7 @@ import { chatService, ConnectionState } from '../../services/chatService';
 import { diceService, isRollCommand } from '../../services/diceService';
 import { GameTable } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
-import { ChatMessage, RollRequest } from '../../types/chat';
+import { ChatMessage, Presence, RollRequest } from '../../types/chat';
 import DiceRoller from './DiceRoller';
 import DiceRollMessage from './DiceRollMessage';
 import JoinRequestsPanel from './JoinRequestsPanel';
@@ -25,22 +25,27 @@ const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
 
 export default function TableRoom() {
   const { id } = useParams();
-  const { userId, displayName } = useSession();
-  const authorId = useMemo(() => displayName || 'anônimo', [displayName]);
+  const { userId, token } = useSession();
 
   const [table, setTable] = useState<GameTable | null>(null);
   const [tableError, setTableError] = useState<string | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [characterError, setCharacterError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<Presence[]>([]);
+  const [sessionEndedReason, setSessionEndedReason] = useState<string | null>(null);
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
+  const [closingError, setClosingError] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionState>('DESCONECTADO');
   const [draft, setDraft] = useState('');
   const [composerError, setComposerError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastUnknownReload = useRef('');
 
   const me = table?.participants.find((p) => String(p.userId) === String(userId));
   const isParticipant = Boolean(me);
   const isMaster = table !== null && String(table.masterId) === String(userId);
+  const isClosed = table?.status === 'ENCERRADA';
   const activeCharacterId = me?.characterId ? String(me.characterId) : '';
   const activeCharacter = characters.find((c) => String(c.id) === activeCharacterId);
 
@@ -58,15 +63,43 @@ export default function TableRoom() {
   useEffect(loadTable, [loadTable]);
 
   useEffect(() => {
+    if (!table) return;
+    const known = new Set(table.participants.map((p) => String(p.userId)));
+    const unknownKey = onlineUsers
+      .map((u) => String(u.userId))
+      .filter((uid) => !known.has(uid))
+      .sort()
+      .join(',');
+    if (unknownKey && unknownKey !== lastUnknownReload.current) {
+      lastUnknownReload.current = unknownKey;
+      loadTable();
+    }
+  }, [onlineUsers, table, loadTable]);
+
+  useEffect(() => {
     if (!isParticipant || isMaster) return;
     characterService.list('PLAYER').then(setCharacters).catch(() => {});
   }, [isParticipant, isMaster]);
 
   useEffect(() => {
-    if (!id || !isParticipant) return;
+    if (!id || !isParticipant || !token || isClosed) return;
 
-    chatService.connect(id);
-    const offMessage = chatService.onMessage((msg) => setMessages((prev) => [...prev, msg]));
+    setSessionEndedReason(null);
+    chatService.connect(id, token);
+    const offMessage = chatService.onMessage((msg) => {
+      if (msg.type === 'HISTORICO') {
+        setMessages(msg.historico ?? []);
+        setOnlineUsers(msg.presentes ?? []);
+      } else if (msg.type === 'PRESENCA') {
+        setOnlineUsers(msg.presentes ?? []);
+      } else if (msg.type === 'SESSAO_ENCERRADA') {
+        setSessionEndedReason(msg.content);
+        setOnlineUsers([]);
+        loadTable();
+      } else {
+        setMessages((prev) => [...prev, msg]);
+      }
+    });
     const offStatus = chatService.onStatusChange(setStatus);
 
     return () => {
@@ -74,7 +107,21 @@ export default function TableRoom() {
       offStatus();
       chatService.disconnect();
     };
-  }, [id, isParticipant]);
+  }, [id, isParticipant, token, isClosed, connectionAttempt, loadTable]);
+
+  const closeTable = async () => {
+    if (!id) return;
+    const confirmed = window.confirm(
+      'Encerrar a mesa? A sessão termina para todos e o histórico do chat é apagado.',
+    );
+    if (!confirmed) return;
+    setClosingError(null);
+    try {
+      setTable(await tableService.updateStatus(id, 'ENCERRADA'));
+    } catch (e: unknown) {
+      setClosingError(e instanceof Error ? e.message : 'Erro ao encerrar a mesa.');
+    }
+  };
 
   const changeCharacter = async (characterId: string) => {
     if (!id) return;
@@ -90,11 +137,10 @@ export default function TableRoom() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  const connected = status === 'CONECTADO';
+  const connected = status === 'CONECTADO' && !sessionEndedReason;
 
   const sendRoll = (request: RollRequest) => {
-    if (!id) return;
-    chatService.sendRoll(id, authorId, displayName || 'Anônimo', request);
+    chatService.sendRoll(request);
   };
 
   const sendDraft = () => {
@@ -109,7 +155,7 @@ export default function TableRoom() {
         return;
       }
     } else {
-      chatService.sendText(id, authorId, displayName || 'Anônimo', text);
+      chatService.sendText(text);
     }
     setDraft('');
     setComposerError(null);
@@ -150,6 +196,17 @@ export default function TableRoom() {
     );
   }
 
+  if (isClosed) {
+    return (
+      <section className="room-blocked card">
+        <h2>{table.name}</h2>
+        <p className="muted">{sessionEndedReason ?? 'Esta mesa foi encerrada.'}</p>
+        <p className="muted">O histórico do chat foi apagado e a mesa não aceita mais conexões.</p>
+        <Link className="btn btn-ghost" to="/mesas">Voltar para as mesas</Link>
+      </section>
+    );
+  }
+
   return (
     <section className="room">
       <aside className="room-side card">
@@ -176,10 +233,24 @@ export default function TableRoom() {
           </div>
         )}
 
+        {isMaster && (
+          <div className="master-actions">
+            <button className="btn btn-danger" onClick={closeTable}>
+              Encerrar mesa
+            </button>
+            {closingError && <p className="roll-error">{closingError}</p>}
+          </div>
+        )}
+
         {isMaster && id && <JoinRequestsPanel tableId={id} onAccepted={loadTable} />}
 
         {id && (
-          <ParticipantsPanel tableId={id} participants={table.participants} canViewSheets={isMaster} />
+          <ParticipantsPanel
+            tableId={id}
+            participants={table.participants}
+            onlineUserIds={onlineUsers.map((u) => String(u.userId))}
+            canViewSheets={isMaster}
+          />
         )}
 
         <h3 className="section-title">Rolar dados</h3>
@@ -208,6 +279,14 @@ export default function TableRoom() {
       </aside>
 
       <div className="room-chat card">
+        {sessionEndedReason && (
+          <div className="session-ended">
+            <span>{sessionEndedReason} O histórico do chat foi apagado.</span>
+            <button className="btn btn-ghost" onClick={() => setConnectionAttempt((n) => n + 1)}>
+              Conectar de novo
+            </button>
+          </div>
+        )}
         <div className="messages" ref={scrollRef}>
           {messages.length === 0 && (
             <p className="muted center">
