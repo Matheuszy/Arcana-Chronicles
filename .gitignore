@@ -13,3 +13,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Documentos locais de planejamento
+PLANEJAMENTO_MELHORIAS_ARCANA.md
+AGENTS.md

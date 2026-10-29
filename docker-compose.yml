@@ -32,6 +32,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: ${DB_HOST}
+      DB_URL: jdbc:postgresql://${DB_HOST}:5432/arcana
     ports:
       - "8080:8080"
     depends_on:
@@ -39,7 +40,6 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/src:/app/src:ro
-      - ./backend/.env:/app/.env:ro
 
   # Frontend React com Nginx
   frontend:
