@@ -6,8 +6,8 @@ import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
-import com.arcana.backend.table.MesaEncerradaEvent;
 import com.arcana.backend.table.MesaRequestDto;
+import com.arcana.backend.table.MesaStatusAlteradoEvent;
 import com.arcana.backend.table.model.Mesa;
 import com.arcana.backend.table.model.Participante;
 import com.arcana.backend.table.model.SolicitacaoEntrada;
@@ -26,7 +26,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -51,12 +53,14 @@ class MesaServiceTest {
     private static final LocalDateTime AGORA = LocalDateTime.of(2026, 10, 29, 15, 0);
 
     private final List<Object> eventosPublicados = new ArrayList<>();
+    private final Set<Long> mesasComSessaoAtiva = new HashSet<>();
     private MesaService service;
 
     @BeforeEach
     void setUp() {
         Clock relogio = Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        service = new MesaService(mesaRepository, personagemRepository, solicitacaoRepository, relogio, eventosPublicados::add);
+        service = new MesaService(mesaRepository, personagemRepository, solicitacaoRepository, relogio,
+                eventosPublicados::add, mesasComSessaoAtiva::contains);
     }
 
     private SolicitacaoEntrada solicitacaoRecusadaHa(Duration tempoDesdeARecusa) {
@@ -222,17 +226,96 @@ class MesaServiceTest {
 
         service.atualizarStatus(1L, StatusMesa.ENCERRADA, 1L);
 
-        assertEquals(List.of(new MesaEncerradaEvent(1L)), eventosPublicados);
+        assertEquals(List.of(new MesaStatusAlteradoEvent(1L, StatusMesa.ENCERRADA)), eventosPublicados);
     }
 
     @Test
-    void naoDevePublicarEventoEmOutrasMudancasDeStatus() {
-        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+    void devePermitirPausarERetomarAMesa() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
         when(mesaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.atualizarStatus(1L, StatusMesa.EM_ANDAMENTO, 1L);
+        service.atualizarStatus(1L, StatusMesa.PAUSADA, 1L);
+        var retomada = service.atualizarStatus(1L, StatusMesa.EM_ANDAMENTO, 1L);
 
+        assertEquals(StatusMesa.EM_ANDAMENTO, retomada.status());
+        assertEquals(List.of(
+                new MesaStatusAlteradoEvent(1L, StatusMesa.PAUSADA),
+                new MesaStatusAlteradoEvent(1L, StatusMesa.EM_ANDAMENTO)), eventosPublicados);
+    }
+
+    @Test
+    void deveNegarReaberturaDeMesaEncerrada() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.setStatus(StatusMesa.ENCERRADA);
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        for (StatusMesa status : List.of(StatusMesa.ABERTA, StatusMesa.EM_ANDAMENTO, StatusMesa.PAUSADA)) {
+            assertThrows(RegraDeNegocioException.class, () -> service.atualizarStatus(1L, status, 1L));
+        }
+        assertEquals(StatusMesa.ENCERRADA, mesa.getStatus());
+        verify(mesaRepository, never()).save(any());
         assertTrue(eventosPublicados.isEmpty());
+    }
+
+    @Test
+    void naoDevePublicarEventoQuandoStatusNaoMuda() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+
+        service.atualizarStatus(1L, StatusMesa.ABERTA, 1L);
+
+        verify(mesaRepository, never()).save(any());
+        assertTrue(eventosPublicados.isEmpty());
+    }
+
+    @Test
+    void deveNegarAlteracaoSemStatus() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+
+        assertThrows(IllegalArgumentException.class, () -> service.atualizarStatus(1L, null, 1L));
+        verify(mesaRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarSolicitacaoDeEntradaEmMesaPausada() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.setStatus(StatusMesa.PAUSADA);
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.solicitarEntrada(1L, 2L, "joao", PapelUsuario.JOGADOR, 100L));
+        verify(solicitacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void devePermitirChatDeParticipanteEmMesaPausadaInformandoOStatus() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.setStatus(StatusMesa.PAUSADA);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        var acesso = service.validarAcessoAoChat(1L, 2L);
+
+        assertEquals(StatusMesa.PAUSADA, acesso.statusMesa());
+    }
+
+    @Test
+    void devePermitirMestreExcluirMesaSemSessaoAtiva() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        service.deletar(1L, 1L);
+
+        verify(mesaRepository).delete(mesa);
+    }
+
+    @Test
+    void deveNegarExclusaoDeMesaComSessaoAtiva() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        mesasComSessaoAtiva.add(1L);
+
+        assertThrows(RegraDeNegocioException.class, () -> service.deletar(1L, 1L));
+        verify(mesaRepository, never()).delete(any());
     }
 
     @Test
@@ -256,7 +339,7 @@ class MesaServiceTest {
 
         when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
 
-        assertThrows(RuntimeException.class, () -> service.deletar(1L, 2L));
+        assertThrows(AccessDeniedException.class, () -> service.deletar(1L, 2L));
         verify(mesaRepository, never()).delete(any());
     }
 

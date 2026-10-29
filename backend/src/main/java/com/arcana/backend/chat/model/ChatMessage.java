@@ -3,6 +3,7 @@ package com.arcana.backend.chat.model;
 import com.arcana.backend.chat.dice.PedidoRolagem;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Espelha exatamente o ChatMessage do frontend (chat.ts).
@@ -11,7 +12,7 @@ import java.util.List;
 public class ChatMessage {
 
     public enum Type {
-        TEXTO, ROLAGEM, NPC_RESPOSTA, SISTEMA, HISTORICO, PRESENCA, SESSAO_ENCERRADA
+        TEXTO, ROLAGEM, IMAGEM, NPC_RESPOSTA, SISTEMA, HISTORICO, PRESENCA, SESSAO_ENCERRADA, STATUS_MESA
     }
 
     private String id;
@@ -19,12 +20,14 @@ public class ChatMessage {
     private String authorId;
     private String authorName;
     private Type type;
+    private Canal canal;
     private String content;
     private DiceRollResult diceResult;
     private PedidoRolagem rollRequest;
+    private ImagemAnexada image;
     private String mentionedNpcId;
     private String createdAt;
-    private List<ChatMessage> historico;
+    private Map<Canal, List<ChatMessage>> historico;
     private List<Presenca> presentes;
 
     // ── DiceRollResult aninhado ───────────────────────────────────────────────
@@ -89,12 +92,16 @@ public class ChatMessage {
     public void setDiceResult(DiceRollResult diceResult) { this.diceResult = diceResult; }
     public PedidoRolagem getRollRequest() { return rollRequest; }
     public void setRollRequest(PedidoRolagem rollRequest) { this.rollRequest = rollRequest; }
+    public ImagemAnexada getImage() { return image; }
+    public void setImage(ImagemAnexada image) { this.image = image; }
     public String getMentionedNpcId() { return mentionedNpcId; }
     public void setMentionedNpcId(String mentionedNpcId) { this.mentionedNpcId = mentionedNpcId; }
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
-    public List<ChatMessage> getHistorico() { return historico; }
-    public void setHistorico(List<ChatMessage> historico) { this.historico = historico; }
+    public Canal getCanal() { return canal; }
+    public void setCanal(Canal canal) { this.canal = canal; }
+    public Map<Canal, List<ChatMessage>> getHistorico() { return historico; }
+    public void setHistorico(Map<Canal, List<ChatMessage>> historico) { this.historico = historico; }
     public List<Presenca> getPresentes() { return presentes; }
     public void setPresentes(List<Presenca> presentes) { this.presentes = presentes; }
 }
