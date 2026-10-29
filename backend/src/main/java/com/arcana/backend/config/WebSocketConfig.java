@@ -2,10 +2,13 @@ package com.arcana.backend.config;
 
 import com.arcana.backend.chat.AutenticacaoHandshakeInterceptor;
 import com.arcana.backend.chat.MesaChatHandler;
+import com.arcana.backend.chat.imagem.ValidadorImagem;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 /**
@@ -39,5 +42,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
             .setHandshakeHandler(handshakeHandler)
             .addInterceptors(autenticacaoHandshakeInterceptor)
             .setAllowedOrigins("http://localhost:5173", "http://localhost:4200");
+    }
+
+    @Bean
+    public ServletServerContainerFactoryBean webSocketContainer() {
+        ServletServerContainerFactoryBean container = new ServletServerContainerFactoryBean();
+        container.setMaxTextMessageBufferSize(ValidadorImagem.LIMITE_TAMANHO_MENSAGEM_BYTES);
+        return container;
     }
 }

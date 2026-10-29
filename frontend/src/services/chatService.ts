@@ -45,6 +45,7 @@ class ChatService {
     const mention = content.match(NPC_MENTION_REGEX);
     this.send({
       type: 'TEXTO',
+      canal: 'CONVERSA',
       content,
       mentionedNpcId: mention ? mention[1] : undefined,
     });
@@ -53,8 +54,18 @@ class ChatService {
   sendRoll(rollRequest: RollRequest): void {
     this.send({
       type: 'ROLAGEM',
+      canal: 'ROLAGENS',
       content: '',
       rollRequest,
+    });
+  }
+
+  sendImage(dataUrl: string): void {
+    this.send({
+      type: 'IMAGEM',
+      canal: 'IMAGENS',
+      content: '',
+      image: { dataUrl },
     });
   }
 

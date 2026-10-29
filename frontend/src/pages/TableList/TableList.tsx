@@ -2,15 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tableService } from '../../services/tableService';
 import { useSession } from '../../context/SessionContext';
-import { GameTable } from '../../types/table';
+import { GameTable, TABLE_STATUS_LABEL } from '../../types/table';
 import JoinRequestPanel from './JoinRequestPanel';
 import './TableList.css';
-
-const STATUS_LABEL: Record<GameTable['status'], string> = {
-  ABERTA: 'Aberta',
-  EM_ANDAMENTO: 'Em andamento',
-  ENCERRADA: 'Encerrada',
-};
 
 export default function TableList() {
   const { role, userId } = useSession();
@@ -21,6 +15,7 @@ export default function TableList() {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [deleteError, setDeleteError] = useState<{ tableId: string; message: string } | null>(null);
 
   const reload = () => {
     setLoading(true);
@@ -51,6 +46,24 @@ export default function TableList() {
     if (!table.id) return;
     navigate(`/mesas/${table.id}`);
   };
+
+  const deleteTable = async (table: GameTable) => {
+    if (!table.id) return;
+    const confirmed = window.confirm(`Excluir a mesa "${table.name}"? Essa ação não pode ser desfeita.`);
+    if (!confirmed) return;
+    setDeleteError(null);
+    try {
+      await tableService.delete(table.id);
+      reload();
+    } catch (e: unknown) {
+      setDeleteError({
+        tableId: table.id,
+        message: e instanceof Error ? e.message : 'Erro ao excluir a mesa.',
+      });
+    }
+  };
+
+  const isOwner = (table: GameTable) => String(table.masterId) === String(userId);
 
   const participates = (table: GameTable) =>
     table.participants?.some((p) => String(p.userId) === String(userId)) ?? false;
@@ -140,7 +153,7 @@ export default function TableList() {
             <article key={t.id} className="table-card card">
               <div className="table-card-top">
                 <span className={`status status--${t.status.toLowerCase()}`}>
-                  {STATUS_LABEL[t.status]}
+                  {TABLE_STATUS_LABEL[t.status]}
                 </span>
                 <span className="players">{t.participants?.length ?? 0} na mesa</span>
               </div>
@@ -148,6 +161,14 @@ export default function TableList() {
               <p className="desc">{t.description || 'Sem descrição.'}</p>
               <p className="master">Mestre: {t.masterName}</p>
               {renderAction(t)}
+              {isOwner(t) && (
+                <button className="btn btn-ghost btn-delete-table" onClick={() => deleteTable(t)}>
+                  Excluir mesa
+                </button>
+              )}
+              {deleteError && deleteError.tableId === t.id && (
+                <p className="join-error">{deleteError.message}</p>
+              )}
             </article>
           ))}
         </div>

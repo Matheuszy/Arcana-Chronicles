@@ -1,4 +1,11 @@
-export type TableStatus = 'ABERTA' | 'EM_ANDAMENTO' | 'ENCERRADA';
+export type TableStatus = 'ABERTA' | 'EM_ANDAMENTO' | 'PAUSADA' | 'ENCERRADA';
+
+export const TABLE_STATUS_LABEL: Record<TableStatus, string> = {
+  ABERTA: 'Aberta',
+  EM_ANDAMENTO: 'Em andamento',
+  PAUSADA: 'Pausada',
+  ENCERRADA: 'Encerrada',
+};
 
 export interface TableParticipant {
   userId: string;

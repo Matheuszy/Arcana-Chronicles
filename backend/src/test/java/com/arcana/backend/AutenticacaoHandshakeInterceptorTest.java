@@ -5,6 +5,7 @@ import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.config.security.TokenService;
 import com.arcana.backend.table.AcessoMesaDto;
+import com.arcana.backend.table.model.StatusMesa;
 import com.arcana.backend.table.service.MesaService;
 import com.arcana.backend.user.model.PapelUsuario;
 import com.arcana.backend.user.model.Usuario;
@@ -125,7 +126,7 @@ class AutenticacaoHandshakeInterceptorTest {
 
     @Test
     void deveAceitarParticipanteEGuardarIdentidadeNaSessao() {
-        AcessoMesaDto acesso = new AcessoMesaDto(1L, 2L, "joao", "JOGADOR");
+        AcessoMesaDto acesso = new AcessoMesaDto(1L, 2L, "joao", "JOGADOR", StatusMesa.ABERTA);
         when(tokenService.validarToken("token-joao")).thenReturn("joao");
         when(usuarioRepositorie.findByUsername("joao")).thenReturn(Optional.of(joao()));
         when(mesaService.validarAcessoAoChat(1L, 2L)).thenReturn(acesso);

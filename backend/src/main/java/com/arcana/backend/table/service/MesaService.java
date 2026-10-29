@@ -7,9 +7,10 @@ import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.AcessoMesaDto;
-import com.arcana.backend.table.MesaEncerradaEvent;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaResponseDto;
+import com.arcana.backend.table.MesaStatusAlteradoEvent;
+import com.arcana.backend.table.SessoesAtivasDeMesa;
 import com.arcana.backend.table.SolicitacaoEntradaResponseDto;
 import com.arcana.backend.table.model.Mesa;
 import com.arcana.backend.table.model.Participante;
@@ -36,17 +37,20 @@ public class MesaService {
     private final SolicitacaoEntradaRepository solicitacaoRepository;
     private final Clock clock;
     private final ApplicationEventPublisher eventPublisher;
+    private final SessoesAtivasDeMesa sessoesAtivas;
 
     public MesaService(MesaRepository mesaRepository,
                        PersonagemRepository personagemRepository,
                        SolicitacaoEntradaRepository solicitacaoRepository,
                        Clock clock,
-                       ApplicationEventPublisher eventPublisher) {
+                       ApplicationEventPublisher eventPublisher,
+                       SessoesAtivasDeMesa sessoesAtivas) {
         this.mesaRepository = mesaRepository;
         this.personagemRepository = personagemRepository;
         this.solicitacaoRepository = solicitacaoRepository;
         this.clock = clock;
         this.eventPublisher = eventPublisher;
+        this.sessoesAtivas = sessoesAtivas;
     }
 
     /** Lista todas as mesas (frontend usa GET /api/tables sem filtro) */
@@ -97,7 +101,8 @@ public class MesaService {
                 .findFirst()
                 .orElseThrow(() -> new AccessDeniedException("Apenas participantes da mesa podem entrar no chat."));
 
-        return new AcessoMesaDto(mesaId, userId, participante.getDisplayName(), participante.getRole());
+        return new AcessoMesaDto(
+                mesaId, userId, participante.getDisplayName(), participante.getRole(), mesa.getStatus());
     }
 
     @Transactional
@@ -236,13 +241,21 @@ public class MesaService {
             throw new AccessDeniedException("Apenas o mestre pode alterar o status da mesa.");
         }
 
-        mesa.setStatus(novoStatus);
-        MesaResponseDto resposta = MesaResponseDto.from(mesaRepository.save(mesa));
-
-        if (novoStatus == StatusMesa.ENCERRADA) {
-            eventPublisher.publishEvent(new MesaEncerradaEvent(mesaId));
+        if (novoStatus == null) {
+            throw new IllegalArgumentException("Informe o novo status da mesa.");
         }
 
+        if (mesa.getStatus() == StatusMesa.ENCERRADA) {
+            throw new RegraDeNegocioException("Uma mesa encerrada não pode ser reaberta.");
+        }
+
+        if (mesa.getStatus() == novoStatus) {
+            return MesaResponseDto.from(mesa);
+        }
+
+        mesa.setStatus(novoStatus);
+        MesaResponseDto resposta = MesaResponseDto.from(mesaRepository.save(mesa));
+        eventPublisher.publishEvent(new MesaStatusAlteradoEvent(mesaId, novoStatus));
         return resposta;
     }
 
@@ -284,6 +297,11 @@ public class MesaService {
 
         if (!mesa.getMasterId().equals(masterId)) {
             throw new AccessDeniedException("Apenas o mestre pode excluir a mesa.");
+        }
+
+        if (sessoesAtivas.possuiSessaoAtiva(mesaId)) {
+            throw new RegraDeNegocioException(
+                    "A mesa tem uma sessão ativa. Encerre a sessão antes de excluir a mesa.");
         }
 
         mesaRepository.delete(mesa);
