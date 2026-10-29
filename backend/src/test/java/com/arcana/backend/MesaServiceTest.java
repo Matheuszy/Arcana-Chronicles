@@ -6,6 +6,7 @@ import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
+import com.arcana.backend.table.MesaEncerradaEvent;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.model.Mesa;
 import com.arcana.backend.table.model.Participante;
@@ -24,6 +25,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.time.Clock;
 import java.time.Duration;
@@ -48,12 +50,13 @@ class MesaServiceTest {
 
     private static final LocalDateTime AGORA = LocalDateTime.of(2026, 10, 29, 15, 0);
 
+    private final List<Object> eventosPublicados = new ArrayList<>();
     private MesaService service;
 
     @BeforeEach
     void setUp() {
         Clock relogio = Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        service = new MesaService(mesaRepository, personagemRepository, solicitacaoRepository, relogio);
+        service = new MesaService(mesaRepository, personagemRepository, solicitacaoRepository, relogio, eventosPublicados::add);
     }
 
     private SolicitacaoEntrada solicitacaoRecusadaHa(Duration tempoDesdeARecusa) {
@@ -61,6 +64,36 @@ class MesaServiceTest {
         solicitacao.setStatus(StatusSolicitacao.RECUSADA);
         solicitacao.setDecidedAt(AGORA.minus(tempoDesdeARecusa));
         return solicitacao;
+    }
+
+    @Test
+    void devePermitirChatParaParticipanteDaMesa() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        var acesso = service.validarAcessoAoChat(1L, 2L);
+
+        assertEquals(2L, acesso.userId());
+        assertEquals("joao", acesso.displayName());
+        assertEquals("JOGADOR", acesso.role());
+    }
+
+    @Test
+    void deveNegarChatParaQuemNaoParticipaDaMesa() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+
+        assertThrows(AccessDeniedException.class, () -> service.validarAcessoAoChat(1L, 2L));
+    }
+
+    @Test
+    void deveNegarChatDeMesaEncerradaMesmoParaParticipante() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.setStatus(StatusMesa.ENCERRADA);
+        mesa.getParticipants().add(new Participante(1L, "gandalf", "MESTRE", null));
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.validarAcessoAoChat(1L, 1L));
     }
 
     @Test
@@ -180,6 +213,26 @@ class MesaServiceTest {
         assertThrows(AccessDeniedException.class,
                 () -> service.criar(dto, 2L, "joao", PapelUsuario.JOGADOR));
         verify(mesaRepository, never()).save(any());
+    }
+
+    @Test
+    void devePublicarEventoAoEncerrarMesa() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(mesaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.atualizarStatus(1L, StatusMesa.ENCERRADA, 1L);
+
+        assertEquals(List.of(new MesaEncerradaEvent(1L)), eventosPublicados);
+    }
+
+    @Test
+    void naoDevePublicarEventoEmOutrasMudancasDeStatus() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(mesaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.atualizarStatus(1L, StatusMesa.EM_ANDAMENTO, 1L);
+
+        assertTrue(eventosPublicados.isEmpty());
     }
 
     @Test

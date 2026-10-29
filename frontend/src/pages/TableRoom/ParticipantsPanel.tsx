@@ -15,6 +15,7 @@ const ATTRIBUTE_LABEL: Record<keyof Attributes, string> = {
 interface ParticipantsPanelProps {
   tableId: string;
   participants: TableParticipant[];
+  onlineUserIds: string[];
   canViewSheets: boolean;
 }
 
@@ -23,7 +24,12 @@ function formatModifier(score: number): string {
   return mod >= 0 ? `+${mod}` : String(mod);
 }
 
-export default function ParticipantsPanel({ tableId, participants, canViewSheets }: ParticipantsPanelProps) {
+export default function ParticipantsPanel({
+  tableId,
+  participants,
+  onlineUserIds,
+  canViewSheets,
+}: ParticipantsPanelProps) {
   const [sheet, setSheet] = useState<Character | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +53,10 @@ export default function ParticipantsPanel({ tableId, participants, canViewSheets
         {participants.map((p) => (
           <li key={p.userId} className="participant-item">
             <span>
+              <span
+                className={`presence-dot ${onlineUserIds.includes(String(p.userId)) ? 'online' : ''}`}
+                title={onlineUserIds.includes(String(p.userId)) ? 'Online' : 'Offline'}
+              />
               {p.displayName}
               <span className={`participant-role ${p.role === 'MESTRE' ? 'master' : ''}`}>
                 {p.role === 'MESTRE' ? 'mestre' : 'jogador'}

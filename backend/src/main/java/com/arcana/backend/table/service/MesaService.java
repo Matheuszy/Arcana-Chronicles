@@ -6,6 +6,8 @@ import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
+import com.arcana.backend.table.AcessoMesaDto;
+import com.arcana.backend.table.MesaEncerradaEvent;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaResponseDto;
 import com.arcana.backend.table.SolicitacaoEntradaResponseDto;
@@ -18,6 +20,7 @@ import com.arcana.backend.table.repository.MesaRepository;
 import com.arcana.backend.table.repository.SolicitacaoEntradaRepository;
 import com.arcana.backend.user.model.PapelUsuario;
 import jakarta.transaction.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -32,15 +35,18 @@ public class MesaService {
     private final PersonagemRepository personagemRepository;
     private final SolicitacaoEntradaRepository solicitacaoRepository;
     private final Clock clock;
+    private final ApplicationEventPublisher eventPublisher;
 
     public MesaService(MesaRepository mesaRepository,
                        PersonagemRepository personagemRepository,
                        SolicitacaoEntradaRepository solicitacaoRepository,
-                       Clock clock) {
+                       Clock clock,
+                       ApplicationEventPublisher eventPublisher) {
         this.mesaRepository = mesaRepository;
         this.personagemRepository = personagemRepository;
         this.solicitacaoRepository = solicitacaoRepository;
         this.clock = clock;
+        this.eventPublisher = eventPublisher;
     }
 
     /** Lista todas as mesas (frontend usa GET /api/tables sem filtro) */
@@ -76,6 +82,22 @@ public class MesaService {
                 new Participante(masterId, masterName, "MESTRE", null));
 
         return MesaResponseDto.from(mesaRepository.save(mesa));
+    }
+
+    @Transactional
+    public AcessoMesaDto validarAcessoAoChat(Long mesaId, Long userId) {
+        Mesa mesa = findOrThrow(mesaId);
+
+        if (mesa.getStatus() == StatusMesa.ENCERRADA) {
+            throw new RegraDeNegocioException("A mesa está encerrada.");
+        }
+
+        Participante participante = mesa.getParticipants().stream()
+                .filter(p -> p.getUserId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new AccessDeniedException("Apenas participantes da mesa podem entrar no chat."));
+
+        return new AcessoMesaDto(mesaId, userId, participante.getDisplayName(), participante.getRole());
     }
 
     @Transactional
@@ -215,7 +237,13 @@ public class MesaService {
         }
 
         mesa.setStatus(novoStatus);
-        return MesaResponseDto.from(mesaRepository.save(mesa));
+        MesaResponseDto resposta = MesaResponseDto.from(mesaRepository.save(mesa));
+
+        if (novoStatus == StatusMesa.ENCERRADA) {
+            eventPublisher.publishEvent(new MesaEncerradaEvent(mesaId));
+        }
+
+        return resposta;
     }
 
     /** Associa um NPC (não-jogador) à mesa — apenas o mestre, e apenas NPCs próprios */

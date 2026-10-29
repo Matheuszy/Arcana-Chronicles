@@ -1,4 +1,10 @@
-export type ChatMessageType = 'TEXTO' | 'ROLAGEM' | 'NPC_RESPOSTA' | 'SISTEMA';
+export type ChatMessageType = 'TEXTO' | 'ROLAGEM' | 'NPC_RESPOSTA' | 'SISTEMA' | 'HISTORICO' | 'PRESENCA' | 'SESSAO_ENCERRADA';
+
+export interface Presence {
+  userId: number;
+  displayName: string;
+  role: 'MESTRE' | 'JOGADOR';
+}
 
 export type RollMode = 'NORMAL' | 'VANTAGEM' | 'DESVANTAGEM';
 
@@ -36,4 +42,8 @@ export interface ChatMessage {
   rollRequest?: RollRequest;
   mentionedNpcId?: string;
   createdAt: string;
+  historico?: ChatMessage[] | null;
+  presentes?: Presence[] | null;
 }
+
+export type OutgoingChatMessage = Pick<ChatMessage, 'type' | 'content' | 'rollRequest' | 'mentionedNpcId'>;

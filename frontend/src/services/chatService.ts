@@ -1,5 +1,7 @@
 import { WS_BASE_URL } from './apiConfig';
-import { ChatMessage, RollRequest } from '../types/chat';
+import { ChatMessage, OutgoingChatMessage, RollRequest } from '../types/chat';
+
+const AUTH_PROTOCOL = 'arcana.jwt';
 
 /** Extrai o "slug" de NPC mencionado com @, ex: "@arannis cuidado!" -> "arannis" */
 export const NPC_MENTION_REGEX = /@([a-zA-Z0-9_-]+)/;
@@ -24,9 +26,9 @@ class ChatService {
     return () => this.statusListeners.delete(listener);
   }
 
-  connect(tableId: string): void {
+  connect(tableId: string, token: string): void {
     this.disconnect();
-    this.socket = new WebSocket(`${WS_BASE_URL}/mesas/${tableId}`);
+    this.socket = new WebSocket(`${WS_BASE_URL}/mesas/${tableId}`, [AUTH_PROTOCOL, token]);
 
     this.socket.onopen = () => this.statusListeners.forEach((fn) => fn('CONECTADO'));
     this.socket.onclose = () => this.statusListeners.forEach((fn) => fn('DESCONECTADO'));
@@ -39,32 +41,24 @@ class ChatService {
   }
 
   /** Envia texto puro; o backend detecta @menção e aciona a IA do NPC quando aplicável */
-  sendText(tableId: string, authorId: string, authorName: string, content: string): void {
+  sendText(content: string): void {
     const mention = content.match(NPC_MENTION_REGEX);
     this.send({
-      tableId,
-      authorId,
-      authorName,
       type: 'TEXTO',
       content,
       mentionedNpcId: mention ? mention[1] : undefined,
-      createdAt: new Date().toISOString(),
     });
   }
 
-  sendRoll(tableId: string, authorId: string, authorName: string, rollRequest: RollRequest): void {
+  sendRoll(rollRequest: RollRequest): void {
     this.send({
-      tableId,
-      authorId,
-      authorName,
       type: 'ROLAGEM',
       content: '',
       rollRequest,
-      createdAt: new Date().toISOString(),
     });
   }
 
-  private send(message: ChatMessage): void {
+  private send(message: OutgoingChatMessage): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
     } else {
