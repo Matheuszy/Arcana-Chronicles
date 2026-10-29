@@ -33,6 +33,12 @@ export default function JoinRequestsPanel({ tableId, onAccepted }: JoinRequestsP
   }, [load]);
 
   const decide = async (request: JoinRequest, accept: boolean) => {
+    if (
+      !accept &&
+      !window.confirm(`Recusar a entrada de ${request.displayName}? Um novo pedido só será possível em 15 minutos.`)
+    ) {
+      return;
+    }
     setBusyId(request.id);
     setError(null);
     try {

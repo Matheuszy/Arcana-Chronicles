@@ -225,3 +225,6 @@
   border-top: 1px solid var(--ink-700);
   padding-top: 1.25rem;
 }
+
+.save-error { margin-top: 1rem; }
+.back-to-list { margin-top: 1rem; }

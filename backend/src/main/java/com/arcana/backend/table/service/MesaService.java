@@ -10,6 +10,8 @@ import com.arcana.backend.table.AcessoMesaDto;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaResponseDto;
 import com.arcana.backend.table.MesaStatusAlteradoEvent;
+import com.arcana.backend.table.ParticipanteRemovidoEvent;
+import com.arcana.backend.table.ParticipantesAlteradosEvent;
 import com.arcana.backend.table.SessoesAtivasDeMesa;
 import com.arcana.backend.table.SolicitacaoEntradaResponseDto;
 import com.arcana.backend.table.model.Mesa;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class MesaService {
@@ -170,6 +173,7 @@ public class MesaService {
             mesa.getParticipants().add(new Participante(
                     solicitacao.getUserId(), solicitacao.getDisplayName(), "JOGADOR", characterId));
             mesaRepository.save(mesa);
+            eventPublisher.publishEvent(new ParticipantesAlteradosEvent(mesaId));
         }
 
         return decidir(solicitacao, StatusSolicitacao.ACEITA);
@@ -216,7 +220,9 @@ public class MesaService {
         }
 
         participante.setCharacterId(characterId);
-        return MesaResponseDto.from(mesaRepository.save(mesa));
+        MesaResponseDto resposta = MesaResponseDto.from(mesaRepository.save(mesa));
+        eventPublisher.publishEvent(new ParticipantesAlteradosEvent(mesaId));
+        return resposta;
     }
 
     /** Jogador sai da mesa — o mestre não pode sair pelo mesmo endpoint */
@@ -228,8 +234,34 @@ public class MesaService {
             throw new RegraDeNegocioException("O mestre não pode sair da própria mesa.");
         }
 
-        mesa.getParticipants().removeIf(p -> p.getUserId().equals(userId));
-        return MesaResponseDto.from(mesaRepository.save(mesa));
+        Participante participante = buscarParticipante(mesa, userId)
+                .orElseThrow(() -> new RegraDeNegocioException("Você não participa desta mesa."));
+
+        return removerParticipanteDaMesa(mesa, participante, false);
+    }
+
+    @Transactional
+    public MesaResponseDto removerParticipante(Long mesaId, Long userId, Long masterId) {
+        Mesa mesa = findOrThrow(mesaId);
+        validarMestreDaMesa(mesa, masterId, "Apenas o mestre pode remover participantes da mesa.");
+
+        if (mesa.getMasterId().equals(userId)) {
+            throw new RegraDeNegocioException("O mestre não pode remover a si mesmo da mesa.");
+        }
+
+        Participante participante = buscarParticipante(mesa, userId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Este usuário não participa da mesa: " + userId));
+
+        return removerParticipanteDaMesa(mesa, participante, true);
+    }
+
+    private MesaResponseDto removerParticipanteDaMesa(Mesa mesa, Participante participante, boolean removidoPeloMestre) {
+        mesa.getParticipants().remove(participante);
+        MesaResponseDto resposta = MesaResponseDto.from(mesaRepository.save(mesa));
+        eventPublisher.publishEvent(new ParticipanteRemovidoEvent(
+                mesa.getId(), participante.getUserId(), participante.getDisplayName(), removidoPeloMestre));
+        return resposta;
     }
 
     /** Atualiza o status da mesa (ABERTA → EM_ANDAMENTO → ENCERRADA) */
@@ -360,7 +392,11 @@ public class MesaService {
     }
 
     private boolean participaDaMesa(Mesa mesa, Long userId) {
-        return mesa.getParticipants().stream().anyMatch(p -> p.getUserId().equals(userId));
+        return buscarParticipante(mesa, userId).isPresent();
+    }
+
+    private Optional<Participante> buscarParticipante(Mesa mesa, Long userId) {
+        return mesa.getParticipants().stream().filter(p -> p.getUserId().equals(userId)).findFirst();
     }
 
     private void validarPersonagemProprioEJogavel(Long characterId, Long userId) {

@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -88,6 +89,21 @@ class PersonagemServiceTest {
 
         assertThrows(AccessDeniedException.class, () -> service.atualizar(10L, dtoValido(), 2L));
         verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveManterAColecaoDePericiasAoAtualizarSemPericias() {
+        Personagem personagem = personagemDeAlice();
+        personagem.getSkills().add("arcanismo");
+        List<String> colecaoOriginal = personagem.getSkills();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.atualizar(10L, dtoValido(), 1L);
+
+        assertSame(colecaoOriginal, personagem.getSkills());
+        assertTrue(personagem.getSkills().isEmpty());
+        assertDoesNotThrow(() -> personagem.getSkills().add("furtividade"));
     }
 
     @Test

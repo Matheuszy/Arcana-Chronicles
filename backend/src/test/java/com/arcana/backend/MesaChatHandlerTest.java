@@ -10,6 +10,8 @@ import com.arcana.backend.chat.model.ChatMessage;
 import com.arcana.backend.chat.sessao.MesaAtiva;
 import com.arcana.backend.table.AcessoMesaDto;
 import com.arcana.backend.table.MesaStatusAlteradoEvent;
+import com.arcana.backend.table.ParticipanteRemovidoEvent;
+import com.arcana.backend.table.ParticipantesAlteradosEvent;
 import com.arcana.backend.table.model.StatusMesa;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -499,6 +501,44 @@ class MesaChatHandlerTest {
         List<String> historico = gerenciador.buscar(1L).orElseThrow().historico(Canal.CONVERSA).stream()
                 .map(ChatMessage::getContent).toList();
         assertTrue(historico.contains("O mestre retomou a mesa."));
+    }
+
+    @Test
+    void deveDesconectarJogadorRemovidoPeloMestreEAvisarOsDemais() throws Exception {
+        handler.aoRemoverParticipante(new ParticipanteRemovidoEvent(1L, 2L, "joao", true));
+
+        JsonNode aviso = mensagensRecebidas(remetente).get(0);
+        assertEquals("REMOVIDO_DA_MESA", aviso.get("type").asText());
+        assertEquals("O mestre removeu você da mesa.", aviso.get("content").asText());
+        verify(remetente).close(any(CloseStatus.class));
+
+        List<JsonNode> recebidas = mensagensRecebidas(outroJogador);
+        assertEquals("O mestre removeu joao da mesa.", recebidas.get(0).get("content").asText());
+        assertEquals("PARTICIPANTES", recebidas.get(1).get("type").asText());
+        assertEquals(1, recebidas.get(2).get("presentes").size());
+        assertTrue(mensagensRecebidas(jogadorDeOutraMesa).isEmpty());
+        clearInvocations(outroJogador);
+
+        handler.afterConnectionClosed(remetente, CloseStatus.NORMAL);
+
+        assertTrue(mensagensRecebidas(outroJogador).isEmpty());
+    }
+
+    @Test
+    void deveAvisarQuandoJogadorDeixaAMesa() throws Exception {
+        handler.aoRemoverParticipante(new ParticipanteRemovidoEvent(1L, 2L, "joao", false));
+
+        assertEquals("Você saiu da mesa.", mensagensRecebidas(remetente).get(0).get("content").asText());
+        assertEquals("joao deixou a mesa.", mensagensRecebidas(outroJogador).get(0).get("content").asText());
+        assertFalse(gerenciador.buscar(1L).orElseThrow().usuarioConectado(2L));
+    }
+
+    @Test
+    void deveAvisarApenasAMesaQuandoOsParticipantesMudam() throws Exception {
+        handler.aoAlterarParticipantes(new ParticipantesAlteradosEvent(1L));
+
+        assertEquals("PARTICIPANTES", mensagensRecebidas(outroJogador).get(0).get("type").asText());
+        assertTrue(mensagensRecebidas(jogadorDeOutraMesa).isEmpty());
     }
 
     @Test

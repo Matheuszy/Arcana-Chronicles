@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
 import { Character, CharacterKind, KIND_LABEL } from '../../types/character';
+import LoadError from '../../components/LoadError';
 import './CharacterList.css';
 
 const FILTERS: { key: CharacterKind | 'TODOS'; label: string }[] = [
@@ -15,14 +16,18 @@ const FILTERS: { key: CharacterKind | 'TODOS'; label: string }[] = [
 export default function CharacterList() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<CharacterKind | 'TODOS'>('TODOS');
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<{ characterId: string; message: string } | null>(null);
 
   const reload = () => {
     setLoading(true);
+    setLoadError(null);
     characterService
       .list()
       .then(setCharacters)
-      .catch(() => {})
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Erro ao carregar as fichas.'))
       .finally(() => setLoading(false));
   };
 
@@ -30,10 +35,22 @@ export default function CharacterList() {
 
   const filtered = filter === 'TODOS' ? characters : characters.filter((c) => c.kind === filter);
 
-  const remove = (character: Character) => {
+  const remove = async (character: Character) => {
     if (!character.id) return;
-    if (!confirm(`Remover "${character.name}" permanentemente?`)) return;
-    characterService.delete(character.id).then(reload);
+    if (!window.confirm(`Remover "${character.name}" permanentemente? Essa ação não pode ser desfeita.`)) return;
+    setRemovingId(character.id);
+    setRemoveError(null);
+    try {
+      await characterService.delete(character.id);
+      reload();
+    } catch (e: unknown) {
+      setRemoveError({
+        characterId: character.id,
+        message: e instanceof Error ? e.message : 'Erro ao remover a ficha.',
+      });
+    } finally {
+      setRemovingId(null);
+    }
   };
 
   return (
@@ -63,12 +80,21 @@ export default function CharacterList() {
 
       {loading ? (
         <p className="muted">Consultando o grimório...</p>
-      ) : filtered.length === 0 ? (
+      ) : loadError ? (
+        <LoadError title="Não foi possível carregar as fichas" message={loadError} onRetry={reload} />
+      ) : characters.length === 0 ? (
         <div className="empty card">
           <p>Nenhuma ficha por aqui ainda.</p>
           <Link to="/fichas/nova" className="btn btn-ghost">
             Criar a primeira ficha
           </Link>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty card">
+          <p>Nenhuma ficha em “{FILTERS.find((f) => f.key === filter)?.label}”.</p>
+          <button type="button" className="btn btn-ghost" onClick={() => setFilter('TODOS')}>
+            Ver todas as fichas
+          </button>
         </div>
       ) : (
         <div className="grid">
@@ -95,10 +121,13 @@ export default function CharacterList() {
                 <Link to={`/fichas/${c.id}/editar`} className="btn btn-ghost">
                   Editar
                 </Link>
-                <button className="btn btn-danger" onClick={() => remove(c)}>
-                  Remover
+                <button className="btn btn-danger" onClick={() => remove(c)} disabled={removingId === c.id}>
+                  {removingId === c.id ? 'Removendo...' : 'Remover'}
                 </button>
               </div>
+              {removeError && removeError.characterId === c.id && (
+                <p className="form-error">{removeError.message}</p>
+              )}
             </article>
           ))}
         </div>

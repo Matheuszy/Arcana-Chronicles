@@ -1,5 +1,6 @@
 package com.arcana.backend.config;
 
+import com.arcana.backend.config.security.AutenticacaoEntryPoint;
 import com.arcana.backend.config.security.SecurityFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,9 +26,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final SecurityFilter securityFilter;
+    private final AutenticacaoEntryPoint autenticacaoEntryPoint;
 
-    public SecurityConfig(SecurityFilter securityFilter) {
+    public SecurityConfig(SecurityFilter securityFilter, AutenticacaoEntryPoint autenticacaoEntryPoint) {
         this.securityFilter = securityFilter;
+        this.autenticacaoEntryPoint = autenticacaoEntryPoint;
     }
 
     @Bean
@@ -36,6 +39,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(erros -> erros.authenticationEntryPoint(autenticacaoEntryPoint))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/login").permitAll()
