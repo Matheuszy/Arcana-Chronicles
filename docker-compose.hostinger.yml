@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-arcana}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - arcana_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME:-arcana}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-arcana}
+      JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: https://${DOMAIN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_WS_URL: /ws
+    restart: unless-stopped
+    depends_on:
+      - backend
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.arcana.rule: "Host(`${DOMAIN}`)"
+      traefik.http.routers.arcana.entrypoints: "websecure"
+      traefik.http.routers.arcana.tls: "true"
+      traefik.http.routers.arcana.tls.certresolver: "letsencrypt"
+      traefik.http.services.arcana.loadbalancer.server.port: "4200"
+    networks:
+      - internal
+
+volumes:
+  arcana_postgres_data:
+
+networks:
+  internal:
