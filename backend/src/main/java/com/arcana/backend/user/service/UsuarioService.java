@@ -4,6 +4,7 @@ import com.arcana.backend.config.exception.CredenciaisInvalidasException;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.config.security.TokenService;
+import com.arcana.backend.table.SessoesAtivasDeMesa;
 import com.arcana.backend.table.service.MesaService;
 import com.arcana.backend.user.dto.request.AtualizarUsuarioRequestDto;
 import com.arcana.backend.user.dto.request.LoginRequestDto;
@@ -24,15 +25,18 @@ public class UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final MesaService mesaService;
+    private final SessoesAtivasDeMesa sessoesAtivas;
 
     public UsuarioService(UsuarioRepositorie usuarioRepositorie,
                           PasswordEncoder passwordEncoder,
                           TokenService tokenService,
-                          MesaService mesaService) {
+                          MesaService mesaService,
+                          SessoesAtivasDeMesa sessoesAtivas) {
         this.usuarioRepositorie = usuarioRepositorie;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.mesaService = mesaService;
+        this.sessoesAtivas = sessoesAtivas;
     }
 
     /** Cadastra um novo usuário com senha criptografada em BCrypt */
@@ -116,6 +120,9 @@ public class UsuarioService {
     private void validarDonoDoRecurso(Long id, Long usuarioAutenticadoId) {
         if (!id.equals(usuarioAutenticadoId)) {
             throw new AccessDeniedException("Usuário não pode acessar dados de outro usuário.");
+        }
+        if (sessoesAtivas.usuarioEmSessao(id)) {
+            throw new RegraDeNegocioException("Você está em uma mesa. Saia da mesa para acessar os dados da conta.");
         }
     }
 }

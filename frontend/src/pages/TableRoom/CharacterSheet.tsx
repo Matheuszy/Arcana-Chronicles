@@ -10,12 +10,14 @@ import {
   attributeModifier,
   attributeRollModifier,
   formatModifier,
+  remainingSpellSlots,
   skillRollModifier,
+  SPELL_CIRCLES,
+  totalSpellSlots,
 } from '../../types/character';
 import './CharacterSheet.css';
 
 const SKILL_KEYS = Object.keys(SKILL_LABEL) as SkillKey[];
-const SPELL_CIRCLES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 interface CharacterSheetProps {
   character: Character;
@@ -30,8 +32,9 @@ export default function CharacterSheet({ character, origin, onEdit, onClose }: C
   const skills = character.skills ?? {};
   const items = character.items ?? [];
   const spells = character.spells ?? [];
-  const slots = SPELL_CIRCLES.filter((circle) => (character.spellSlots?.[circle] ?? 0) > 0);
-  const spellsByCircle = [0, ...SPELL_CIRCLES.map(Number)]
+  const slots = SPELL_CIRCLES.filter((circle) => totalSpellSlots(character, circle) > 0);
+  const cantrips = spells.filter((spell) => spell.level === 0);
+  const spellsByCircle = SPELL_CIRCLES.map(Number)
     .map((level) => ({ level, list: spells.filter((spell) => spell.level === level) }))
     .filter((group) => group.list.length > 0);
 
@@ -141,18 +144,34 @@ export default function CharacterSheet({ character, origin, onEdit, onClose }: C
         {slots.length > 0 && (
           <div className="paper-slots">
             {slots.map((circle) => (
-              <span key={circle} className="paper-slot">
-                {circle}º círculo: {character.spellSlots?.[circle]}
+              <span
+                key={circle}
+                className={`paper-slot ${remainingSpellSlots(character, circle) === 0 ? 'paper-slot--empty' : ''}`}
+              >
+                {circle}º círculo: {remainingSpellSlots(character, circle)}/{totalSpellSlots(character, circle)}
               </span>
             ))}
           </div>
         )}
-        {spellsByCircle.length === 0 ? (
+        {cantrips.length > 0 && (
+          <div className="paper-spell-group">
+            <h4>Truques (uso livre)</h4>
+            <ul className="paper-spells">
+              {cantrips.map((spell, index) => (
+                <li key={`${spell.name}-${index}`}>
+                  <strong>{spell.name}</strong>
+                  {spell.description && <span> — {spell.description}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {spellsByCircle.length === 0 && cantrips.length === 0 ? (
           <p className="paper-text paper-empty">Nenhuma magia na ficha.</p>
         ) : (
           spellsByCircle.map((group) => (
             <div key={group.level} className="paper-spell-group">
-              <h4>{group.level === 0 ? 'Truques' : `${group.level}º círculo`}</h4>
+              <h4>{`${group.level}º círculo`}</h4>
               <ul className="paper-spells">
                 {group.list.map((spell, index) => (
                   <li key={`${spell.name}-${index}`}>
@@ -163,6 +182,13 @@ export default function CharacterSheet({ character, origin, onEdit, onClose }: C
               </ul>
             </div>
           ))
+        )}
+
+        {character.habilidades && (
+          <>
+            <h3 className="paper-title">Habilidades</h3>
+            <p className="paper-text paper-abilities">{character.habilidades}</p>
+          </>
         )}
 
         <h3 className="paper-title">História</h3>

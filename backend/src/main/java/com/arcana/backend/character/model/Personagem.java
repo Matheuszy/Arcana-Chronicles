@@ -46,6 +46,9 @@ public class Personagem {
     @Column(length = 60)
     private String subclasse;
 
+    @Column(columnDefinition = "TEXT")
+    private String habilidades;
+
     @Column(name = "bonus_proficiencia", nullable = false)
     private Integer bonusProficiencia = 2;
 
@@ -78,12 +81,15 @@ public class Personagem {
 
   
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "personagem_id")
+    @JoinColumn(name = "personagem_id", nullable = false)
     private List<Magia> spells = new ArrayList<>();
 
 
     @Column(columnDefinition = "TEXT")
     private String spellSlots;
+
+    @Column(columnDefinition = "TEXT")
+    private String spellSlotsCurrent;
 
     @Column(columnDefinition = "TEXT")
     private String backstory;

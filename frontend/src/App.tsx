@@ -1,4 +1,4 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { SessionProvider, useSession } from './context/SessionContext';
 import Login from './pages/Login/Login';
 import CharacterList from './pages/CharacterList/CharacterList';
@@ -16,6 +16,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function Shell() {
   const { role, displayName, userId, clear } = useSession();
+  const inRoom = /^\/mesas\/[^/]+/.test(useLocation().pathname);
+  const canCreateSheets = !inRoom || role === 'MESTRE';
 
   return (
     <div className="shell">
@@ -28,15 +30,19 @@ function Shell() {
         {userId && (
           <>
             <nav className="nav" aria-label="Principal">
-              <NavLink to="/fichas" className={({ isActive }) => (isActive ? 'active' : '')}>
-                Fichas
-              </NavLink>
+              {canCreateSheets && (
+                <NavLink to="/fichas" className={({ isActive }) => (isActive ? 'active' : '')}>
+                  Fichas
+                </NavLink>
+              )}
               <NavLink to="/mesas" className={({ isActive }) => (isActive ? 'active' : '')}>
                 Mesas
               </NavLink>
-              <NavLink to="/conta" className={({ isActive }) => (isActive ? 'active' : '')}>
-                Minha conta
-              </NavLink>
+              {!inRoom && (
+                <NavLink to="/conta" className={({ isActive }) => (isActive ? 'active' : '')}>
+                  Minha conta
+                </NavLink>
+              )}
             </nav>
 
             <div className="who">

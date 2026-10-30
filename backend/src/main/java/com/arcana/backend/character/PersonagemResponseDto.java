@@ -28,6 +28,7 @@ public record PersonagemResponseDto(
         String equipment,
         List<SpellDto> spells,
         Map<String, Integer> spellSlots,
+        Map<String, Integer> spellSlotsCurrent,
         String backstory,
         String personalityPrompt,
         String avatarUrl,
@@ -37,7 +38,8 @@ public record PersonagemResponseDto(
         String subclasse,
         Integer proficiencyBonus,
         Map<String, Integer> savingThrows,
-        List<String> items
+        List<String> items,
+        String habilidades
 
 ) {
     public record AtributosDto(
@@ -78,12 +80,10 @@ public record PersonagemResponseDto(
                         .map(m -> new SpellDto(m.getId(), m.getName(), m.getLevel(), m.getDescription()))
                         .toList();
 
-        Map<String, Integer> slots = Collections.emptyMap();
-        if (p.getSpellSlots() != null && !p.getSpellSlots().isBlank()) {
-            try {
-                slots = MAPPER.readValue(p.getSpellSlots(), new TypeReference<>() {});
-            } catch (Exception ignored) {}
-        }
+        Map<String, Integer> slots = lerEspacos(p.getSpellSlots());
+        Map<String, Integer> slotsAtuais = p.getSpellSlotsCurrent() == null
+                ? slots
+                : lerEspacos(p.getSpellSlotsCurrent());
 
         return new PersonagemResponseDto(
                 p.getId(),
@@ -98,6 +98,7 @@ public record PersonagemResponseDto(
                 p.getEquipment(),
                 spellDtos,
                 slots,
+                slotsAtuais,
                 p.getBackstory(),
                 p.getPersonalityPrompt(),
                 p.getAvatarUrl(),
@@ -107,8 +108,18 @@ public record PersonagemResponseDto(
                 p.getSubclasse(),
                 p.getBonusProficiencia(),
                 salvaguardasEmOrdem(p),
-                List.copyOf(p.getItens())
+                List.copyOf(p.getItens()),
+                p.getHabilidades()
         );
+    }
+
+    private static Map<String, Integer> lerEspacos(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyMap();
+        try {
+            return MAPPER.readValue(json, new TypeReference<>() {});
+        } catch (Exception ignored) {
+            return Collections.emptyMap();
+        }
     }
 
     private static Map<String, Integer> periciasEmOrdem(Personagem p) {

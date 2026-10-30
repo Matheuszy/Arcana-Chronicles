@@ -44,4 +44,11 @@ export interface RoomCommand {
   nome?: string;
   descricao?: string;
   itemId?: string;
+  destinatarios?: number[];
+}
+
+export interface ReceivedNote {
+  id: string;
+  authorName: string;
+  text: string;
 }

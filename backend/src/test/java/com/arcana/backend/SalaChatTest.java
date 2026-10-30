@@ -157,6 +157,44 @@ class SalaChatTest {
     }
 
     @Test
+    void deveEntregarOTrechoCompartilhadoSoAosDestinatariosEConfirmarAoAutor() throws Exception {
+        enviar(sessaoAria, "{\"type\":\"NOTA_COMPARTILHAR\",\"comandoSala\":{\"texto\":\"o cofre está no porão\",\"destinatarios\":[10]}}");
+
+        JsonNode recebida = ultima(sessaoMestre, "NOTA_RECEBIDA");
+        assertEquals("o cofre está no porão", recebida.get("content").asText());
+        assertEquals("Aria", recebida.get("authorName").asText());
+        assertEquals("20", recebida.get("authorId").asText());
+        assertTrue(recebidas(sessaoBrom, "NOTA_RECEBIDA").isEmpty());
+        assertTrue(recebidas(sessaoAria, "NOTA_RECEBIDA").isEmpty());
+        assertEquals("Mestre", ultima(sessaoAria, "NOTA_COMPARTILHADA").get("content").asText());
+        assertEquals("Mestre", ultima(sessaoAriaOutraAba, "NOTA_COMPARTILHADA").get("content").asText());
+    }
+
+    @Test
+    void devePermitirAoMestreCompartilharComVariosJogadoresEmTodasAsAbasDeles() throws Exception {
+        enviar(sessaoMestre, "{\"type\":\"NOTA_COMPARTILHAR\",\"comandoSala\":{\"texto\":\"a ponte vai cair\",\"destinatarios\":[20,30]}}");
+
+        for (WebSocketSession sessao : List.of(sessaoAria, sessaoAriaOutraAba, sessaoBrom)) {
+            assertEquals("a ponte vai cair", ultima(sessao, "NOTA_RECEBIDA").get("content").asText());
+        }
+        assertEquals("Aria, Brom", ultima(sessaoMestre, "NOTA_COMPARTILHADA").get("content").asText());
+    }
+
+    @Test
+    void deveRecusarCompartilhamentoSemTrechoSemDestinatarioOuComForaDaMesa() throws Exception {
+        enviar(sessaoAria, "{\"type\":\"NOTA_COMPARTILHAR\",\"comandoSala\":{\"texto\":\"  \",\"destinatarios\":[10]}}");
+        enviar(sessaoAria, "{\"type\":\"NOTA_COMPARTILHAR\",\"comandoSala\":{\"texto\":\"oi\",\"destinatarios\":[]}}");
+        enviar(sessaoAria, "{\"type\":\"NOTA_COMPARTILHAR\",\"comandoSala\":{\"texto\":\"oi\",\"destinatarios\":[20]}}");
+        enviar(sessaoAria, "{\"type\":\"NOTA_COMPARTILHAR\",\"comandoSala\":{\"texto\":\"oi\",\"destinatarios\":[99]}}");
+        enviar(sessaoAria, "{\"type\":\"NOTA_COMPARTILHAR\",\"comandoSala\":{\"texto\":\"" + "x".repeat(2_001) + "\",\"destinatarios\":[10]}}");
+
+        assertEquals(5, recebidas(sessaoAria, "SISTEMA").size());
+        assertTrue(recebidas(sessaoAria, "NOTA_COMPARTILHADA").isEmpty());
+        assertTrue(recebidas(sessaoMestre, "NOTA_RECEBIDA").isEmpty());
+        assertTrue(recebidas(sessaoBrom, "NOTA_RECEBIDA").isEmpty());
+    }
+
+    @Test
     void deveAnunciarStatusDeJogadorNoChatEAtualizarOCanalDeTodos() throws Exception {
         enviar(sessaoMestre, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Envenenado\"}}");
 
@@ -299,8 +337,11 @@ class SalaChatTest {
         enviar(sessaoAria, "{\"type\":\"STATUS\",\"content\":\"x\"}");
         enviar(sessaoAria, "{\"type\":\"ITENS\",\"content\":\"x\"}");
         enviar(sessaoAria, "{\"type\":\"NOTA\",\"content\":\"x\"}");
+        enviar(sessaoAria, "{\"type\":\"NOTA_RECEBIDA\",\"content\":\"x\"}");
+        enviar(sessaoAria, "{\"type\":\"NOTA_COMPARTILHADA\",\"content\":\"x\"}");
 
-        assertEquals(3, recebidas(sessaoAria, "SISTEMA").size());
+        assertTrue(recebidas(sessaoBrom, "NOTA_RECEBIDA").isEmpty());
+        assertEquals(5, recebidas(sessaoAria, "SISTEMA").size());
         assertTrue(recebidas(sessaoBrom, "STATUS").isEmpty());
         assertTrue(recebidas(sessaoBrom, "ITENS").isEmpty());
         assertTrue(recebidas(sessaoMestre, "NOTA").isEmpty());

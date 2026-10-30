@@ -82,6 +82,11 @@ public class GerenciadorMesasAtivas implements SessoesAtivasDeMesa {
     }
 
     @Override
+    public boolean usuarioEmSessao(Long userId) {
+        return mesas.values().stream().anyMatch(mesa -> mesa.usuarioConectado(userId));
+    }
+
+    @Override
     public boolean possuiSessaoAtiva(Long mesaId) {
         return mesas.containsKey(mesaId);
     }

@@ -135,3 +135,20 @@
   .room-notes { grid-column: 1; }
   .room-chat { height: 70vh; }
 }
+
+.notes-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; }
+.shared-note-quote {
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--ember, #c84b00);
+  background: rgba(0, 0, 0, 0.18);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.shared-note-hint { font-size: 0.85rem; margin: 0; }
+.share-recipients { border: 0; padding: 0; margin: 0; display: grid; gap: 0.4rem; }
+.share-recipients legend { font-weight: 600; margin-bottom: 0.4rem; padding: 0; }
+.share-recipient { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.share-recipient input { accent-color: var(--ember, #c84b00); }
