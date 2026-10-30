@@ -83,3 +83,55 @@
 .sheet-editor-dialog {
   width: min(960px, 100%);
 }
+
+.room {
+  grid-template-columns: 300px minmax(0, 1fr) 320px;
+  align-items: start;
+  max-width: 1600px;
+}
+.room-chat,
+.room-notes {
+  height: calc(100vh - 7.5rem);
+  min-height: 30rem;
+}
+.room-notes {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.room-notes .notes-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.notes-panel--notebook {
+  padding: 1rem;
+  background: var(--paper-100);
+  color: var(--paper-ink);
+}
+.notes-title { margin: 0 0 0.25rem; color: var(--paper-ink); font-size: 1rem; }
+.notes-panel--notebook .private-sheets-hint { color: #4f3d2a; }
+.notes-panel--notebook textarea {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  background: transparent;
+  color: var(--paper-ink);
+  border: 1px solid #b89c6a;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.notes-panel--notebook .notes-footer { color: #4f3d2a; }
+.notes-panel--notebook .muted { color: #4f3d2a; }
+.notes-panel--notebook .btn-ghost { color: var(--paper-ink); border-color: var(--leather); }
+.room-chat .ui-tabs { padding: 0 0.75rem; }
+
+@media (max-width: 1280px) {
+  .room { grid-template-columns: 280px minmax(0, 1fr); }
+  .room-notes { grid-column: 2; height: 24rem; min-height: 0; }
+}
+@media (max-width: 860px) {
+  .room { grid-template-columns: 1fr; }
+  .room-notes { grid-column: 1; }
+  .room-chat { height: 70vh; }
+}
