@@ -49,13 +49,13 @@ class AutenticacaoIT extends IntegracaoTest {
     }
 
     @Test
-    void deveRecusarCadastroInvalidoListandoOsCampos() throws Exception {
+    void deveRecusarCadastroInvalidoListandoMensagensEmPortugues() throws Exception {
         postComo(null, "/api/users/register", Map.of(
                 "username", "", "email", "nao-e-email", "password", "123", "papel", "JOGADOR"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Dados inválidos."))
-                .andExpect(jsonPath("$.details", hasItem(containsString("email"))))
-                .andExpect(jsonPath("$.details", hasItem(containsString("password"))));
+                .andExpect(jsonPath("$.details", hasItem("Email inválido")))
+                .andExpect(jsonPath("$.details", hasItem("Senha deve ter ao menos 6 caracteres")));
     }
 
     @Test

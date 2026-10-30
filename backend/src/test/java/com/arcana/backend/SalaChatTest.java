@@ -272,6 +272,29 @@ class SalaChatTest {
     }
 
     @Test
+    void deveResponderComMensagemAmigavelAJsonInvalidoSemFecharAConexao() throws Exception {
+        enviar(sessaoAria, "isso não é json");
+
+        List<JsonNode> avisos = recebidas(sessaoAria, "SISTEMA");
+        assertEquals(1, avisos.size());
+        assertEquals("Não foi possível entender essa mensagem.", avisos.get(0).get("content").asText());
+        verify(sessaoAria, never()).close(any());
+        assertTrue(recebidas(sessaoBrom, "SISTEMA").isEmpty());
+    }
+
+    @Test
+    void deveEsconderDetalhesTecnicosDeFalhasInesperadasDaSala() throws Exception {
+        when(mesaService.buscarAlvoDeStatus(1L, 400L)).thenThrow(new IllegalStateException("conexão com o banco caiu"));
+        when(mesaService.buscarAlvoDeStatus(1L, 500L)).thenThrow(new NullPointerException("detalhe interno"));
+
+        enviar(sessaoMestre, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":500,\"texto\":\"x\"}}");
+
+        JsonNode aviso = ultima(sessaoMestre, "SISTEMA");
+        assertEquals("Não foi possível concluir a ação. Tente novamente.", aviso.get("content").asText());
+        assertFalse(aviso.get("content").asText().contains("detalhe interno"));
+    }
+
+    @Test
     void deveIgnorarEventosDeServidorEnviadosPeloCliente() throws Exception {
         enviar(sessaoAria, "{\"type\":\"STATUS\",\"content\":\"x\"}");
         enviar(sessaoAria, "{\"type\":\"ITENS\",\"content\":\"x\"}");

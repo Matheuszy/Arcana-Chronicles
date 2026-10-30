@@ -88,7 +88,11 @@ export default function StatusControls({
                 <strong>{s.nome}</strong>: {s.texto}
                 {s.npc && <span className="participant-role master">privado</span>}
               </span>
-              <button className="btn btn-ghost" onClick={() => onRemove(s.personagemId)} disabled={!canSend}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => window.confirm(`Remover o status de ${s.nome}?`) && onRemove(s.personagemId)}
+                disabled={!canSend}
+              >
                 Remover
               </button>
             </li>
