@@ -10,6 +10,9 @@ import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
 import { isActiveState } from '../../types/challenge';
+import Tabs, { panelId, tabId } from '../../components/ui/Tabs';
+import { useToast } from '../../components/ui/Toast';
+import NpcLinksPanel from './NpcLinksPanel';
 import ChallengeMasterPanel from './ChallengeMasterPanel';
 import ChallengePlayerPanel from './ChallengePlayerPanel';
 import ChallengeRollOverlay from './ChallengeRollOverlay';
@@ -28,6 +31,7 @@ import PrivateSheetsPanel from './PrivateSheetsPanel';
 import './TableRoom.css';
 import './Challenge.css';
 import './RoomResources.css';
+import './RoomTheme.css';
 
 const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
   'forca',
@@ -43,6 +47,36 @@ const MASTER_STATUS_OPTIONS: TableStatus[] = ['ABERTA', 'EM_ANDAMENTO', 'PAUSADA
 type RoomTab = Channel | 'STATUS' | 'ITENS';
 
 const ROOM_TABS: RoomTab[] = [...CHANNELS, 'STATUS', 'ITENS'];
+
+type SideTab = 'MESA' | 'GENTE' | 'FICHAS' | 'DESAFIO' | 'DADOS';
+
+const SIDE_TABS: SideTab[] = ['MESA', 'GENTE', 'FICHAS', 'DESAFIO', 'DADOS'];
+
+const SIDE_LABEL: Record<SideTab, string> = {
+  MESA: 'Mesa',
+  GENTE: 'Gente',
+  FICHAS: 'Fichas',
+  DESAFIO: 'Desafio',
+  DADOS: 'Dados',
+};
+
+const SIDE_ICON: Record<SideTab, string> = {
+  MESA: '🏠',
+  GENTE: '👥',
+  FICHAS: '📜',
+  DESAFIO: '⚔',
+  DADOS: '🎲',
+};
+
+const TABS_ID = 'room-tabs';
+
+const TAB_ICON: Record<RoomTab, string> = {
+  CONVERSA: '💬',
+  ROLAGENS: '🎲',
+  IMAGENS: '🖼',
+  STATUS: '❖',
+  ITENS: '🎒',
+};
 
 const TAB_LABEL: Record<RoomTab, string> = {
   ...CHANNEL_LABEL,
@@ -75,6 +109,7 @@ export default function TableRoom() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { userId, token } = useSession();
+  const { notify } = useToast();
 
   const [table, setTable] = useState<GameTable | null>(null);
   const [tableError, setTableError] = useState<string | null>(null);
@@ -96,6 +131,7 @@ export default function TableRoom() {
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [connection, setConnection] = useState<ConnectionStatus>({ state: 'CONECTANDO', attempt: 0 });
+  const [sideTab, setSideTab] = useState<SideTab>('MESA');
   const [editingSheet, setEditingSheet] = useState<{ id?: string } | null>(null);
   const [draft, setDraft] = useState('');
   const [composerError, setComposerError] = useState<string | null>(null);
@@ -130,6 +166,16 @@ export default function TableRoom() {
     challenges.some((c) =>
       c.jogadores.some((p) => String(p.jogadorId) === viewerId && isActiveState(p.estado)),
     );
+
+  const activeChallengeCount = challenges.filter((c) => c.jogadores.some((p) => isActiveState(p.estado))).length;
+  const previousChallengeCount = useRef(0);
+
+  useEffect(() => {
+    if (!isMaster && activeChallengeCount > previousChallengeCount.current) {
+      setSideTab('DESAFIO');
+    }
+    previousChallengeCount.current = activeChallengeCount;
+  }, [activeChallengeCount, isMaster]);
 
   const loadTable = useCallback(() => {
     if (!id) return;
@@ -288,7 +334,29 @@ export default function TableRoom() {
     }
   };
 
+  const linkNpc = async (characterId: string) => {
+    if (!id) return;
+    try {
+      setTable(await tableService.linkNpc(id, characterId));
+    } catch (e: unknown) {
+      notify(e instanceof Error ? e.message : 'Não foi possível vincular o NPC.', 'danger');
+    }
+  };
+
+  const unlinkNpc = async (characterId: string) => {
+    if (!id) return;
+    try {
+      setTable(await tableService.unlinkNpc(id, characterId));
+    } catch (e: unknown) {
+      notify(e instanceof Error ? e.message : 'Não foi possível desvincular o NPC.', 'danger');
+    }
+  };
+
   const handleSheetSaved = (saved: Character) => {
+    const created = !editingSheet?.id;
+    if (created && isMaster && saved.id && saved.kind !== 'PLAYER') {
+      linkNpc(saved.id).then(() => notify(`"${saved.name}" foi criado e vinculado à mesa.`, 'success'));
+    }
     setCharacters((prev) =>
       prev.some((c) => String(c.id) === String(saved.id))
         ? prev.map((c) => (String(c.id) === String(saved.id) ? saved : c))
@@ -377,11 +445,28 @@ export default function TableRoom() {
   return (
     <section className="room">
       <aside className="room-side card">
-        <h2>{table.name}</h2>
-        <p className="muted">{table.description}</p>
-        <p className={`conn conn--${connection.state.toLowerCase()}`} role="status">
-          ● {CONNECTION_LABEL[connection.state]}
-        </p>
+        <header className="room-side-head">
+          <h2>{table.name}</h2>
+          <p className={`conn conn--${connection.state.toLowerCase()}`} role="status">
+            ● {CONNECTION_LABEL[connection.state]}
+          </p>
+        </header>
+        <div className="side-tabs">
+          <Tabs
+            label="Painéis da mesa"
+            idPrefix="side-tabs"
+            active={sideTab}
+            onChange={setSideTab}
+            tabs={SIDE_TABS.map((tab) => ({
+              id: tab,
+              label: SIDE_LABEL[tab],
+              icon: SIDE_ICON[tab],
+              badge: tab === 'DESAFIO' ? activeChallengeCount : undefined,
+            }))}
+          />
+        </div>
+        <div className="room-side-body">
+        <div className="side-section" hidden={sideTab !== 'MESA'}>
         {!isMaster && <p className="muted table-status">Mesa {TABLE_STATUS_LABEL[table.status].toLowerCase()}</p>}
 
         {!isMaster && (
@@ -432,6 +517,58 @@ export default function TableRoom() {
 
         {isMaster && id && <JoinRequestsPanel tableId={id} onAccepted={loadTable} />}
 
+        </div>
+        <div className="side-section" hidden={sideTab !== 'GENTE'}>
+        {id && (
+          <ParticipantsPanel
+            tableId={id}
+            participants={table.participants}
+            onlineUserIds={onlineUsers.map((u) => String(u.userId))}
+            isMaster={isMaster}
+            onParticipantRemoved={setTable}
+          />
+        )}
+
+        {isMaster && (
+          <NpcLinksPanel
+            characters={characters}
+            linkedIds={table.npcIds.map(String)}
+            canChange={connected}
+            onLink={linkNpc}
+            onUnlink={unlinkNpc}
+          />
+        )}
+
+        </div>
+        <div className="side-section" hidden={sideTab !== 'FICHAS'}>
+        <PrivateSheetsPanel
+          title={isMaster ? 'Meus personagens e NPCs' : 'Minha ficha'}
+          characters={isMaster ? characters : activeCharacter ? [activeCharacter] : []}
+          loading={charactersLoading}
+          error={charactersError}
+          emptyText={
+            isMaster
+              ? 'Você ainda não criou personagens ou NPCs.'
+              : 'Selecione seu personagem nesta mesa para consultar a ficha.'
+          }
+          onEdit={(character) => setEditingSheet({ id: String(character.id) })}
+          onCreate={isMaster ? () => setEditingSheet({}) : undefined}
+        />
+
+        {isMaster && (
+          <StatusControls
+            status={roomStatus}
+            participants={table.participants}
+            masterCharacters={characters}
+            canSend={connected}
+            onSet={chatService.setCharacterStatus.bind(chatService)}
+            onRemove={chatService.removeCharacterStatus.bind(chatService)}
+          />
+        )}
+
+
+        </div>
+        <div className="side-section" hidden={sideTab !== 'DESAFIO'}>
         {isMaster && (
           <ChallengeMasterPanel
             challenges={challenges}
@@ -459,43 +596,8 @@ export default function TableRoom() {
           />
         )}
 
-        {id && (
-          <ParticipantsPanel
-            tableId={id}
-            participants={table.participants}
-            onlineUserIds={onlineUsers.map((u) => String(u.userId))}
-            isMaster={isMaster}
-            onParticipantRemoved={setTable}
-          />
-        )}
-
-        <PrivateSheetsPanel
-          title={isMaster ? 'Meus personagens e NPCs' : 'Minha ficha'}
-          characters={isMaster ? characters : activeCharacter ? [activeCharacter] : []}
-          loading={charactersLoading}
-          error={charactersError}
-          emptyText={
-            isMaster
-              ? 'Você ainda não criou personagens ou NPCs.'
-              : 'Selecione seu personagem nesta mesa para consultar a ficha.'
-          }
-          onEdit={(character) => setEditingSheet({ id: String(character.id) })}
-          onCreate={isMaster ? () => setEditingSheet({}) : undefined}
-        />
-
-        {isMaster && (
-          <StatusControls
-            status={roomStatus}
-            participants={table.participants}
-            masterCharacters={characters}
-            canSend={connected}
-            onSet={chatService.setCharacterStatus.bind(chatService)}
-            onRemove={chatService.removeCharacterStatus.bind(chatService)}
-          />
-        )}
-
-        <NotesPanel savedNote={note} canSave={connected} onSave={chatService.saveNote.bind(chatService)} />
-
+        </div>
+        <div className="side-section" hidden={sideTab !== 'DADOS'}>
         <h3 className="section-title">Rolar dados</h3>
         <DiceRoller disabled={!canSend || rollBlockedByChallenge} onRoll={sendRoll} />
         {rollBlockedByChallenge && (
@@ -522,6 +624,8 @@ export default function TableRoom() {
             </div>
           </>
         )}
+        </div>
+        </div>
       </aside>
 
       <div className="room-chat card">
@@ -556,23 +660,28 @@ export default function TableRoom() {
             A mesa está pausada pelo mestre. Mensagens e rolagens ficam bloqueadas até ela ser retomada.
           </div>
         )}
-        <div className="channel-tabs" role="tablist">
-          {ROOM_TABS.map((tab) => (
-            <button
-              key={tab}
-              role="tab"
-              aria-selected={activeChannel === tab}
-              className={`channel-tab ${activeChannel === tab ? 'channel-tab--active' : ''}`}
-              onClick={() => selectChannel(tab)}
-            >
-              {TAB_LABEL[tab]}
-              {isChannel(tab) && unread[tab] > 0 && <span className="badge">{unread[tab]}</span>}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          label="Canais da mesa"
+          idPrefix={TABS_ID}
+          active={activeChannel}
+          onChange={selectChannel}
+          tabs={ROOM_TABS.map((tab) => ({
+            id: tab,
+            label: TAB_LABEL[tab],
+            icon: TAB_ICON[tab],
+            badge: isChannel(tab) ? unread[tab] : undefined,
+          }))}
+        />
         <div className="messages" ref={scrollRef}>
           {CHANNELS.map((channel) => (
-            <div key={channel} role="tabpanel" hidden={activeChannel !== channel} className="channel-panel">
+            <div
+              key={channel}
+              id={panelId(TABS_ID, channel)}
+              role="tabpanel"
+              aria-labelledby={tabId(TABS_ID, channel)}
+              hidden={activeChannel !== channel}
+              className="channel-panel"
+            >
               {messages[channel].length === 0 && (
                 <p className="muted center">{EMPTY_CHANNEL_TEXT[channel]}</p>
               )}
@@ -608,10 +717,22 @@ export default function TableRoom() {
               ))}
             </div>
           ))}
-          <div role="tabpanel" hidden={activeChannel !== 'STATUS'} className="channel-panel">
+          <div
+            id={panelId(TABS_ID, 'STATUS')}
+            role="tabpanel"
+            aria-labelledby={tabId(TABS_ID, 'STATUS')}
+            hidden={activeChannel !== 'STATUS'}
+            className="channel-panel"
+          >
             <StatusView status={roomStatus} />
           </div>
-          <div role="tabpanel" hidden={activeChannel !== 'ITENS'} className="channel-panel">
+          <div
+            id={panelId(TABS_ID, 'ITENS')}
+            role="tabpanel"
+            aria-labelledby={tabId(TABS_ID, 'ITENS')}
+            hidden={activeChannel !== 'ITENS'}
+            className="channel-panel"
+          >
             <SharedItemsView
               items={sharedItems}
               viewerId={viewerId}
@@ -655,6 +776,10 @@ export default function TableRoom() {
           <ImageComposer disabled={!canSend} onSend={(dataUrl) => chatService.sendImage(dataUrl)} />
         )}
       </div>
+
+      <aside className="room-notes card" aria-label="Caderno privado">
+        <NotesPanel savedNote={note} canSave={connected} onSave={chatService.saveNote.bind(chatService)} />
+      </aside>
 
       {editingSheet && (
         <div className="sheet-editor-overlay" role="dialog" aria-modal="true">

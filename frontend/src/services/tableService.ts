@@ -77,6 +77,14 @@ export const tableService = {
     });
   },
 
+  linkNpc(tableId: string, npcId: string): Promise<GameTable> {
+    return apiRequest<GameTable>(`${BASE_PATH}/${tableId}/npcs/${npcId}`, { method: 'POST' });
+  },
+
+  unlinkNpc(tableId: string, npcId: string): Promise<GameTable> {
+    return apiRequest<GameTable>(`${BASE_PATH}/${tableId}/npcs/${npcId}`, { method: 'DELETE' });
+  },
+
   delete(tableId: string): Promise<void> {
     return apiRequest<void>(`${BASE_PATH}/${tableId}`, {
       method: 'DELETE',

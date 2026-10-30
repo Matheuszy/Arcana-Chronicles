@@ -15,8 +15,8 @@ export default function NotesPanel({ savedNote, canSave, onSave }: NotesPanelPro
   const dirty = draft !== savedNote;
 
   return (
-    <div className="notes-panel">
-      <h3 className="section-title">Anotações privadas</h3>
+    <div className="notes-panel notes-panel--notebook">
+      <h3 className="notes-title">Caderno privado</h3>
       <p className="muted private-sheets-hint">Só você vê. Somem quando todos saem da mesa.</p>
       <textarea
         aria-label="Anotações privadas"
