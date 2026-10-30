@@ -2,10 +2,12 @@ package com.arcana.backend;
 
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.chat.AutenticacaoHandshakeInterceptor;
+import com.arcana.backend.chat.CombateChat;
 import com.arcana.backend.chat.DesafioChat;
 import com.arcana.backend.chat.MesaChatHandler;
 import com.arcana.backend.chat.SalaChat;
 import com.arcana.backend.chat.sala.SalaService;
+import com.arcana.backend.chat.combate.CombateService;
 import com.arcana.backend.chat.desafio.DesafioService;
 import com.arcana.backend.chat.dice.RolagemDadosService;
 import com.arcana.backend.chat.imagem.ValidadorImagem;
@@ -76,7 +78,8 @@ class DesafioChatTest {
         mesaService = mock(MesaService.class);
         DesafioChat desafioChat = new DesafioChat(new DesafioService(mesaService, rolagens, relogio), objectMapper);
         SalaChat salaChat = new SalaChat(new SalaService(mesaService, relogio), objectMapper);
-        handler = new MesaChatHandler(objectMapper, rolagens, new ValidadorImagem(), desafioChat, salaChat,
+        CombateChat combateChat = new CombateChat(new CombateService(mesaService, rolagens, relogio), objectMapper);
+        handler = new MesaChatHandler(objectMapper, rolagens, new ValidadorImagem(), desafioChat, salaChat, combateChat,
                 new GerenciadorMesasAtivas(), mock(TaskScheduler.class), relogio, Duration.ofSeconds(60));
 
         when(mesaService.buscarFichaDoJogadorNaMesa(1L, ARIA.userId())).thenReturn(ficha(ARIA, "Lyra"));
@@ -102,7 +105,7 @@ class DesafioChatTest {
             valores.put(atributo, 14);
         }
         return new FichaDeParticipante(jogador.userId(), jogador.displayName(), 100L + jogador.userId(), personagem,
-                valores, Map.of(), Map.of());
+                valores, Map.of(), Map.of(), 2);
     }
 
     private WebSocketSession sessao(String id, AcessoMesaDto acesso) {

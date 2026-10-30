@@ -1,5 +1,6 @@
 package com.arcana.backend.chat.sessao;
 
+import com.arcana.backend.chat.combate.CombateDaMesa;
 import com.arcana.backend.chat.desafio.DesafiosDaMesa;
 import com.arcana.backend.chat.model.Canal;
 import com.arcana.backend.chat.model.ChatMessage;
@@ -33,6 +34,7 @@ public class MesaAtiva {
     private final Map<String, Conexao> conexoes = new LinkedHashMap<>();
     private final Map<Canal, Deque<ChatMessage>> historicos = new EnumMap<>(Canal.class);
     private final DesafiosDaMesa desafios = new DesafiosDaMesa();
+    private final CombateDaMesa combate = new CombateDaMesa();
     private final NotasDaMesa notas = new NotasDaMesa();
     private final StatusDaMesa statusDeFichas = new StatusDaMesa();
     private final ItensDaMesa itens = new ItensDaMesa();
@@ -50,6 +52,10 @@ public class MesaAtiva {
 
     public DesafiosDaMesa desafios() {
         return desafios;
+    }
+
+    public CombateDaMesa combate() {
+        return combate;
     }
 
     public NotasDaMesa notas() {

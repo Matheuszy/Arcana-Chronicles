@@ -10,6 +10,7 @@ import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
 import { isActiveState } from '../../types/challenge';
+import { BLOCKED_ROLL_DURING_COMBAT, isMyTurn } from '../../types/combat';
 import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
 import Tabs, { panelId, tabId } from '../../components/ui/Tabs';
@@ -18,9 +19,12 @@ import NpcLinksPanel from './NpcLinksPanel';
 import ChallengeMasterPanel from './ChallengeMasterPanel';
 import ChallengePlayerPanel from './ChallengePlayerPanel';
 import ChallengeRollOverlay from './ChallengeRollOverlay';
+import CombatStartPanel from './CombatStartPanel';
+import CombatTracker from './CombatTracker';
 import DiceRoller from './DiceRoller';
 import DiceRollMessage from './DiceRollMessage';
 import { useChallenges } from './useChallenges';
+import { useCombat } from './useCombat';
 import ImageComposer from './ImageComposer';
 import NotesPanel from './NotesPanel';
 import ReceivedNoteDialog from './ReceivedNoteDialog';
@@ -33,6 +37,7 @@ import ParticipantsPanel from './ParticipantsPanel';
 import PrivateSheetsPanel from './PrivateSheetsPanel';
 import './TableRoom.css';
 import './Challenge.css';
+import './Combat.css';
 import './RoomResources.css';
 import './RoomTheme.css';
 
@@ -51,15 +56,16 @@ type RoomTab = Channel | 'STATUS' | 'ITENS';
 
 const ROOM_TABS: RoomTab[] = [...CHANNELS, 'STATUS', 'ITENS'];
 
-type SideTab = 'MESA' | 'GENTE' | 'FICHAS' | 'DESAFIO' | 'DADOS';
+type SideTab = 'MESA' | 'GENTE' | 'FICHAS' | 'DESAFIO' | 'COMBATE' | 'DADOS';
 
-const SIDE_TABS: SideTab[] = ['MESA', 'GENTE', 'FICHAS', 'DESAFIO', 'DADOS'];
+const SIDE_TABS: SideTab[] = ['MESA', 'GENTE', 'FICHAS', 'DESAFIO', 'COMBATE', 'DADOS'];
 
 const SIDE_LABEL: Record<SideTab, string> = {
   MESA: 'Mesa',
   GENTE: 'Gente',
   FICHAS: 'Fichas',
   DESAFIO: 'Desafio',
+  COMBATE: 'Combate',
   DADOS: 'Dados',
 };
 
@@ -68,6 +74,7 @@ const SIDE_ICON: Record<SideTab, string> = {
   GENTE: '👥',
   FICHAS: '📜',
   DESAFIO: '⚔',
+  COMBATE: '🛡',
   DADOS: '🎲',
 };
 
@@ -169,11 +176,19 @@ export default function TableRoom() {
   } = useRoomResources((recipients) =>
     notify(`Trecho compartilhado com ${recipients}.`, 'success'),
   );
+  const { combat, handleMessage: handleCombatMessage, reset: resetCombat } = useCombat();
   const rollBlockedByChallenge =
     !isMaster &&
     challenges.some((c) =>
       c.jogadores.some((p) => String(p.jogadorId) === viewerId && isActiveState(p.estado)),
     );
+  const rollBlockedByCombat = combat !== null && !isMyTurn(combat, viewerId);
+  const rollBlocked = rollBlockedByChallenge || rollBlockedByCombat;
+  const rollBlockedReason = rollBlockedByChallenge
+    ? 'Você tem um desafio em andamento. A única rolagem permitida é a do desafio.'
+    : BLOCKED_ROLL_DURING_COMBAT;
+  const sideTabs = isMaster ? SIDE_TABS : SIDE_TABS.filter((tab) => tab !== 'COMBATE');
+  const turnKey = combat && isMyTurn(combat, viewerId) ? `${combat.id}-${combat.rodada}` : null;
 
   const activeChallengeCount = challenges.filter((c) => c.jogadores.some((p) => isActiveState(p.estado))).length;
   const previousChallengeCount = useRef(0);
@@ -184,6 +199,10 @@ export default function TableRoom() {
     }
     previousChallengeCount.current = activeChallengeCount;
   }, [activeChallengeCount, isMaster]);
+
+  useEffect(() => {
+    if (turnKey) notify('É o seu turno!', 'success');
+  }, [turnKey, notify]);
 
   const loadTable = useCallback(() => {
     if (!id) return;
@@ -223,7 +242,7 @@ export default function TableRoom() {
     setSessionEndedReason(null);
     chatService.connect(id, token);
     const offMessage = chatService.onMessage((msg) => {
-      if (handleChallengeMessage(msg) || handleRoomMessage(msg)) return;
+      if (handleChallengeMessage(msg) || handleRoomMessage(msg) || handleCombatMessage(msg)) return;
       if (msg.type === 'HISTORICO') {
         const restored: MessagesByChannel = {
           CONVERSA: msg.historico?.CONVERSA ?? [],
@@ -243,12 +262,14 @@ export default function TableRoom() {
         setOnlineUsers([]);
         resetChallenges();
         resetRoomResources();
+        resetCombat();
         loadTable();
       } else if (msg.type === 'REMOVIDO_DA_MESA') {
         setRemovedReason(msg.content);
         setOnlineUsers([]);
         resetChallenges();
         resetRoomResources();
+        resetCombat();
         loadTable();
       } else if (msg.type === 'STATUS_MESA' || msg.type === 'PARTICIPANTES') {
         loadTable();
@@ -276,8 +297,10 @@ export default function TableRoom() {
     loadTable,
     handleChallengeMessage,
     handleRoomMessage,
+    handleCombatMessage,
     resetChallenges,
     resetRoomResources,
+    resetCombat,
   ]);
 
   const changeStatus = async (newStatus: TableStatus) => {
@@ -389,8 +412,8 @@ export default function TableRoom() {
     if (!id || !text) return;
 
     if (isRollCommand(text)) {
-      if (rollBlockedByChallenge) {
-        setComposerError('Você tem um desafio em andamento. A única rolagem permitida é a do desafio.');
+      if (rollBlocked) {
+        setComposerError(rollBlockedReason);
         return;
       }
       try {
@@ -471,7 +494,7 @@ export default function TableRoom() {
             idPrefix="side-tabs"
             active={sideTab}
             onChange={setSideTab}
-            tabs={SIDE_TABS.map((tab) => ({
+            tabs={sideTabs.map((tab) => ({
               id: tab,
               label: SIDE_LABEL[tab],
               icon: SIDE_ICON[tab],
@@ -596,12 +619,21 @@ export default function TableRoom() {
         )}
 
         </div>
+        {isMaster && (
+          <div className="side-section" hidden={sideTab !== 'COMBATE'}>
+            <CombatStartPanel
+              participants={table.participants}
+              onlineUserIds={onlineUsers.map((u) => String(u.userId))}
+              combatActive={combat !== null}
+              canSend={canSend}
+              onStart={chatService.startCombat.bind(chatService)}
+            />
+          </div>
+        )}
         <div className="side-section" hidden={sideTab !== 'DADOS'}>
         <h3 className="section-title">Rolar dados</h3>
-        <DiceRoller disabled={!canSend || rollBlockedByChallenge} onRoll={sendRoll} />
-        {rollBlockedByChallenge && (
-          <p className="roll-error">Você tem um desafio em andamento. A única rolagem permitida é a do desafio.</p>
-        )}
+        <DiceRoller disabled={!canSend || rollBlocked} onRoll={sendRoll} />
+        {rollBlocked && <p className="roll-error">{rollBlockedReason}</p>}
         <p className="muted roll-hint">
           Ou digite no chat: <code>/r 1d20+2</code>, <code>/r 1d20 vantagem</code>
         </p>
@@ -615,7 +647,7 @@ export default function TableRoom() {
                   key={key}
                   className="btn btn-ghost"
                   onClick={() => rollAttribute(key)}
-                  disabled={!canSend || rollBlockedByChallenge}
+                  disabled={!canSend || rollBlocked}
                 >
                   {key.slice(0, 3).toUpperCase()}
                 </button>
@@ -658,6 +690,18 @@ export default function TableRoom() {
           <div className="session-paused">
             A mesa está pausada pelo mestre. Mensagens e rolagens ficam bloqueadas até ela ser retomada.
           </div>
+        )}
+        {combat && (
+          <CombatTracker
+            combat={combat}
+            viewerId={viewerId}
+            isMaster={isMaster}
+            canSend={canSend}
+            onRollInitiative={chatService.rollInitiative.bind(chatService)}
+            onPassTurn={chatService.passTurn.bind(chatService)}
+            onAllowReroll={chatService.allowInitiativeReroll.bind(chatService)}
+            onEnd={chatService.endCombat.bind(chatService)}
+          />
         )}
         <Tabs
           label="Canais da mesa"

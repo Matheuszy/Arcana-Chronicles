@@ -62,6 +62,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
     private final ValidadorImagem validadorImagem;
     private final DesafioChat desafioChat;
     private final SalaChat salaChat;
+    private final CombateChat combateChat;
     private final GerenciadorMesasAtivas gerenciadorMesas;
     private final TaskScheduler agendador;
     private final Clock clock;
@@ -88,6 +89,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
                            ValidadorImagem validadorImagem,
                            DesafioChat desafioChat,
                            SalaChat salaChat,
+                           CombateChat combateChat,
                            GerenciadorMesasAtivas gerenciadorMesas,
                            @Qualifier("chatTaskScheduler") TaskScheduler agendador,
                            Clock clock,
@@ -97,6 +99,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         this.validadorImagem = validadorImagem;
         this.desafioChat = desafioChat;
         this.salaChat = salaChat;
+        this.combateChat = combateChat;
         this.gerenciadorMesas = gerenciadorMesas;
         this.agendador = agendador;
         this.clock = clock;
@@ -147,6 +150,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         imagens.forEach(imagem -> enviarParaSessao(session, imagem));
         desafioChat.sincronizar(mesa, sessaoSegura, acesso.userId());
         salaChat.sincronizar(mesa, sessaoSegura, acesso);
+        combateChat.sincronizar(mesa, sessaoSegura);
 
         broadcast(mesa, presenca(mesa, tableId), sessaoSegura);
     }
@@ -225,6 +229,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         gerenciadorMesas.buscar(evento.mesaId()).ifPresent(mesa -> {
             desafioChat.aoJogadorSair(mesa, evento.userId());
             salaChat.aoJogadorSair(mesa, evento.userId());
+            combateChat.aoJogadorSair(mesa, evento.userId());
             ChatMessage aviso = systemMessage(tableId, evento.removidoPeloMestre()
                     ? "O mestre removeu " + evento.displayName() + " da mesa."
                     : evento.displayName() + " deixou a mesa.");
@@ -311,6 +316,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         message.setDesafios(null);
         message.setStatus(null);
         message.setItens(null);
+        message.setCombate(null);
 
         if (message.getType() != null && DesafioChat.COMANDOS.contains(message.getType())) {
             executarComandoDeDesafio(session, acesso, mesa, message);
@@ -319,6 +325,11 @@ public class MesaChatHandler extends TextWebSocketHandler {
 
         if (message.getType() != null && SalaChat.COMANDOS.contains(message.getType())) {
             executarComandoDaSala(session, acesso, mesa, message);
+            return;
+        }
+
+        if (message.getType() != null && CombateChat.COMANDOS.contains(message.getType())) {
+            executarComandoDeCombate(session, acesso, mesa, message);
             return;
         }
 
@@ -355,6 +366,11 @@ public class MesaChatHandler extends TextWebSocketHandler {
             if (desafioChat.jogadorBloqueado(mesa, acesso.userId())) {
                 enviarParaSessao(session, systemMessage(tableId,
                         "Você tem um desafio em andamento. A única rolagem permitida é a do desafio."));
+                return;
+            }
+            if (!combateChat.podeRolarLivremente(mesa, acesso.userId())) {
+                enviarParaSessao(session, systemMessage(tableId,
+                        "Durante o combate você só pode rolar dados no seu turno ou quando for desafiado."));
                 return;
             }
             try {
@@ -410,6 +426,20 @@ public class MesaChatHandler extends TextWebSocketHandler {
         } catch (RuntimeException e) {
             log.error("Falha inesperada na sala da mesa {}", acesso.mesaId(), e);
             enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação. Tente novamente."));
+        }
+    }
+
+    private void executarComandoDeCombate(WebSocketSession session, AcessoMesaDto acesso, MesaAtiva mesa,
+                                          ChatMessage message) {
+        String tableId = String.valueOf(acesso.mesaId());
+        try {
+            combateChat.executar(mesa, acesso, message);
+        } catch (IllegalArgumentException | IllegalStateException | AccessDeniedException
+                 | RegraDeNegocioException | RecursoNaoEncontradoException e) {
+            enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
+        } catch (RuntimeException e) {
+            log.error("Falha inesperada no combate da mesa {}", acesso.mesaId(), e);
+            enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação do combate. Tente novamente."));
         }
     }
 
