@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 public record UsuarioRequestDto(
 
         @NotBlank(message = "Username não pode ser vazio")
-        @Size(max = 100)
+        @Size(max = 100, message = "Username não pode ter mais de 100 caracteres")
         String username,
 
         @NotBlank(message = "Email não pode ser vazio")

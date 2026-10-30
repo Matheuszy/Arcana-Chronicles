@@ -76,17 +76,17 @@ public record PersonagemRequestDto(
 
 ) {
     public record AtributosDto(
-            @NotNull @Min(8) @Max(20) Integer forca,
-            @NotNull @Min(8) @Max(20) Integer destreza,
-            @NotNull @Min(8) @Max(20) Integer constituicao,
-            @NotNull @Min(8) @Max(20) Integer inteligencia,
-            @NotNull @Min(8) @Max(20) Integer sabedoria,
-            @NotNull @Min(8) @Max(20) Integer carisma
+            @NotNull(message = "Força é obrigatória") @Min(value = 8, message = "Força deve ser no mínimo 8") @Max(value = 20, message = "Força deve ser no máximo 20") Integer forca,
+            @NotNull(message = "Destreza é obrigatória") @Min(value = 8, message = "Destreza deve ser no mínimo 8") @Max(value = 20, message = "Destreza deve ser no máximo 20") Integer destreza,
+            @NotNull(message = "Constituição é obrigatória") @Min(value = 8, message = "Constituição deve ser no mínimo 8") @Max(value = 20, message = "Constituição deve ser no máximo 20") Integer constituicao,
+            @NotNull(message = "Inteligência é obrigatória") @Min(value = 8, message = "Inteligência deve ser no mínimo 8") @Max(value = 20, message = "Inteligência deve ser no máximo 20") Integer inteligencia,
+            @NotNull(message = "Sabedoria é obrigatória") @Min(value = 8, message = "Sabedoria deve ser no mínimo 8") @Max(value = 20, message = "Sabedoria deve ser no máximo 20") Integer sabedoria,
+            @NotNull(message = "Carisma é obrigatória") @Min(value = 8, message = "Carisma deve ser no mínimo 8") @Max(value = 20, message = "Carisma deve ser no máximo 20") Integer carisma
     ) {}
 
     public record SpellDto(
-            @NotBlank String name,
-            @NotNull @Min(0) @Max(9) Integer level,
+            @NotBlank(message = "Toda magia precisa de um nome") String name,
+            @NotNull(message = "O círculo da magia é obrigatório") @Min(value = 0, message = "O círculo da magia deve ser de 0 a 9") @Max(value = 9, message = "O círculo da magia deve ser de 0 a 9") Integer level,
             String description
     ) {}
 }

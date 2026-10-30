@@ -4,12 +4,17 @@ import com.arcana.backend.config.exception.CredenciaisInvalidasException;
 import com.arcana.backend.config.exception.GlobalExceptionHandler;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -106,6 +111,39 @@ class GlobalExceptionHandlerTest {
         var response = handler.handleGenerico(new RuntimeException("stacktrace sensível"), request);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertEquals("Erro interno no servidor.", response.getBody().message());
+        assertEquals("Algo deu errado do nosso lado. Tente novamente em instantes.", response.getBody().message());
+    }
+
+    @Test
+    void deveRegistrarEmLogOsErros500ComAExcecaoOriginal() {
+        Logger logger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            RuntimeException falha = new RuntimeException("falha de banco");
+            handler.handleGenerico(falha, request);
+
+            assertEquals(1, appender.list.size());
+            assertEquals(Level.ERROR, appender.list.get(0).getLevel());
+            assertEquals("falha de banco", appender.list.get(0).getThrowableProxy().getMessage());
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
+
+    @Test
+    void naoDeveRegistrarEmLogOsErrosDoCliente() {
+        Logger logger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            handler.handleGenerico(new HttpMediaTypeNotSupportedException("text/plain"), request);
+
+            assertTrue(appender.list.isEmpty());
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 }

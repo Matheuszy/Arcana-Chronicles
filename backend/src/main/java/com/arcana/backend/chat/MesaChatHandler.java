@@ -13,7 +13,10 @@ import com.arcana.backend.table.MesaStatusAlteradoEvent;
 import com.arcana.backend.table.ParticipanteRemovidoEvent;
 import com.arcana.backend.table.ParticipantesAlteradosEvent;
 import com.arcana.backend.table.model.StatusMesa;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.TaskScheduler;
@@ -48,6 +51,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Component
 public class MesaChatHandler extends TextWebSocketHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(MesaChatHandler.class);
 
     public static final int LIMITE_CARACTERES_TEXTO = 2_000;
 
@@ -268,8 +273,14 @@ public class MesaChatHandler extends TextWebSocketHandler {
             return;
         }
 
-        ChatMessage message = objectMapper.readValue(raw.getPayload(), ChatMessage.class);
         String tableId = String.valueOf(acesso.mesaId());
+        ChatMessage message;
+        try {
+            message = objectMapper.readValue(raw.getPayload(), ChatMessage.class);
+        } catch (JsonProcessingException e) {
+            enviarParaSessao(session, systemMessage(tableId, "Não foi possível entender essa mensagem."));
+            return;
+        }
 
         message.setId(UUID.randomUUID().toString());
         message.setCreatedAt(Instant.now().toString());
@@ -365,7 +376,8 @@ public class MesaChatHandler extends TextWebSocketHandler {
                  | RegraDeNegocioException | RecursoNaoEncontradoException e) {
             enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
         } catch (RuntimeException e) {
-            enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação do desafio."));
+            log.error("Falha inesperada no desafio da mesa {}", acesso.mesaId(), e);
+            enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação do desafio. Tente novamente."));
         }
     }
 
@@ -378,7 +390,8 @@ public class MesaChatHandler extends TextWebSocketHandler {
                  | RegraDeNegocioException | RecursoNaoEncontradoException e) {
             enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
         } catch (RuntimeException e) {
-            enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação."));
+            log.error("Falha inesperada na sala da mesa {}", acesso.mesaId(), e);
+            enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação. Tente novamente."));
         }
     }
 
@@ -408,6 +421,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
+        log.warn("Erro de transporte na sessão {}", session.getId(), exception);
         session.close(CloseStatus.SERVER_ERROR);
     }
 

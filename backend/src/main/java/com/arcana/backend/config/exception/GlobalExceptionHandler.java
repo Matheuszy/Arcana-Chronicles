@@ -1,6 +1,8 @@
 package com.arcana.backend.config.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -18,6 +20,8 @@ import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)
     public ResponseEntity<ApiErrorResponse> handleNaoEncontrado(
@@ -65,7 +69,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleValidacao(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
         List<String> detalhes = ex.getBindingResult().getFieldErrors().stream()
-                .map(erro -> erro.getField() + ": " + erro.getDefaultMessage())
+                .map(erro -> erro.getDefaultMessage())
+                .distinct()
                 .toList();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
@@ -108,7 +113,8 @@ public class GlobalExceptionHandler {
             HttpStatus status = HttpStatus.valueOf(erroDoFramework.getStatusCode().value());
             return build(status, status.getReasonPhrase(), request);
         }
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno no servidor.", request);
+        log.error("Erro interno em {} {}", request.getMethod(), request.getRequestURI(), ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Algo deu errado do nosso lado. Tente novamente em instantes.", request);
     }
 
     private ResponseEntity<ApiErrorResponse> build(HttpStatus status, String message, HttpServletRequest request) {

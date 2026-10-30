@@ -19,14 +19,23 @@ export class ApiError extends Error {
   }
 }
 
+const SERVER_ERROR_MESSAGE = 'Algo deu errado do nosso lado. Tente novamente em instantes.';
+const NETWORK_ERROR_MESSAGE = 'Não foi possível falar com o servidor. Verifique sua conexão e tente de novo.';
+
+function friendlyFallback(status: number, fallback: string): string {
+  return status >= 500 ? SERVER_ERROR_MESSAGE : fallback;
+}
+
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   const text = await response.text();
   try {
     const body = JSON.parse(text) as { message?: string; details?: string[] };
     const details = body.details?.length ? ` ${body.details.join(' ')}` : '';
-    return body.message ? `${body.message}${details}` : fallback;
+    return body.message && response.status < 500
+      ? `${body.message}${details}`
+      : friendlyFallback(response.status, fallback);
   } catch {
-    return text || fallback;
+    return friendlyFallback(response.status, fallback);
   }
 }
 
@@ -42,10 +51,15 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new ApiError(0, NETWORK_ERROR_MESSAGE);
+  }
 
   if (response.status === 401) {
     // Se não estiver na tela de login, podemos limpar a sessão
@@ -57,7 +71,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, await readErrorMessage(response, `Erro ${response.status}`));
+    throw new ApiError(response.status, await readErrorMessage(response, 'Não foi possível concluir a ação.'));
   }
 
   if (response.status === 204) {
