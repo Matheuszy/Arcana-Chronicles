@@ -69,7 +69,7 @@
   font-size: 0.78rem;
   border-color: var(--ink-700);
 }
-.who-logout:hover { border-color: var(--seal); color: var(--seal); }
+.who-logout:hover { border-color: var(--seal); color: var(--danger-text); }
 
 .stage {
   flex: 1;

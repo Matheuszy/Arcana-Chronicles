@@ -248,6 +248,29 @@ class MesaServiceTest {
         assertThrows(RecursoNaoEncontradoException.class, () -> service.buscarAlvoDeStatus(1L, 999L));
     }
 
+    @Test
+    void deveEncerrarERemoverAsMesasDoMestreEATirarOJogadorDasDemais() {
+        Mesa propria = mesaAbertaDoMestre(7L);
+        propria.setId(10L);
+        Mesa alheia = mesaAbertaDoMestre(1L);
+        alheia.setId(20L);
+        alheia.getParticipants().add(new Participante(7L, "joao", "JOGADOR", 100L));
+        alheia.getParticipants().add(new Participante(3L, "maria", "JOGADOR", null));
+        when(mesaRepository.findByMasterId(7L)).thenReturn(java.util.List.of(propria));
+        when(mesaRepository.findByParticipantsUserId(7L)).thenReturn(java.util.List.of(alheia));
+        when(mesaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.removerVinculosDoUsuario(7L);
+
+        verify(solicitacaoRepository).deleteByMesaId(10L);
+        verify(mesaRepository).delete(propria);
+        verify(solicitacaoRepository).deleteByUserId(7L);
+        assertEquals(1, alheia.getParticipants().size());
+        assertEquals(3L, alheia.getParticipants().get(0).getUserId());
+        assertTrue(eventosPublicados.contains(new MesaStatusAlteradoEvent(10L, StatusMesa.ENCERRADA)));
+        assertTrue(eventosPublicados.contains(new ParticipanteRemovidoEvent(20L, 7L, "joao", false)));
+    }
+
     private Mesa mesaAbertaDoMestre(Long masterId) {
         Mesa mesa = new Mesa();
         mesa.setId(1L);

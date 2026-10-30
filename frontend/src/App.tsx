@@ -5,6 +5,7 @@ import CharacterList from './pages/CharacterList/CharacterList';
 import CharacterForm from './pages/CharacterForm/CharacterForm';
 import TableList from './pages/TableList/TableList';
 import TableRoom from './pages/TableRoom/TableRoom';
+import Account from './pages/Account/Account';
 import './App.css';
 
 /** Redireciona para /login se não houver sessão ativa */
@@ -26,12 +27,15 @@ function Shell() {
 
         {userId && (
           <>
-            <nav className="nav">
+            <nav className="nav" aria-label="Principal">
               <NavLink to="/fichas" className={({ isActive }) => (isActive ? 'active' : '')}>
                 Fichas
               </NavLink>
               <NavLink to="/mesas" className={({ isActive }) => (isActive ? 'active' : '')}>
                 Mesas
+              </NavLink>
+              <NavLink to="/conta" className={({ isActive }) => (isActive ? 'active' : '')}>
+                Minha conta
               </NavLink>
             </nav>
 
@@ -67,6 +71,9 @@ function Shell() {
           } />
           <Route path="/fichas/:id/editar" element={
             <PrivateRoute><CharacterForm /></PrivateRoute>
+          } />
+          <Route path="/conta" element={
+            <PrivateRoute><Account /></PrivateRoute>
           } />
           <Route path="/mesas" element={
             <PrivateRoute><TableList /></PrivateRoute>

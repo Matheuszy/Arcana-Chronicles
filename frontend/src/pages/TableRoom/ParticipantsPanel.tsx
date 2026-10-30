@@ -97,7 +97,7 @@ export default function ParticipantsPanel({
       </ul>
       {error && <p className="roll-error">{error}</p>}
 
-      {sheet && <CharacterSheet character={sheet} onClose={() => setSheet(null)} />}
+      {sheet && <CharacterSheet character={sheet} origin="Ficha de participante · somente leitura" onClose={() => setSheet(null)} />}
     </div>
   );
 }

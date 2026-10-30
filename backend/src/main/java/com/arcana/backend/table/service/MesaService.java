@@ -362,6 +362,22 @@ public class MesaService {
         return MesaResponseDto.from(mesaRepository.save(mesa));
     }
 
+    @Transactional
+    public void removerVinculosDoUsuario(Long userId) {
+        for (Mesa mesa : mesaRepository.findByMasterId(userId)) {
+            solicitacaoRepository.deleteByMesaId(mesa.getId());
+            mesaRepository.delete(mesa);
+            eventPublisher.publishEvent(new MesaStatusAlteradoEvent(mesa.getId(), StatusMesa.ENCERRADA));
+        }
+
+        for (Mesa mesa : mesaRepository.findByParticipantsUserId(userId)) {
+            buscarParticipante(mesa, userId)
+                    .ifPresent(participante -> removerParticipanteDaMesa(mesa, participante, false));
+        }
+
+        solicitacaoRepository.deleteByUserId(userId);
+    }
+
     /** Remove a mesa (apenas o mestre pode fazer isso) */
     @Transactional
     public void deletar(Long mesaId, Long masterId) {

@@ -50,7 +50,11 @@ export default function PrivateSheetsPanel({ title, characters, loading, error, 
           </button>
         </div>
       )}
-      {openCharacter && <CharacterSheet character={openCharacter} onClose={() => setOpenId(null)} />}
+      {openCharacter && <CharacterSheet
+          character={openCharacter}
+          origin={openCharacter.kind === 'PLAYER' ? 'Sua ficha' : 'Ficha do mestre · só você vê'}
+          onClose={() => setOpenId(null)}
+        />}
     </div>
   );
 }
