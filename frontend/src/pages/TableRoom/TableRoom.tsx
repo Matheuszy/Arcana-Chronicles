@@ -10,6 +10,8 @@ import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
 import { isActiveState } from '../../types/challenge';
+import { useConfirm } from '../../components/ui/Confirm';
+import Select from '../../components/ui/Select';
 import Tabs, { panelId, tabId } from '../../components/ui/Tabs';
 import { useToast } from '../../components/ui/Toast';
 import NpcLinksPanel from './NpcLinksPanel';
@@ -21,6 +23,7 @@ import DiceRollMessage from './DiceRollMessage';
 import { useChallenges } from './useChallenges';
 import ImageComposer from './ImageComposer';
 import NotesPanel from './NotesPanel';
+import ReceivedNoteDialog from './ReceivedNoteDialog';
 import SharedItemsView from './SharedItemsView';
 import StatusControls from './StatusControls';
 import StatusView from './StatusView';
@@ -110,6 +113,7 @@ export default function TableRoom() {
   const navigate = useNavigate();
   const { userId, token } = useSession();
   const { notify } = useToast();
+  const confirm = useConfirm();
 
   const [table, setTable] = useState<GameTable | null>(null);
   const [tableError, setTableError] = useState<string | null>(null);
@@ -158,9 +162,13 @@ export default function TableRoom() {
     note,
     status: roomStatus,
     items: sharedItems,
+    receivedNotes,
+    dismissReceivedNote,
     handleMessage: handleRoomMessage,
     reset: resetRoomResources,
-  } = useRoomResources();
+  } = useRoomResources((recipients) =>
+    notify(`Trecho compartilhado com ${recipients}.`, 'success'),
+  );
   const rollBlockedByChallenge =
     !isMaster &&
     challenges.some((c) =>
@@ -282,18 +290,24 @@ export default function TableRoom() {
     }
   };
 
-  const closeTable = () => {
-    const confirmed = window.confirm(
-      'Encerrar a mesa? A sessão termina para todos, o histórico do chat é apagado e a mesa não poderá ser reaberta.',
-    );
+  const closeTable = async () => {
+    const confirmed = await confirm({
+      title: 'Encerrar a mesa?',
+      message: 'A sessão termina para todos, o histórico do chat é apagado e a mesa não poderá ser reaberta.',
+      confirmLabel: 'Encerrar mesa',
+      danger: true,
+    });
     if (confirmed) changeStatus('ENCERRADA');
   };
 
   const leaveTable = async () => {
     if (!id) return;
-    const confirmed = window.confirm(
-      'Sair da mesa? Você será desconectado e precisará pedir para entrar de novo ao mestre.',
-    );
+    const confirmed = await confirm({
+      title: 'Sair da mesa?',
+      message: 'Você será desconectado e precisará pedir para entrar de novo ao mestre.',
+      confirmLabel: 'Sair da mesa',
+      danger: true,
+    });
     if (!confirmed) return;
 
     setLeaving(true);
@@ -471,19 +485,12 @@ export default function TableRoom() {
 
         {!isMaster && (
           <div className="field">
-            <label htmlFor="activeCharacter">Seu personagem nesta mesa</label>
-            <select
-              id="activeCharacter"
+            <Select
+              label="Seu personagem nesta mesa"
               value={activeCharacterId}
-              onChange={(e) => changeCharacter(e.target.value)}
-            >
-              <option value="">Selecione...</option>
-              {characters.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={changeCharacter}
+              options={characters.flatMap((c) => (c.id ? [{ value: String(c.id), label: c.name }] : []))}
+            />
             {characterError && <p className="roll-error">{characterError}</p>}
             <button className="btn btn-danger leave-table" onClick={leaveTable} disabled={leaving}>
               {leaving ? 'Saindo...' : 'Sair da mesa'}
@@ -494,20 +501,12 @@ export default function TableRoom() {
 
         {isMaster && (
           <div className="master-actions">
-            <div className="field">
-              <label htmlFor="tableStatus">Status da mesa</label>
-              <select
-                id="tableStatus"
-                value={table.status}
-                onChange={(e) => changeStatus(e.target.value as TableStatus)}
-              >
-                {MASTER_STATUS_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {TABLE_STATUS_LABEL[option]}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="Status da mesa"
+              value={table.status}
+              onChange={changeStatus}
+              options={MASTER_STATUS_OPTIONS.map((option) => ({ value: option, label: TABLE_STATUS_LABEL[option] }))}
+            />
             <button className="btn btn-danger" onClick={closeTable}>
               Encerrar mesa
             </button>
@@ -778,7 +777,13 @@ export default function TableRoom() {
       </div>
 
       <aside className="room-notes card" aria-label="Caderno privado">
-        <NotesPanel savedNote={note} canSave={connected} onSave={chatService.saveNote.bind(chatService)} />
+        <NotesPanel
+          savedNote={note}
+          canSave={connected}
+          recipients={onlineUsers.filter((person) => String(person.userId) !== viewerId)}
+          onSave={chatService.saveNote.bind(chatService)}
+          onShare={chatService.shareNote.bind(chatService)}
+        />
       </aside>
 
       {editingSheet && (
@@ -792,6 +797,15 @@ export default function TableRoom() {
             />
           </div>
         </div>
+      )}
+
+      {receivedNotes.length > 0 && (
+        <ReceivedNoteDialog
+          key={receivedNotes[0].id}
+          note={receivedNotes[0]}
+          remaining={receivedNotes.length - 1}
+          onClose={dismissReceivedNote}
+        />
       )}
 
       {reveal && <ChallengeRollOverlay key={reveal.key} reveal={reveal} viewerId={viewerId} onClose={dismissReveal} />}

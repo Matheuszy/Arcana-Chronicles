@@ -3,6 +3,7 @@ package com.arcana.backend.chat;
 import com.arcana.backend.chat.model.Canal;
 import com.arcana.backend.chat.model.ChatMessage;
 import com.arcana.backend.chat.sala.ComandoSala;
+import com.arcana.backend.chat.sala.NotaCompartilhada;
 import com.arcana.backend.chat.sala.SalaService;
 import com.arcana.backend.chat.sala.StatusDaMesa;
 import com.arcana.backend.chat.sala.StatusDto;
@@ -25,6 +26,7 @@ public class SalaChat {
 
     public static final Set<ChatMessage.Type> COMANDOS = EnumSet.of(
             ChatMessage.Type.NOTA_SALVAR,
+            ChatMessage.Type.NOTA_COMPARTILHAR,
             ChatMessage.Type.STATUS_DEFINIR,
             ChatMessage.Type.STATUS_REMOVER,
             ChatMessage.Type.ITEM_CRIAR,
@@ -40,13 +42,17 @@ public class SalaChat {
 
     public void executar(MesaAtiva mesa, AcessoMesaDto acesso, ChatMessage mensagem) {
         ComandoSala comando = mensagem.getComandoSala() == null
-                ? new ComandoSala(null, null, null, null, null)
+                ? new ComandoSala(null, null, null, null, null, null)
                 : mensagem.getComandoSala();
 
         switch (mensagem.getType()) {
             case NOTA_SALVAR -> {
                 String nota = salaService.salvarNota(mesa, acesso, mensagem.getContent());
                 notificarNota(mesa, acesso.userId(), nota);
+            }
+            case NOTA_COMPARTILHAR -> {
+                NotaCompartilhada compartilhada = salaService.compartilharNota(mesa, acesso, comando);
+                notificarNotaCompartilhada(mesa, acesso, compartilhada);
             }
             case STATUS_DEFINIR -> {
                 StatusDto.Registro registro = salaService.definirStatus(mesa, acesso, comando);
@@ -108,6 +114,19 @@ public class SalaChat {
         ChatMessage evento = novoEvento(mesa, ChatMessage.Type.NOTA);
         evento.setContent(nota);
         mesa.sessoesDoUsuario(userId).forEach(sessao -> enviar(sessao, evento));
+    }
+
+    private void notificarNotaCompartilhada(MesaAtiva mesa, AcessoMesaDto autor, NotaCompartilhada compartilhada) {
+        ChatMessage recebida = novoEvento(mesa, ChatMessage.Type.NOTA_RECEBIDA);
+        recebida.setAuthorId(String.valueOf(autor.userId()));
+        recebida.setAuthorName(autor.displayName());
+        recebida.setContent(compartilhada.trecho());
+        compartilhada.destinatarios()
+                .forEach(id -> mesa.sessoesDoUsuario(id).forEach(sessao -> enviar(sessao, recebida)));
+
+        ChatMessage confirmacao = novoEvento(mesa, ChatMessage.Type.NOTA_COMPARTILHADA);
+        confirmacao.setContent(String.join(", ", compartilhada.nomes()));
+        mesa.sessoesDoUsuario(autor.userId()).forEach(sessao -> enviar(sessao, confirmacao));
     }
 
     private void notificarStatus(MesaAtiva mesa) {

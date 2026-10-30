@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useConfirm } from '../../components/ui/Confirm';
+import Select from '../../components/ui/Select';
 import { TableParticipant } from '../../types/table';
 import { RollMode } from '../../types/chat';
 import {
@@ -33,15 +35,16 @@ interface Selection {
   mode: RollMode;
 }
 
-function ModeSelect({ id, value, onChange }: { id: string; value: RollMode; onChange: (mode: RollMode) => void }) {
+function ModeSelect({ value, onChange }: { value: RollMode; onChange: (mode: RollMode) => void }) {
   return (
-    <select id={id} value={value} onChange={(e) => onChange(e.target.value as RollMode)} aria-label="Modo da rolagem">
-      {MODES.map((mode) => (
-        <option key={mode} value={mode}>
-          {ROLL_MODE_LABEL[mode]}
-        </option>
-      ))}
-    </select>
+    <Select
+      label="Modo da rolagem"
+      hideLabel
+      compact
+      value={value}
+      onChange={onChange}
+      options={MODES.map((mode) => ({ value: mode, label: ROLL_MODE_LABEL[mode] }))}
+    />
   );
 }
 
@@ -60,6 +63,7 @@ function PlayerRow({
   onEndWithFailure: ChallengeMasterPanelProps['onEndWithFailure'];
   onCancel: ChallengeMasterPanelProps['onCancel'];
 }) {
+  const confirm = useConfirm();
   const [extraMode, setExtraMode] = useState<RollMode>(player.modo);
   const active = isActiveState(player.estado);
   const last = player.rolagens[player.rolagens.length - 1];
@@ -81,7 +85,7 @@ function PlayerRow({
 
       {player.estado === 'AGUARDANDO_DECISAO_DO_MESTRE' && last && (
         <div className="challenge-actions">
-          <ModeSelect id={`extra-${challenge.id}-${player.jogadorId}`} value={extraMode} onChange={setExtraMode} />
+          <ModeSelect value={extraMode} onChange={setExtraMode} />
           <button
             className="btn btn-primary"
             disabled={!canSend}
@@ -102,10 +106,15 @@ function PlayerRow({
       {active && (
         <button
           className="btn btn-ghost challenge-cancel"
-          onClick={() => {
-            if (window.confirm(`Cancelar o desafio de ${player.nomePersonagem}?`)) {
-              onCancel(challenge.id, player.jogadorId);
-            }
+          onClick={async () => {
+            const confirmed = await confirm({
+              title: 'Cancelar desafio?',
+              message: `Cancelar o desafio de ${player.nomePersonagem}?`,
+              confirmLabel: 'Cancelar desafio',
+              cancelLabel: 'Voltar',
+              danger: true,
+            });
+            if (confirmed) onCancel(challenge.id, player.jogadorId);
           }}
         >
           Cancelar este jogador
@@ -150,28 +159,28 @@ function MessageComposer({
     <div className="challenge-composer">
       <h4 className="section-title">Mensagem privada</h4>
       <div className="field">
-        <label htmlFor={`target-${challenge.id}`}>Enviar para</label>
-        <select
-          id={`target-${challenge.id}`}
+        <Select
+          label="Enviar para"
           value={target}
-          onChange={(e) => setTarget(e.target.value as ChallengeMessageTarget)}
-        >
-          <option value="VENCEDORES">Todos que venceram ({winners.length})</option>
-          <option value="DERROTADOS">Todos que falharam ({losers.length})</option>
-          <option value="JOGADOR">Um jogador específico</option>
-        </select>
+          onChange={setTarget}
+          options={[
+            { value: 'VENCEDORES', label: `Todos que venceram (${winners.length})` },
+            { value: 'DERROTADOS', label: `Todos que falharam (${losers.length})` },
+            { value: 'JOGADOR', label: 'Um jogador específico' },
+          ]}
+        />
       </div>
       {target === 'JOGADOR' && (
         <div className="field">
-          <label htmlFor={`player-${challenge.id}`}>Jogador</label>
-          <select id={`player-${challenge.id}`} value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
-            <option value="">Selecione...</option>
-            {resolved.map((p) => (
-              <option key={p.jogadorId} value={p.jogadorId}>
-                {p.nomePersonagem} — {p.estado === 'SUCESSO' ? 'venceu' : 'falhou'}
-              </option>
-            ))}
-          </select>
+          <Select
+            label="Jogador"
+            value={playerId}
+            onChange={setPlayerId}
+            options={resolved.map((p) => ({
+              value: String(p.jogadorId),
+              label: `${p.nomePersonagem} — ${p.estado === 'SUCESSO' ? 'venceu' : 'falhou'}`,
+            }))}
+          />
         </div>
       )}
       <div className="field">
@@ -222,6 +231,7 @@ export default function ChallengeMasterPanel({
   onCancel,
   onSendMessage,
 }: ChallengeMasterPanelProps) {
+  const confirm = useConfirm();
   const [formOpen, setFormOpen] = useState(false);
   const [dc, setDc] = useState('12');
   const [description, setDescription] = useState('');
@@ -323,14 +333,14 @@ export default function ChallengeMasterPanel({
                       checked={Boolean(current?.selected) && !blocked}
                       onChange={() => toggle(p.userId)}
                     />
-                    <span className={`presence-dot ${onlineUserIds.includes(String(p.userId)) ? 'online' : ''}`} />
+                    <span className={`presence-dot ${onlineUserIds.includes(String(p.userId)) ? 'online' : ''}`} aria-hidden="true" />
                     {p.displayName}
+                    <small className="muted">{onlineUserIds.includes(String(p.userId)) ? ' (online)' : ' (offline)'}</small>
                   </label>
                   {blocked ? (
                     <small className="muted">{busy ? 'em desafio' : 'sem personagem'}</small>
                   ) : (
                     <ModeSelect
-                      id={`mode-${p.userId}`}
                       value={current?.mode ?? 'NORMAL'}
                       onChange={(mode) => changeMode(p.userId, mode)}
                     />
@@ -377,10 +387,15 @@ export default function ChallengeMasterPanel({
             {challenge.ativo && challenge.jogadores.length > 1 && (
               <button
                 className="btn btn-danger challenge-cancel"
-                onClick={() => {
-                  if (window.confirm('Cancelar o desafio para todos os jogadores em andamento?')) {
-                    onCancel(challenge.id);
-                  }
+                onClick={async () => {
+                  const confirmed = await confirm({
+                    title: 'Cancelar para todos?',
+                    message: 'Cancelar o desafio para todos os jogadores em andamento?',
+                    confirmLabel: 'Cancelar para todos',
+                    cancelLabel: 'Voltar',
+                    danger: true,
+                  });
+                  if (confirmed) onCancel(challenge.id);
                 }}
               >
                 Cancelar para todos

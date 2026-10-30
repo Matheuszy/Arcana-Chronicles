@@ -2,6 +2,7 @@ package com.arcana.backend;
 
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.config.security.TokenService;
+import com.arcana.backend.table.SessoesAtivasDeMesa;
 import com.arcana.backend.table.service.MesaService;
 import com.arcana.backend.user.dto.request.AtualizarUsuarioRequestDto;
 import com.arcana.backend.user.dto.request.LoginRequestDto;
@@ -40,6 +41,9 @@ class UsuarioServiceTest {
 
     @Mock
     private MesaService mesaService;
+
+    @Mock
+    private SessoesAtivasDeMesa sessoesAtivas;
 
     @InjectMocks
     private UsuarioService service;
@@ -214,6 +218,18 @@ class UsuarioServiceTest {
         assertThrows(RegraDeNegocioException.class, () -> service.criar(
                 new UsuarioRequestDto("novo", "joao@arcana.com", "123456", PapelUsuario.JOGADOR)));
         verify(repository, never()).save(any());
+    }
+
+    @Test
+    void deveBloquearDadosDaContaEnquantoOUsuarioEstaEmUmaMesa() {
+        when(sessoesAtivas.usuarioEmSessao(1L)).thenReturn(true);
+
+        assertThrows(RegraDeNegocioException.class, () -> service.buscarPorId(1L, 1L));
+        assertThrows(RegraDeNegocioException.class, () -> service.atualizar(1L,
+                new AtualizarUsuarioRequestDto("joao", "joao@arcana.com", null), 1L));
+        assertThrows(RegraDeNegocioException.class, () -> service.deletar(1L, 1L));
+        verify(repository, never()).save(any());
+        verify(mesaService, never()).removerVinculosDoUsuario(any());
     }
 
     @Test

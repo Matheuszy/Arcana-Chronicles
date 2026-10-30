@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useConfirm } from '../../components/ui/Confirm';
 import { tableService } from '../../services/tableService';
 import { Character } from '../../types/character';
 import { GameTable, TableParticipant } from '../../types/table';
@@ -19,6 +20,7 @@ export default function ParticipantsPanel({
   isMaster,
   onParticipantRemoved,
 }: ParticipantsPanelProps) {
+  const confirm = useConfirm();
   const [sheet, setSheet] = useState<Character | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -40,9 +42,12 @@ export default function ParticipantsPanel({
   };
 
   const removeParticipant = async (participant: TableParticipant) => {
-    const confirmed = window.confirm(
-      `Remover ${participant.displayName} da mesa? A conexão com a sala será encerrada e será preciso pedir para entrar de novo.`,
-    );
+    const confirmed = await confirm({
+      title: 'Remover participante?',
+      message: `Remover ${participant.displayName} da mesa? A conexão com a sala será encerrada e será preciso pedir para entrar de novo.`,
+      confirmLabel: 'Remover',
+      danger: true,
+    });
     if (!confirmed) return;
 
     const userId = String(participant.userId);

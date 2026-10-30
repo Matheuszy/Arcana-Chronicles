@@ -25,8 +25,9 @@ export default function Modal({ title, onClose, children, size = 'md', footer, d
     document.body.style.overflow = 'hidden';
 
     const dialog = dialogRef.current;
+    const preferred = dialog?.querySelector<HTMLElement>('[data-autofocus]');
     const first = dialog?.querySelector<HTMLElement>(FOCUSABLE);
-    (first ?? dialog)?.focus();
+    (preferred ?? first ?? dialog)?.focus();
 
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && dismissible) {

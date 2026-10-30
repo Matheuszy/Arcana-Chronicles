@@ -28,7 +28,10 @@ export type ChatMessageType =
   | 'STATUS'
   | 'ITEM_CRIAR'
   | 'ITEM_REMOVER'
-  | 'ITENS';
+  | 'ITENS'
+  | 'NOTA_COMPARTILHAR'
+  | 'NOTA_RECEBIDA'
+  | 'NOTA_COMPARTILHADA';
 
 export type Channel = 'CONVERSA' | 'ROLAGENS' | 'IMAGENS';
 

@@ -38,6 +38,31 @@ class PersonagemIT extends IntegracaoTest {
     }
 
     @Test
+    void devePersistirTruquesMagiasEEspacosDeMagiaRestantes() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Long id = criarPersonagem(dono, "PLAYER");
+
+        Map<String, Object> ficha = new HashMap<>(fichaDoTipo("PLAYER"));
+        ficha.put("spells", List.of(
+                Map.of("name", "Raio de Fogo", "level", 0),
+                Map.of("name", "Bola de Fogo", "level", 3)));
+        ficha.put("spellSlots", Map.of("3", 3));
+        ficha.put("spellSlotsCurrent", Map.of("3", 1));
+        ficha.put("habilidades", "Surto de Ação: uma ação extra por descanso");
+        putComo(dono.token(), "/api/characters/" + id, ficha).andExpect(status().isOk());
+
+        getComo(dono.token(), "/api/characters/" + id)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.spells", hasSize(2)))
+                .andExpect(jsonPath("$.spellSlots.3").value(3))
+                .andExpect(jsonPath("$.spellSlotsCurrent.3").value(1))
+                .andExpect(jsonPath("$.habilidades").value("Surto de Ação: uma ação extra por descanso"));
+
+        ficha.put("spellSlots", Map.of("1", 2));
+        putComo(dono.token(), "/api/characters/" + id, ficha).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void deveImpedirOutroUsuarioDeVerEditarOuRemoverAFicha() throws Exception {
         Conta dono = registrar("JOGADOR");
         Conta intruso = registrar("JOGADOR");

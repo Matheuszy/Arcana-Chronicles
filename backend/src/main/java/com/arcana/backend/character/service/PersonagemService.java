@@ -10,6 +10,9 @@ import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
+import com.arcana.backend.config.exception.RegraDeNegocioException;
+import com.arcana.backend.table.SessoesAtivasDeMesa;
+import com.arcana.backend.user.model.PapelUsuario;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,16 +27,21 @@ import java.util.Map;
 @Service
 public class PersonagemService {
 
+    private static final int LIMITE_ESPACOS_POR_CIRCULO = 20;
+
     private final PersonagemRepository personagemRepository;
     private final UsuarioRepositorie usuarioRepositorie;
     private final ObjectMapper objectMapper;
+    private final SessoesAtivasDeMesa sessoesAtivas;
 
     public PersonagemService(PersonagemRepository personagemRepository,
                              UsuarioRepositorie usuarioRepositorie,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             SessoesAtivasDeMesa sessoesAtivas) {
         this.personagemRepository = personagemRepository;
         this.usuarioRepositorie = usuarioRepositorie;
         this.objectMapper = objectMapper;
+        this.sessoesAtivas = sessoesAtivas;
     }
 
     /** Lista todos os personagens de um usuário, opcionalmente filtrados por tipo */
@@ -59,6 +67,9 @@ public class PersonagemService {
         Usuario owner = usuarioRepositorie.findById(ownerId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado: " + ownerId));
         validarTipoParaPapel(owner, dto.kind());
+        if (owner.getPapel() == PapelUsuario.JOGADOR && sessoesAtivas.usuarioEmSessao(ownerId)) {
+            throw new RegraDeNegocioException("Jogadores não podem criar fichas durante uma mesa. Saia da mesa para criar.");
+        }
 
         Personagem personagem = new Personagem();
         mapDtoToEntity(dto, personagem);
@@ -120,6 +131,7 @@ public class PersonagemService {
         personagem.setEquipment(dto.equipment());
         personagem.setClasse(textoOuNulo(dto.classe()));
         personagem.setSubclasse(textoOuNulo(dto.subclasse()));
+        personagem.setHabilidades(textoOuNulo(dto.habilidades()));
         personagem.setBonusProficiencia(dto.proficiencyBonus() != null ? dto.proficiencyBonus() : 2);
 
         personagem.getSalvaguardas().clear();
@@ -160,8 +172,41 @@ public class PersonagemService {
                     .forEach(personagem.getSpells()::add);
         }
 
-        // Spell slots — serializa Map para JSON
+        validarEspacosDeMagia(dto);
         personagem.setSpellSlots(serializeSlots(dto.spellSlots()));
+        personagem.setSpellSlotsCurrent(serializeSlots(dto.spellSlotsCurrent()));
+    }
+
+    private void validarEspacosDeMagia(PersonagemRequestDto dto) {
+        Map<String, Integer> totais = dto.spellSlots() == null ? Map.of() : dto.spellSlots();
+        Map<String, Integer> atuais = dto.spellSlotsCurrent() == null ? Map.of() : dto.spellSlotsCurrent();
+        totais.forEach((circulo, total) -> validarEspacosDoCirculo(circulo, total, "Espaços de magia"));
+        atuais.forEach((circulo, atual) -> {
+            validarEspacosDoCirculo(circulo, atual, "Espaços de magia restantes");
+            if (atual > totais.getOrDefault(circulo, 0)) {
+                throw new IllegalArgumentException(
+                        "Os espaços restantes do " + circulo + "º círculo não podem passar do total.");
+            }
+        });
+        if (dto.spells() == null) return;
+        dto.spells().stream()
+                .filter(magia -> magia.level() != null && magia.level() >= 1)
+                .forEach(magia -> {
+                    if (totais.getOrDefault(String.valueOf(magia.level()), 0) < 1) {
+                        throw new IllegalArgumentException(
+                                "Defina quantos espaços de magia o " + magia.level() + "º círculo possui.");
+                    }
+                });
+    }
+
+    private void validarEspacosDoCirculo(String circulo, Integer quantidade, String descricao) {
+        if (!circulo.matches("[1-9]")) {
+            throw new IllegalArgumentException("Círculo de magia inválido: " + circulo);
+        }
+        if (quantidade == null || quantidade < 0 || quantidade > LIMITE_ESPACOS_POR_CIRCULO) {
+            throw new IllegalArgumentException(
+                    descricao + " do " + circulo + "º círculo devem ficar entre 0 e " + LIMITE_ESPACOS_POR_CIRCULO + ".");
+        }
     }
 
     private String textoOuNulo(String texto) {

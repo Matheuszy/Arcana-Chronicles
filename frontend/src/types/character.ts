@@ -73,16 +73,23 @@ export interface Character {
   /** Slots de magia disponíveis por círculo */
   spellSlots?: SpellSlots;
 
+  /** Espaços de magia ainda disponíveis por círculo */
+  spellSlotsCurrent?: SpellSlots;
+
   classe?: string;
   subclasse?: string;
+  habilidades?: string;
   proficiencyBonus?: number;
   savingThrows?: AttributeBonuses;
   items?: string[];
 }
 
+export const MAX_SPELL_SLOTS = 20;
+export const SPELL_CIRCLES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 export const MAX_ITEMS = 50;
 export const MAX_ITEM_LENGTH = 100;
 export const MAX_CLASS_LENGTH = 60;
+export const MAX_ABILITIES_LENGTH = 5000;
 export const DEFAULT_PROFICIENCY_BONUS = 2;
 
 export const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
@@ -171,6 +178,15 @@ export const SKILL_ATTRIBUTE: Record<SkillKey, keyof Attributes> = {
   religiao: 'inteligencia',
   sobrevivencia: 'sabedoria',
 };
+
+export function totalSpellSlots(character: Character, circle: string): number {
+  return character.spellSlots?.[circle] ?? 0;
+}
+
+export function remainingSpellSlots(character: Character, circle: string): number {
+  const total = totalSpellSlots(character, circle);
+  return Math.min(total, character.spellSlotsCurrent?.[circle] ?? total);
+}
 
 /** Modificador padrão D&D: (atributo - 10) / 2, arredondado para baixo */
 export function attributeModifier(score: number): number {

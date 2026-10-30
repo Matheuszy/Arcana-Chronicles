@@ -1,5 +1,6 @@
 package com.arcana.backend.chat.sala;
 
+import com.arcana.backend.chat.model.Presenca;
 import com.arcana.backend.chat.sessao.MesaAtiva;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.AcessoMesaDto;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class SalaService {
@@ -28,6 +30,36 @@ public class SalaService {
 
     public String notaDe(MesaAtiva mesa, Long userId) {
         return mesa.notas().de(userId);
+    }
+
+    public NotaCompartilhada compartilharNota(MesaAtiva mesa, AcessoMesaDto acesso, ComandoSala comando) {
+        String trecho = comando.texto() == null ? "" : comando.texto().trim();
+        if (trecho.isEmpty()) {
+            throw new IllegalArgumentException("Selecione um trecho da anotação para compartilhar.");
+        }
+        if (trecho.length() > NotasDaMesa.LIMITE_CARACTERES) {
+            throw new IllegalArgumentException(
+                    "O trecho passa do limite de " + NotasDaMesa.LIMITE_CARACTERES + " caracteres.");
+        }
+        List<Long> destinatarios = comando.destinatarios() == null
+                ? List.of()
+                : comando.destinatarios().stream().filter(Objects::nonNull).distinct().toList();
+        if (destinatarios.isEmpty()) {
+            throw new IllegalArgumentException("Escolha com quem compartilhar o trecho.");
+        }
+        if (destinatarios.contains(acesso.userId())) {
+            throw new IllegalArgumentException("Você não pode compartilhar o trecho com você mesmo.");
+        }
+        List<Presenca> presentes = mesa.presentes();
+        List<String> nomes = destinatarios.stream()
+                .map(id -> presentes.stream()
+                        .filter(presenca -> presenca.userId().equals(id))
+                        .findFirst()
+                        .orElseThrow(() -> new RegraDeNegocioException(
+                                "Só é possível compartilhar com quem está conectado na mesa.")))
+                .map(Presenca::displayName)
+                .toList();
+        return new NotaCompartilhada(trecho, destinatarios, nomes);
     }
 
     public StatusDto.Registro definirStatus(MesaAtiva mesa, AcessoMesaDto acesso, ComandoSala comando) {

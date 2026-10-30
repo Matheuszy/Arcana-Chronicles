@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
 import { useSession } from '../../context/SessionContext';
 import LoadError from '../../components/LoadError';
+import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
 import {
   attributeModifier,
@@ -18,24 +19,28 @@ import {
   formatModifier,
   KIND_LABEL,
   KINDS_BY_ROLE,
+  MAX_ABILITIES_LENGTH,
   MAX_CLASS_LENGTH,
   MAX_ITEM_LENGTH,
   MAX_ITEMS,
   MAX_PROFICIENCY_BONUS,
+  MAX_SPELL_SLOTS,
+  remainingSpellSlots,
   rollAttribute,
   SKILL_ATTRIBUTE,
   SKILL_LABEL,
   skillRollModifier,
   SkillKey,
-  Spell,
+  SPELL_CIRCLES,
+  totalSpellSlots,
 } from '../../types/character';
 import './CharacterForm.css';
 
 const ALL_SKILLS = Object.keys(SKILL_LABEL) as SkillKey[];
 
-const SPELL_LEVELS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+const NEW_SPELL = { name: '', circle: '', slots: 1, description: '' };
 
-const EMPTY_SPELL: Spell = { name: '', level: 1, description: '' };
+const NEW_CANTRIP = { name: '', description: '' };
 
 const EMPTY_CHARACTER: Character = {
   name: '',
@@ -53,6 +58,7 @@ const EMPTY_CHARACTER: Character = {
   spellSlots: { ...EMPTY_SPELL_SLOTS },
   classe: '',
   subclasse: '',
+  habilidades: '',
   proficiencyBonus: DEFAULT_PROFICIENCY_BONUS,
   savingThrows: {},
   items: [],
@@ -67,6 +73,7 @@ interface CharacterEditorProps {
 
 export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: CharacterEditorProps) {
   const { role } = useSession();
+  const confirm = useConfirm();
   const allowedKinds = KINDS_BY_ROLE[role === 'MESTRE' ? 'MESTRE' : 'JOGADOR'];
   const initialCharacter: Character = { ...EMPTY_CHARACTER, kind: allowedKinds[0] };
   const [form, setForm] = useState<Character>(initialCharacter);
@@ -76,7 +83,8 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [newSpell, setNewSpell] = useState<Spell>({ ...EMPTY_SPELL });
+  const [newSpell, setNewSpell] = useState({ ...NEW_SPELL });
+  const [newCantrip, setNewCantrip] = useState({ ...NEW_CANTRIP });
 
   const loadCharacter = useCallback(() => {
     if (!id) return;
@@ -90,6 +98,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           ...char,
           classe: char.classe ?? '',
           subclasse: char.subclasse ?? '',
+          habilidades: char.habilidades ?? '',
           spellSlots: { ...EMPTY_SPELL_SLOTS, ...(char.spellSlots ?? {}) },
         };
         setForm(loaded);
@@ -110,8 +119,19 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty, saving]);
 
-  const cancel = () => {
-    if (dirty && !window.confirm('Descartar as alterações desta ficha?')) return;
+  const cancel = async () => {
+    if (
+      dirty &&
+      !(await confirm({
+        title: 'Descartar alterações?',
+        message: 'As alterações desta ficha ainda não foram salvas e serão perdidas.',
+        confirmLabel: 'Descartar',
+        cancelLabel: 'Continuar editando',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     onCancel();
   };
 
@@ -179,19 +199,68 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
   const skillModifier = (skill: SkillKey): string => formatModifier(skillRollModifier(form, skill));
 
-  // Spell slots
-  const setSlot = (circle: string, value: number) => {
-    setForm((prev) => ({
-      ...prev,
-      spellSlots: { ...(prev.spellSlots ?? {}), [circle]: Math.max(0, value) },
-    }));
+  const spells = form.spells ?? [];
+  const cantrips = spells.flatMap((spell, index) => (spell.level === 0 ? [{ spell, index }] : []));
+  const circlesInUse = SPELL_CIRCLES.filter(
+    (circle) => totalSpellSlots(form, circle) > 0 || spells.some((spell) => String(spell.level) === circle),
+  );
+  const circleHasSpells = (circle: string) => spells.some((spell) => String(spell.level) === circle);
+  const circleOptions = SPELL_CIRCLES.map((circle) => ({ value: circle, label: `${circle}º círculo` }));
+
+  const withSlotTotal = (character: Character, circle: string, total: number): Character => {
+    const oldTotal = totalSpellSlots(character, circle);
+    const oldRemaining = remainingSpellSlots(character, circle);
+    const remaining = Math.min(total, Math.max(0, oldRemaining + total - oldTotal));
+    return {
+      ...character,
+      spellSlots: { ...(character.spellSlots ?? {}), [circle]: total },
+      spellSlotsCurrent: { ...(character.spellSlotsCurrent ?? {}), [circle]: remaining },
+    };
   };
 
-  // Magias
+  const clampSlots = (value: number, min: number) =>
+    Math.min(MAX_SPELL_SLOTS, Math.max(min, Math.trunc(value) || min));
+
+  const setSlotTotal = (circle: string, value: number) =>
+    setForm((prev) => withSlotTotal(prev, circle, clampSlots(value, 1)));
+
+  const setSlotRemaining = (circle: string, value: number) =>
+    setForm((prev) => ({
+      ...prev,
+      spellSlotsCurrent: {
+        ...(prev.spellSlotsCurrent ?? {}),
+        [circle]: Math.min(totalSpellSlots(prev, circle), Math.max(0, Math.trunc(value) || 0)),
+      },
+    }));
+
+  const restAllSlots = () =>
+    setForm((prev) => ({ ...prev, spellSlotsCurrent: { ...(prev.spellSlots ?? {}) } }));
+
+  const removeCircle = (circle: string) =>
+    setForm((prev) => withSlotTotal(prev, circle, 0));
+
+  const chooseSpellCircle = (circle: string) =>
+    setNewSpell((current) => ({ ...current, circle, slots: Math.max(1, totalSpellSlots(form, circle)) }));
+
+  const canAddSpell = newSpell.name.trim().length > 0 && newSpell.circle !== '' && newSpell.slots >= 1;
+
   const addSpell = () => {
-    if (!newSpell.name.trim()) return;
-    setForm((prev) => ({ ...prev, spells: [...(prev.spells ?? []), newSpell] }));
-    setNewSpell({ ...EMPTY_SPELL });
+    if (!canAddSpell) return;
+    const level = Number(newSpell.circle);
+    setForm((prev) => ({
+      ...withSlotTotal(prev, newSpell.circle, clampSlots(newSpell.slots, 1)),
+      spells: [...(prev.spells ?? []), { name: newSpell.name.trim(), level, description: newSpell.description }],
+    }));
+    setNewSpell({ ...NEW_SPELL });
+  };
+
+  const addCantrip = () => {
+    if (!newCantrip.name.trim()) return;
+    setForm((prev) => ({
+      ...prev,
+      spells: [...(prev.spells ?? []), { name: newCantrip.name.trim(), level: 0, description: newCantrip.description }],
+    }));
+    setNewCantrip({ ...NEW_CANTRIP });
   };
 
   const removeSpell = (index: number) => {
@@ -363,15 +432,18 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         {/* ── Atributos ── */}
         <div className="section-header">
           <h3 className="section-title">Atributos</h3>
-          <button
-            type="button"
-            className="btn btn-roll"
-            onClick={rollAllAttributes}
-            title="Rola 4d6 descartando o menor para cada atributo"
-          >
-            🎲 Rolar todos
-          </button>
+          {!id && (
+            <button
+              type="button"
+              className="btn btn-roll"
+              onClick={rollAllAttributes}
+              title="Rola 4d6 descartando o menor para cada atributo"
+            >
+              🎲 Rolar todos
+            </button>
+          )}
         </div>
+        {id && <p className="muted-hint">Os dados de atributo só podem ser rolados na criação da ficha.</p>}
 
         <div className="attrs-grid">
           {ATTRIBUTE_KEYS.map((key) => (
@@ -386,15 +458,17 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
                   value={form.attributes[key]}
                   onChange={(e) => setAttribute(key, Number(e.target.value))}
                 />
-                <button
-                  type="button"
-                  className="btn-roll-single"
-                  onClick={() => rollSingleAttribute(key)}
-                  title={`Rolar ${ATTRIBUTE_LABEL[key]}`}
-                  aria-label={`Rolar ${ATTRIBUTE_LABEL[key]}`}
-                >
-                  🎲
-                </button>
+                {!id && (
+                  <button
+                    type="button"
+                    className="btn-roll-single"
+                    onClick={() => rollSingleAttribute(key)}
+                    title={`Rolar ${ATTRIBUTE_LABEL[key]}`}
+                    aria-label={`Rolar ${ATTRIBUTE_LABEL[key]}`}
+                  >
+                    🎲
+                  </button>
+                )}
               </div>
               <span className="modifier">{modifierFor(key)}</span>
               <label className={`saving-throw ${form.savingThrows?.[key] !== undefined ? 'proficient' : ''}`}>
@@ -522,53 +596,154 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
         <details className="sheet-section" open>
         <summary>
-          <h3 className="section-title">Magias</h3>
+          <h3 className="section-title">Truques</h3>
         </summary>
 
-        <div className="spell-slots-grid">
-          {['1','2','3','4','5','6','7','8','9'].map((circle) => (
-            <div className="field slot-field" key={circle}>
-              <label htmlFor={`slot-${circle}`}>{circle}º círculo</label>
-              <input
-                id={`slot-${circle}`}
-                type="number"
-                min={0}
-                max={9}
-                value={(form.spellSlots ?? {})[circle] ?? 0}
-                onChange={(e) => setSlot(circle, Number(e.target.value))}
-              />
-            </div>
-          ))}
-        </div>
+        <p className="muted-hint">Truques não têm círculo nem gastam espaços de magia: podem ser usados à vontade.</p>
 
-        {/* Lista de magias */}
-        {(form.spells ?? []).length > 0 && (
+        {cantrips.length > 0 && (
           <div className="spells-list">
-            {(form.spells ?? []).map((spell, i) => (
-              <div key={i} className="spell-card">
+            {cantrips.map(({ spell, index }) => (
+              <div key={index} className="spell-card">
                 <div className="spell-card-header">
                   <span className="spell-name">{spell.name}</span>
-                  <span className="spell-level">
-                    {spell.level === 0 ? 'Truque' : `${spell.level}º círculo`}
-                  </span>
+                  <span className="spell-level">Truque</span>
                   <button
                     type="button"
                     className="btn-remove"
-                    onClick={() => removeSpell(i)}
+                    onClick={() => removeSpell(index)}
                     aria-label={`Remover ${spell.name}`}
                   >
                     ✕
                   </button>
                 </div>
-                {spell.description && (
-                  <p className="spell-desc">{spell.description}</p>
-                )}
+                {spell.description && <p className="spell-desc">{spell.description}</p>}
               </div>
             ))}
           </div>
         )}
 
-        {/* Adicionar nova magia */}
+        <div className="add-spell card-inner">
+          <h4>Adicionar truque</h4>
+          <div className="field">
+            <label htmlFor="cantrip-name">Nome do truque</label>
+            <input
+              id="cantrip-name"
+              type="text"
+              value={newCantrip.name}
+              onChange={(e) => setNewCantrip((c) => ({ ...c, name: e.target.value }))}
+              placeholder="ex: Raio de Fogo"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="cantrip-desc">Descrição</label>
+            <textarea
+              id="cantrip-desc"
+              rows={2}
+              value={newCantrip.description}
+              onChange={(e) => setNewCantrip((c) => ({ ...c, description: e.target.value }))}
+              placeholder="Efeito, alcance, duração..."
+            />
+          </div>
+          <button type="button" className="btn btn-ghost" onClick={addCantrip} disabled={!newCantrip.name.trim()}>
+            + Adicionar truque
+          </button>
+        </div>
+
+        </details>
+
+        <details className="sheet-section" open>
+        <summary>
+          <h3 className="section-title">Magias e espaços de magia</h3>
+        </summary>
+
+        {circlesInUse.length > 0 && (
+          <div className="slot-tracker">
+            <div className="slot-tracker-head">
+              <h4>Espaços de magia</h4>
+              <button type="button" className="btn btn-ghost" onClick={restAllSlots}>
+                Descansar: restaurar todos
+              </button>
+            </div>
+            {circlesInUse.map((circle) => {
+              const remaining = remainingSpellSlots(form, circle);
+              const total = totalSpellSlots(form, circle);
+              return (
+                <div key={circle} className={`slot-row ${remaining === 0 ? 'slot-row--empty' : ''}`}>
+                  <span className="slot-circle">{circle}º círculo</span>
+                  <div className="slot-remaining" role="group" aria-label={`Espaços restantes do ${circle}º círculo`}>
+                    <button
+                      type="button"
+                      className="slot-step"
+                      onClick={() => setSlotRemaining(circle, remaining - 1)}
+                      disabled={remaining <= 0}
+                      aria-label={`Gastar um espaço do ${circle}º círculo`}
+                    >
+                      −
+                    </button>
+                    <strong aria-live="polite">
+                      {remaining}/{total}
+                    </strong>
+                    <button
+                      type="button"
+                      className="slot-step"
+                      onClick={() => setSlotRemaining(circle, remaining + 1)}
+                      disabled={remaining >= total}
+                      aria-label={`Recuperar um espaço do ${circle}º círculo`}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <label className="slot-total">
+                    <span>Total</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={MAX_SPELL_SLOTS}
+                      value={total}
+                      onChange={(e) => setSlotTotal(circle, Number(e.target.value))}
+                    />
+                  </label>
+                  {!circleHasSpells(circle) && (
+                    <button
+                      type="button"
+                      className="btn-remove"
+                      onClick={() => removeCircle(circle)}
+                      aria-label={`Remover espaços do ${circle}º círculo`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {spells.some((spell) => spell.level > 0) && (
+          <div className="spells-list">
+            {spells.map((spell, i) =>
+              spell.level > 0 ? (
+                <div key={i} className="spell-card">
+                  <div className="spell-card-header">
+                    <span className="spell-name">{spell.name}</span>
+                    <span className="spell-level">{spell.level}º círculo</span>
+                    <button
+                      type="button"
+                      className="btn-remove"
+                      onClick={() => removeSpell(i)}
+                      aria-label={`Remover ${spell.name}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {spell.description && <p className="spell-desc">{spell.description}</p>}
+                </div>
+              ) : null,
+            )}
+          </div>
+        )}
+
         <div className="add-spell card-inner">
           <h4>Adicionar magia</h4>
           <div className="row">
@@ -583,15 +758,25 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
               />
             </div>
             <Select
-              label="Círculo"
-              value={String(newSpell.level)}
-              onChange={(lvl) => setNewSpell((s) => ({ ...s, level: Number(lvl) }))}
-              options={SPELL_LEVELS.map((lvl) => ({
-                value: String(lvl),
-                label: lvl === 0 ? 'Truque' : `${lvl}º`,
-              }))}
+              label="Círculo (obrigatório)"
+              value={newSpell.circle}
+              onChange={chooseSpellCircle}
+              options={[{ value: '', label: 'Escolha o círculo' }, ...circleOptions]}
             />
           </div>
+          {newSpell.circle !== '' && (
+            <div className="field">
+              <label htmlFor="spell-slots">Espaços de magia do {newSpell.circle}º círculo</label>
+              <input
+                id="spell-slots"
+                type="number"
+                min={1}
+                max={MAX_SPELL_SLOTS}
+                value={newSpell.slots}
+                onChange={(e) => setNewSpell((s) => ({ ...s, slots: Number(e.target.value) }))}
+              />
+            </div>
+          )}
           <div className="field">
             <label htmlFor="spell-desc">Descrição</label>
             <textarea
@@ -602,17 +787,28 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
               placeholder="Efeito, alcance, duração..."
             />
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={addSpell}
-            disabled={!newSpell.name.trim()}
-          >
+          <button type="button" className="btn btn-ghost" onClick={addSpell} disabled={!canAddSpell}>
             + Adicionar magia
           </button>
         </div>
 
         </details>
+
+        <h3 className="section-title">Habilidades de classe e subclasse</h3>
+        <div className="field">
+          <label htmlFor="habilidades">Habilidades</label>
+          <textarea
+            id="habilidades"
+            rows={5}
+            maxLength={MAX_ABILITIES_LENGTH}
+            value={form.habilidades ?? ''}
+            onChange={(e) => setField('habilidades', e.target.value)}
+            placeholder="Escreva livremente as habilidades da classe e da subclasse, com nível, efeito e usos."
+          />
+          <span className="muted">
+            {(form.habilidades ?? '').length}/{MAX_ABILITIES_LENGTH}
+          </span>
+        </div>
 
         {/* ── História ── */}
         <h3 className="section-title">História</h3>
