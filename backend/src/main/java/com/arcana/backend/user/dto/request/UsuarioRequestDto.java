@@ -17,7 +17,7 @@ public record UsuarioRequestDto(
         String email,
 
         @NotBlank(message = "Senha não pode ser vazia")
-        @Size(min = 6, message = "Senha deve ter ao menos 6 caracteres")
+        @Size(min = 6, max = 72, message = "Senha deve ter entre 6 e 72 caracteres")
         String password,
 
         @NotNull(message = "Papel é obrigatório: MESTRE ou JOGADOR")

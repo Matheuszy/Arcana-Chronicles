@@ -3,6 +3,8 @@ package com.arcana.backend.config.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -51,6 +53,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleRegraDeNegocio(
             RegraDeNegocioException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleConflitoDeDados(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.warn("Conflito de dados em {} {}", request.getMethod(), request.getRequestURI());
+        return build(HttpStatus.CONFLICT, "Esses dados já estão em uso ou foram alterados. Tente novamente.", request);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiErrorResponse> handleAlteracaoSimultanea(
+            OptimisticLockingFailureException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, "Outra alteração foi feita ao mesmo tempo. Recarregue e tente novamente.", request);
     }
 
     @ExceptionHandler(IllegalStateException.class)

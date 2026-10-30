@@ -14,6 +14,6 @@ public record AtualizarUsuarioRequestDto(
         @Email(message = "Email inválido")
         String email,
 
-        @Size(min = 6, message = "Senha deve ter ao menos 6 caracteres")
+        @Size(min = 6, max = 72, message = "Senha deve ter entre 6 e 72 caracteres")
         String password
 ) {}

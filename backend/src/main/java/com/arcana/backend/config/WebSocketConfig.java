@@ -3,6 +3,7 @@ package com.arcana.backend.config;
 import com.arcana.backend.chat.AutenticacaoHandshakeInterceptor;
 import com.arcana.backend.chat.MesaChatHandler;
 import com.arcana.backend.chat.imagem.ValidadorImagem;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
@@ -25,9 +26,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private final MesaChatHandler mesaChatHandler;
     private final AutenticacaoHandshakeInterceptor autenticacaoHandshakeInterceptor;
+    private final String[] origensPermitidas;
 
     public WebSocketConfig(MesaChatHandler mesaChatHandler,
-                           AutenticacaoHandshakeInterceptor autenticacaoHandshakeInterceptor) {
+                           AutenticacaoHandshakeInterceptor autenticacaoHandshakeInterceptor,
+                           @Value("${arcana.cors.origens-permitidas}") String[] origensPermitidas) {
+        this.origensPermitidas = origensPermitidas;
         this.mesaChatHandler = mesaChatHandler;
         this.autenticacaoHandshakeInterceptor = autenticacaoHandshakeInterceptor;
     }
@@ -41,7 +45,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
             .addHandler(mesaChatHandler, "/ws/mesas/*")
             .setHandshakeHandler(handshakeHandler)
             .addInterceptors(autenticacaoHandshakeInterceptor)
-            .setAllowedOrigins("http://localhost:5173", "http://localhost:4200");
+            .setAllowedOrigins(origensPermitidas);
     }
 
     @Bean

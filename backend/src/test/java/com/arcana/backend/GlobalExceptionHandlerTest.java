@@ -59,6 +59,23 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void deveRetornar409ParaViolacaoDeUnicidade() {
+        var response = handler.handleConflitoDeDados(
+                new org.springframework.dao.DataIntegrityViolationException("duplicate key"), request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertFalse(response.getBody().message().contains("duplicate"));
+    }
+
+    @Test
+    void deveRetornar409ParaAlteracaoSimultanea() {
+        var response = handler.handleAlteracaoSimultanea(
+                new org.springframework.dao.OptimisticLockingFailureException("versao"), request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+    }
+
+    @Test
     void deveRetornar409ParaRegraDeNegocio() {
         var response = handler.handleRegraDeNegocio(
                 new RegraDeNegocioException("A mesa não está aberta."), request);

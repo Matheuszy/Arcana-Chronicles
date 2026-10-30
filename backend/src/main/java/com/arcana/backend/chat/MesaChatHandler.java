@@ -2,6 +2,7 @@ package com.arcana.backend.chat;
 
 import com.arcana.backend.chat.dice.RolagemDadosService;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
+import com.arcana.backend.config.security.LimitadorDeTentativas;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.chat.imagem.ValidadorImagem;
 import com.arcana.backend.chat.model.Canal;
@@ -65,8 +66,13 @@ public class MesaChatHandler extends TextWebSocketHandler {
     private final TaskScheduler agendador;
     private final Clock clock;
     private final Duration toleranciaMestre;
+    private final LimitadorDeTentativas limitadorDeMensagens;
 
     private final Map<String, WebSocketSession> sessoesComEnvioSerializado = new ConcurrentHashMap<>();
+
+    public static final int LIMITE_CONEXOES_POR_USUARIO = 5;
+    public static final int LIMITE_MENSAGENS_NA_JANELA = 30;
+    public static final Duration JANELA_DE_MENSAGENS = Duration.ofSeconds(10);
 
     private static final int LIMITE_TEMPO_ENVIO_MS = 15_000;
     private static final int LIMITE_BUFFER_ENVIO_BYTES = 16 * 1024 * 1024;
@@ -95,6 +101,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         this.agendador = agendador;
         this.clock = clock;
         this.toleranciaMestre = toleranciaMestre;
+        this.limitadorDeMensagens = new LimitadorDeTentativas(LIMITE_MENSAGENS_NA_JANELA, JANELA_DE_MENSAGENS, clock);
     }
 
     // ── Ciclo de vida da sessão ───────────────────────────────────────────────
@@ -104,6 +111,11 @@ public class MesaChatHandler extends TextWebSocketHandler {
         AcessoMesaDto acesso = acessoDaSessao(session);
         if (acesso == null) {
             session.close(CloseStatus.POLICY_VIOLATION);
+            return;
+        }
+
+        if (conexoesAbertasDoUsuario(acesso) >= LIMITE_CONEXOES_POR_USUARIO) {
+            session.close(CloseStatus.POLICY_VIOLATION.withReason("Conexões demais abertas nesta mesa."));
             return;
         }
 
@@ -143,6 +155,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         AcessoMesaDto acesso = acessoDaSessao(session);
         sessoesComEnvioSerializado.remove(session.getId());
+        limitadorDeMensagens.esquecer(session.getId());
         if (acesso == null) return;
 
         gerenciadorMesas.sair(acesso.mesaId(), session.getId())
@@ -274,6 +287,11 @@ public class MesaChatHandler extends TextWebSocketHandler {
         }
 
         String tableId = String.valueOf(acesso.mesaId());
+        if (!limitadorDeMensagens.permitir(session.getId())) {
+            enviarParaSessao(session, systemMessage(tableId, "Você está enviando mensagens rápido demais. Aguarde um instante."));
+            return;
+        }
+
         ChatMessage message;
         try {
             message = objectMapper.readValue(raw.getPayload(), ChatMessage.class);
@@ -441,6 +459,12 @@ public class MesaChatHandler extends TextWebSocketHandler {
                 s.sendMessage(new TextMessage(payload));
             } catch (IOException | IllegalStateException ignored) {}
         }
+    }
+
+    private int conexoesAbertasDoUsuario(AcessoMesaDto acesso) {
+        return gerenciadorMesas.buscar(acesso.mesaId())
+                .map(mesa -> mesa.sessoesDoUsuario(acesso.userId()).size())
+                .orElse(0);
     }
 
     private AcessoMesaDto acessoDaSessao(WebSocketSession session) {

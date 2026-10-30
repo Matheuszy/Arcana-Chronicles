@@ -1,0 +1,22 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+api:
+  security:
+    token:
+      secret: arcana-segredo-apenas-para-testes-de-integracao
+
+arcana:
+  cors:
+    origens-permitidas: http://localhost:5173,http://localhost:4200
+  seguranca:
+    login-maximo-tentativas: 100000
+    login-janela: 1m
+    cadastro-maximo-tentativas: 100000
+    cadastro-janela: 1m
