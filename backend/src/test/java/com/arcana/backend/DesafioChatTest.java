@@ -172,7 +172,7 @@ class DesafioChatTest {
         assertTrue(recebidas(sessaoMestre, "DESAFIO").isEmpty());
         List<JsonNode> erros = recebidas(sessaoAria, "SISTEMA");
         assertEquals(1, erros.size());
-        assertEquals("Apenas o mestre pode administrar desafios.", erros.get(0).get("content").asText());
+        assertEquals("Jogadores só podem desafiar durante o combate.", erros.get(0).get("content").asText());
     }
 
     @Test

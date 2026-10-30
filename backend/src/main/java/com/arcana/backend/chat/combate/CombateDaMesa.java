@@ -30,8 +30,8 @@ public class CombateDaMesa {
 
     public synchronized void removerJogador(Long jogadorId) {
         if (combate == null) return;
-        combate.remover(jogadorId);
-        if (combate.vazio()) {
+        combate.removerJogador(jogadorId);
+        if (combate.semJogadores()) {
             combate = null;
         }
     }

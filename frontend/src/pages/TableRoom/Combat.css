@@ -71,6 +71,10 @@
   min-width: 0;
 }
 
+.combat-entry--monster {
+  border-left: 3px solid var(--ember);
+}
+
 .combat-total {
   font-family: var(--font-mono);
   font-size: 1.2rem;
@@ -87,6 +91,22 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
+}
+
+.combat-monster-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.combat-monster-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.combat-quantity {
+  width: 4.5rem;
 }
 
 .combat-proficiency {

@@ -197,7 +197,7 @@ class DesafioServiceTest {
         proximasFaces(3);
         service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
 
-        DesafioDto liberado = service.liberarTentativaExtra(mesa, MESTRE, desafioId, BROM.userId(), ModoRolagem.VANTAGEM);
+        DesafioDto liberado = service.liberarTentativaExtra(mesa, MESTRE, desafioId, String.valueOf(BROM.userId()), ModoRolagem.VANTAGEM);
         assertEquals(EstadoDesafio.AGUARDANDO_TENTATIVA_EXTRA, participacao(liberado, BROM).estado());
         assertEquals(ModoRolagem.VANTAGEM, participacao(liberado, BROM).modo());
 
@@ -216,7 +216,7 @@ class DesafioServiceTest {
         String desafioId = desafioPara(20, convocar(BROM, ModoRolagem.NORMAL)).id();
         proximasFaces(2);
         service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
-        service.liberarTentativaExtra(mesa, MESTRE, desafioId, BROM.userId(), ModoRolagem.NORMAL);
+        service.liberarTentativaExtra(mesa, MESTRE, desafioId, String.valueOf(BROM.userId()), ModoRolagem.NORMAL);
         proximasFaces(5);
 
         var extra = service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
@@ -224,7 +224,7 @@ class DesafioServiceTest {
         assertEquals(EstadoDesafio.FALHA, participacao(extra.desafio(), BROM).estado());
         assertFalse(service.jogadorBloqueado(mesa, BROM.userId()));
         assertThrows(IllegalStateException.class, () ->
-                service.liberarTentativaExtra(mesa, MESTRE, desafioId, BROM.userId(), ModoRolagem.NORMAL));
+                service.liberarTentativaExtra(mesa, MESTRE, desafioId, String.valueOf(BROM.userId()), ModoRolagem.NORMAL));
         assertThrows(IllegalStateException.class, () ->
                 service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA)));
     }
@@ -234,9 +234,9 @@ class DesafioServiceTest {
         String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
 
         assertThrows(IllegalStateException.class, () ->
-                service.liberarTentativaExtra(mesa, MESTRE, desafioId, ARIA.userId(), ModoRolagem.NORMAL));
+                service.liberarTentativaExtra(mesa, MESTRE, desafioId, String.valueOf(ARIA.userId()), ModoRolagem.NORMAL));
         assertThrows(IllegalArgumentException.class, () ->
-                service.liberarTentativaExtra(mesa, MESTRE, desafioId, ARIA.userId(), null));
+                service.liberarTentativaExtra(mesa, MESTRE, desafioId, String.valueOf(ARIA.userId()), null));
     }
 
     @Test
@@ -246,7 +246,7 @@ class DesafioServiceTest {
         var primeira = service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
         assertTrue(primeira.rolagem().dados().isFumble());
 
-        DesafioDto encerrado = service.encerrarComFalha(mesa, MESTRE, desafioId, ARIA.userId());
+        DesafioDto encerrado = service.encerrarComFalha(mesa, MESTRE, desafioId, String.valueOf(ARIA.userId()));
 
         assertEquals(EstadoDesafio.FALHA, participacao(encerrado, ARIA).estado());
         assertFalse(service.jogadorBloqueado(mesa, ARIA.userId()));
@@ -259,8 +259,8 @@ class DesafioServiceTest {
         service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
 
         assertThrows(AccessDeniedException.class, () ->
-                service.liberarTentativaExtra(mesa, ARIA, desafioId, ARIA.userId(), ModoRolagem.VANTAGEM));
-        assertThrows(AccessDeniedException.class, () -> service.encerrarComFalha(mesa, BROM, desafioId, ARIA.userId()));
+                service.liberarTentativaExtra(mesa, ARIA, desafioId, String.valueOf(ARIA.userId()), ModoRolagem.VANTAGEM));
+        assertThrows(AccessDeniedException.class, () -> service.encerrarComFalha(mesa, BROM, desafioId, String.valueOf(ARIA.userId())));
         assertThrows(AccessDeniedException.class, () -> service.cancelar(mesa, ARIA, desafioId, null));
     }
 
@@ -278,7 +278,7 @@ class DesafioServiceTest {
     void deveCancelarIndividualmenteOuODesafioInteiro() {
         String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL), convocar(BROM, ModoRolagem.NORMAL)).id();
 
-        DesafioDto parcial = service.cancelar(mesa, MESTRE, desafioId, ARIA.userId());
+        DesafioDto parcial = service.cancelar(mesa, MESTRE, desafioId, String.valueOf(ARIA.userId()));
         assertEquals(EstadoDesafio.CANCELADO, participacao(parcial, ARIA).estado());
         assertEquals(EstadoDesafio.AGUARDANDO_ROLAGEM, participacao(parcial, BROM).estado());
         assertFalse(service.jogadorBloqueado(mesa, ARIA.userId()));
@@ -348,7 +348,7 @@ class DesafioServiceTest {
         proximasFaces(12, 2);
         service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
         service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
-        service.encerrarComFalha(mesa, MESTRE, desafioId, BROM.userId());
+        service.encerrarComFalha(mesa, MESTRE, desafioId, String.valueOf(BROM.userId()));
         return desafioId;
     }
 
@@ -372,7 +372,7 @@ class DesafioServiceTest {
         String desafioId = desafioComAriaVencendoEBromFalhando();
 
         service.enviarMensagem(mesa, MESTRE, desafioId, MensagemDeResultado.Destino.DERROTADOS, null, "Você escorrega.");
-        service.enviarMensagem(mesa, MESTRE, desafioId, MensagemDeResultado.Destino.JOGADOR, ARIA.userId(), "Há uma chave no topo.");
+        service.enviarMensagem(mesa, MESTRE, desafioId, MensagemDeResultado.Destino.JOGADOR, String.valueOf(ARIA.userId()), "Há uma chave no topo.");
 
         assertEquals(List.of("Você escorrega."),
                 service.visaoPara(mesa, desafioId, BROM.userId()).mensagens().stream().map(DesafioDto.MensagemDto::texto).toList());
@@ -389,11 +389,11 @@ class DesafioServiceTest {
         service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
 
         assertThrows(IllegalStateException.class, () -> service.enviarMensagem(mesa, MESTRE, desafioId,
-                MensagemDeResultado.Destino.JOGADOR, BROM.userId(), "Ainda não."));
+                MensagemDeResultado.Destino.JOGADOR, String.valueOf(BROM.userId()), "Ainda não."));
         assertThrows(IllegalStateException.class, () -> service.enviarMensagem(mesa, MESTRE, desafioId,
                 MensagemDeResultado.Destino.DERROTADOS, null, "Ninguém falhou."));
         assertThrows(IllegalArgumentException.class, () -> service.enviarMensagem(mesa, MESTRE, desafioId,
-                MensagemDeResultado.Destino.JOGADOR, CAEL.userId(), "Fora do desafio."));
+                MensagemDeResultado.Destino.JOGADOR, String.valueOf(CAEL.userId()), "Fora do desafio."));
     }
 
     @Test

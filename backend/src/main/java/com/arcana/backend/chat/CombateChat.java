@@ -30,6 +30,7 @@ public class CombateChat {
     public static final Set<ChatMessage.Type> COMANDOS = EnumSet.of(
             ChatMessage.Type.COMBATE_INICIAR,
             ChatMessage.Type.COMBATE_ROLAR,
+            ChatMessage.Type.COMBATE_ROLAR_MONSTROS,
             ChatMessage.Type.COMBATE_LIBERAR_REROLL,
             ChatMessage.Type.COMBATE_PASSAR_TURNO,
             ChatMessage.Type.COMBATE_ENCERRAR);
@@ -44,15 +45,18 @@ public class CombateChat {
 
     public void executar(MesaAtiva mesa, AcessoMesaDto acesso, ChatMessage mensagem) {
         ComandoCombate comando = mensagem.getComandoCombate() == null
-                ? new ComandoCombate(null, null, null)
+                ? new ComandoCombate(null, null, null, null, null)
                 : mensagem.getComandoCombate();
         CombateDto antes = combateService.estado(mesa).orElse(null);
 
         switch (mensagem.getType()) {
-            case COMBATE_INICIAR -> combateService.iniciar(mesa, acesso, comando.jogadores());
+            case COMBATE_INICIAR -> combateService.iniciar(mesa, acesso, comando.jogadores(),
+                    comando.monstros());
             case COMBATE_ROLAR -> combateService.rolarIniciativa(mesa, acesso, comando.modo(),
                     comando.somarProficiencia());
-            case COMBATE_LIBERAR_REROLL -> combateService.liberarRerolagem(mesa, acesso, comando.jogadores());
+            case COMBATE_ROLAR_MONSTROS -> combateService.rolarIniciativaDosMonstros(mesa, acesso,
+                    comando.entradas(), comando.modo(), comando.somarProficiencia());
+            case COMBATE_LIBERAR_REROLL -> combateService.liberarRerolagem(mesa, acesso, comando.entradas());
             case COMBATE_PASSAR_TURNO -> combateService.passarTurno(mesa, acesso);
             case COMBATE_ENCERRAR -> combateService.encerrar(mesa, acesso);
             default -> throw new IllegalArgumentException("Comando de combate desconhecido.");
@@ -69,6 +73,10 @@ public class CombateChat {
         CombateDto antes = combateService.estado(mesa).orElse(null);
         combateService.aoJogadorSair(mesa, jogadorId);
         publicar(mesa, antes);
+    }
+
+    public boolean ativo(MesaAtiva mesa) {
+        return combateService.estado(mesa).isPresent();
     }
 
     public boolean podeRolarLivremente(MesaAtiva mesa, Long userId) {
@@ -118,15 +126,15 @@ public class CombateChat {
         return depois.participantes().stream()
                 .filter(CombateDto.EntradaDto::rerolagemLiberada)
                 .filter(entrada -> antes.participantes().stream()
-                        .noneMatch(anterior -> anterior.jogadorId().equals(entrada.jogadorId())
+                        .noneMatch(anterior -> anterior.id().equals(entrada.id())
                                 && anterior.rerolagemLiberada()))
                 .map(entrada -> "O mestre liberou uma nova rolagem de iniciativa para "
                         + entrada.nomePersonagem() + ".")
                 .toList();
     }
 
-    private List<Long> ordemDe(CombateDto combate) {
-        return combate.participantes().stream().map(CombateDto.EntradaDto::jogadorId).toList();
+    private List<String> ordemDe(CombateDto combate) {
+        return combate.participantes().stream().map(CombateDto.EntradaDto::id).toList();
     }
 
     private String listaDeIniciativa(CombateDto combate) {
@@ -141,7 +149,7 @@ public class CombateChat {
 
     private String nomeDoTurno(CombateDto combate) {
         return combate.participantes().stream()
-                .filter(entrada -> entrada.jogadorId().equals(combate.turnoDe()))
+                .filter(entrada -> entrada.id().equals(combate.turnoDe()))
                 .map(entrada -> entrada.nomePersonagem() + " (" + entrada.nomeJogador() + ")")
                 .findFirst()
                 .orElse("-");

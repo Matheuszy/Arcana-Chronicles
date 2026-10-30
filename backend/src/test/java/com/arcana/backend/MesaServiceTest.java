@@ -210,6 +210,35 @@ class MesaServiceTest {
     }
 
     @Test
+    void deveEntregarAFichaDoNpcVinculadoAMesaAoMestre() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(1L, "gandalf", "MESTRE", null));
+        mesa.getNpcIds().add(200L);
+        Personagem goblin = personagemDoJogador(1L, TipoJogador.MONSTER);
+        goblin.setId(200L);
+        goblin.setName("Goblin");
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(personagemRepository.findById(200L)).thenReturn(Optional.of(goblin));
+
+        var ficha = service.buscarFichaDeNpcDaMesa(1L, 200L, 1L);
+
+        assertEquals(1L, ficha.jogadorId());
+        assertEquals("gandalf", ficha.nomeJogador());
+        assertEquals(200L, ficha.personagemId());
+        assertEquals("Goblin", ficha.nomePersonagem());
+    }
+
+    @Test
+    void deveRecusarFichaDeNpcParaQuemNaoEOMestreOuNpcNaoVinculado() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getNpcIds().add(200L);
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(AccessDeniedException.class, () -> service.buscarFichaDeNpcDaMesa(1L, 200L, 2L));
+        assertThrows(RegraDeNegocioException.class, () -> service.buscarFichaDeNpcDaMesa(1L, 300L, 1L));
+    }
+
+    @Test
     void deveAceitarComoAlvoDeStatusAFichaEmUsoDeUmJogadorEAFichaDoMestre() {
         Mesa mesa = mesaAbertaDoMestre(1L);
         mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));

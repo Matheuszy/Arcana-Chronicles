@@ -35,7 +35,11 @@ interface ChallengePlayerPanelProps {
 }
 
 function myEntry(challenge: Challenge, userId: string | null): ChallengePlayer | undefined {
-  return challenge.jogadores.find((p) => String(p.jogadorId) === userId);
+  return challenge.jogadores.find((p) => p.tipo === 'JOGADOR' && String(p.jogadorId) === userId);
+}
+
+function challengeTitle(challenge: Challenge): string {
+  return challenge.doCombate ? `Desafio de ${challenge.criadorNome}` : 'Desafio do mestre';
 }
 
 function RollPicker({
@@ -65,11 +69,11 @@ function RollPicker({
   }, [character, choice]);
 
   return (
-    <div className="roll-overlay" role="dialog" aria-modal="true" aria-label="Desafio do mestre">
+    <div className="roll-overlay" role="dialog" aria-modal="true" aria-label={challengeTitle(challenge)}>
       <div className="challenge-picker">
         <div className="challenge-picker-head">
           <div>
-            <p className="eyebrow">{extraAttempt ? 'Tentativa extra' : 'Desafio do mestre'}</p>
+            <p className="eyebrow">{extraAttempt ? 'Tentativa extra' : challengeTitle(challenge)}</p>
             {challenge.descricao && <h3>{challenge.descricao}</h3>}
           </div>
           <div className="challenge-dc" aria-label={`Classe de dificuldade ${challenge.cd}`}>
@@ -194,7 +198,7 @@ export default function ChallengePlayerPanel({
           return (
             <li key={challenge.id} className={`challenge-card ${active ? 'challenge-card--ativo' : ''}`}>
               <div className="challenge-card-head">
-                <strong>{challenge.descricao ?? 'Desafio do mestre'}</strong>
+                <strong>{challenge.descricao ?? challengeTitle(challenge)}</strong>
                 <span className="challenge-card-dc">CD {challenge.cd}</span>
               </div>
               <p className={`challenge-state challenge-state--${entry.estado.toLowerCase()}`}>
@@ -208,7 +212,7 @@ export default function ChallengePlayerPanel({
               )}
               {challenge.mensagens.map((message) => (
                 <p key={message.id} className="challenge-master-note">
-                  <span>Mestre:</span> {message.texto}
+                  <span>{challenge.doCombate ? challenge.criadorNome : 'Mestre'}:</span> {message.texto}
                 </p>
               ))}
             </li>
