@@ -1,6 +1,8 @@
 package com.arcana.backend.chat;
 
 import com.arcana.backend.chat.dice.RolagemDadosService;
+import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
+import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.chat.imagem.ValidadorImagem;
 import com.arcana.backend.chat.model.Canal;
 import com.arcana.backend.chat.model.ChatMessage;
@@ -15,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.TaskScheduler;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.web.socket.CloseStatus;
@@ -51,6 +54,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final RolagemDadosService rolagemDadosService;
     private final ValidadorImagem validadorImagem;
+    private final DesafioChat desafioChat;
     private final GerenciadorMesasAtivas gerenciadorMesas;
     private final TaskScheduler agendador;
     private final Clock clock;
@@ -70,6 +74,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
     public MesaChatHandler(ObjectMapper objectMapper,
                            RolagemDadosService rolagemDadosService,
                            ValidadorImagem validadorImagem,
+                           DesafioChat desafioChat,
                            GerenciadorMesasAtivas gerenciadorMesas,
                            @Qualifier("chatTaskScheduler") TaskScheduler agendador,
                            Clock clock,
@@ -77,6 +82,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         this.objectMapper = objectMapper;
         this.rolagemDadosService = rolagemDadosService;
         this.validadorImagem = validadorImagem;
+        this.desafioChat = desafioChat;
         this.gerenciadorMesas = gerenciadorMesas;
         this.agendador = agendador;
         this.clock = clock;
@@ -119,6 +125,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         sincronizacao.setPresentes(mesa.presentes());
         enviarParaSessao(session, sincronizacao);
         imagens.forEach(imagem -> enviarParaSessao(session, imagem));
+        desafioChat.sincronizar(mesa, sessaoSegura, acesso.userId());
 
         broadcast(mesa, presenca(mesa, tableId), sessaoSegura);
     }
@@ -194,6 +201,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         }
 
         gerenciadorMesas.buscar(evento.mesaId()).ifPresent(mesa -> {
+            desafioChat.aoJogadorSair(mesa, evento.userId());
             ChatMessage aviso = systemMessage(tableId, evento.removidoPeloMestre()
                     ? "O mestre removeu " + evento.displayName() + " da mesa."
                     : evento.displayName() + " deixou a mesa.");
@@ -265,6 +273,13 @@ public class MesaChatHandler extends TextWebSocketHandler {
         message.setAuthorName(acesso.displayName());
         message.setHistorico(null);
         message.setPresentes(null);
+        message.setDesafio(null);
+        message.setDesafios(null);
+
+        if (message.getType() != null && DesafioChat.COMANDOS.contains(message.getType())) {
+            executarComandoDeDesafio(session, acesso, mesa, message);
+            return;
+        }
 
         if (!TIPOS_ENVIADOS_PELO_CLIENTE.contains(message.getType())) {
             enviarParaSessao(session, systemMessage(tableId, "Tipo de mensagem não permitido."));
@@ -296,6 +311,11 @@ public class MesaChatHandler extends TextWebSocketHandler {
         }
 
         if (message.getType() == ChatMessage.Type.ROLAGEM) {
+            if (desafioChat.jogadorBloqueado(mesa, acesso.userId())) {
+                enviarParaSessao(session, systemMessage(tableId,
+                        "Você tem um desafio em andamento. A única rolagem permitida é a do desafio."));
+                return;
+            }
             try {
                 aplicarRolagemDoServidor(message);
             } catch (IllegalArgumentException e) {
@@ -322,6 +342,19 @@ public class MesaChatHandler extends TextWebSocketHandler {
 
         mesa.registrar(message);
         broadcast(mesa, message, null);
+    }
+
+    private void executarComandoDeDesafio(WebSocketSession session, AcessoMesaDto acesso, MesaAtiva mesa,
+                                          ChatMessage message) {
+        String tableId = String.valueOf(acesso.mesaId());
+        try {
+            desafioChat.executar(mesa, acesso, message);
+        } catch (IllegalArgumentException | IllegalStateException | AccessDeniedException
+                 | RegraDeNegocioException | RecursoNaoEncontradoException e) {
+            enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
+        } catch (RuntimeException e) {
+            enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação do desafio."));
+        }
     }
 
     private String validarTexto(String conteudo) {
