@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { usePolling } from '../../hooks/usePolling';
 import { tableService } from '../../services/tableService';
 import { characterService } from '../../services/characterService';
 import { ApiError } from '../../services/httpClient';
@@ -9,6 +10,7 @@ import { JoinRequest } from '../../types/table';
 
 interface JoinRequestPanelProps {
   tableId: string;
+  onAccepted: () => void;
 }
 
 function minutesLabel(seconds: number): string {
@@ -16,7 +18,7 @@ function minutesLabel(seconds: number): string {
   return minutes === 1 ? '1 minuto' : `${minutes} minutos`;
 }
 
-export default function JoinRequestPanel({ tableId }: JoinRequestPanelProps) {
+export default function JoinRequestPanel({ tableId, onAccepted }: JoinRequestPanelProps) {
   const [request, setRequest] = useState<JoinRequest | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -45,6 +47,16 @@ export default function JoinRequestPanel({ tableId }: JoinRequestPanelProps) {
       active = false;
     };
   }, [tableId]);
+
+  usePolling(() => {
+    tableService
+      .myJoinRequest(tableId)
+      .then((current) => {
+        setRequest(current);
+        if (current.status === 'ACEITA') onAccepted();
+      })
+      .catch(() => undefined);
+  }, request?.status === 'PENDENTE');
 
   const submit = async () => {
     if (!selectedId) return;
