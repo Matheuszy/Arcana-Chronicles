@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { tableService } from '../../services/tableService';
 import { characterService } from '../../services/characterService';
 import { ApiError } from '../../services/httpClient';
+import Select from '../../components/ui/Select';
 import { Character } from '../../types/character';
 import { JoinRequest } from '../../types/table';
 
@@ -88,20 +89,19 @@ export default function JoinRequestPanel({ tableId }: JoinRequestPanelProps) {
       {request?.status === 'RECUSADA' && (
         <p className="muted join-note">Sua última solicitação foi recusada. Você já pode tentar de novo.</p>
       )}
-      <label htmlFor={`join-character-${tableId}`}>Com qual personagem?</label>
-      <select
-        id={`join-character-${tableId}`}
+      <Select
+        label="Com qual personagem?"
         value={selectedId}
-        onChange={(e) => setSelectedId(e.target.value)}
-      >
-        <option value="">Selecione...</option>
-        {characters.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name} (nível {c.level})
-          </option>
-        ))}
-      </select>
-      {error && <p className="join-error">{error}</p>}
+        onChange={setSelectedId}
+        options={characters.flatMap((c) =>
+          c.id ? [{ value: c.id, label: `${c.name} (nível ${c.level})` }] : [],
+        )}
+      />
+      {error && (
+        <p className="join-error" role="alert">
+          {error}
+        </p>
+      )}
       <button className="btn btn-primary" onClick={submit} disabled={!selectedId || sending}>
         {sending ? 'Enviando...' : 'Pedir para entrar'}
       </button>
