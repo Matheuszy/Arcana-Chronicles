@@ -5,6 +5,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -13,11 +14,21 @@ import java.util.Date;
 @Service
 public class TokenService {
 
+    static final int TAMANHO_MINIMO_DO_SEGREDO = 32;
+
     @Value("${api.security.token.secret}")
     private String secret;
 
     @Value("${api.security.token.expiration:86400000}")
     private Long expirationMillis;
+
+    @PostConstruct
+    public void validarSegredo() {
+        if (secret == null || secret.length() < TAMANHO_MINIMO_DO_SEGREDO) {
+            throw new IllegalStateException(
+                    "JWT_SECRET deve ser definido com pelo menos " + TAMANHO_MINIMO_DO_SEGREDO + " caracteres.");
+        }
+    }
 
     public String gerarToken(Usuario usuario) {
         try {

@@ -32,12 +32,14 @@ import org.springframework.web.socket.WebSocketSession;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.random.RandomGenerator;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -55,8 +57,7 @@ class MesaChatHandlerTest {
     private WebSocketSession outroJogador;
     private WebSocketSession jogadorDeOutraMesa;
 
-    @BeforeEach
-    void setUp() throws Exception {
+    private MesaChatHandler novoHandler(Clock relogio) {
         RandomGenerator sempreQuatro = new RandomGenerator() {
             @Override
             public long nextLong() {
@@ -68,13 +69,17 @@ class MesaChatHandlerTest {
                 return 3;
             }
         };
-        Clock relogio = Clock.fixed(Instant.parse("2026-10-29T15:00:00Z"), ZoneOffset.UTC);
         RolagemDadosService rolagens = new RolagemDadosService(sempreQuatro);
         DesafioChat desafioChat = new DesafioChat(
                 new DesafioService(mock(MesaService.class), rolagens, relogio), objectMapper);
         SalaChat salaChat = new SalaChat(new SalaService(mock(MesaService.class), relogio), objectMapper);
-        handler = new MesaChatHandler(objectMapper, rolagens, new ValidadorImagem(), desafioChat, salaChat, gerenciador,
+        return new MesaChatHandler(objectMapper, rolagens, new ValidadorImagem(), desafioChat, salaChat, gerenciador,
                 agendador, relogio, Duration.ofSeconds(60));
+    }
+
+    @BeforeEach
+    void setUp() throws Exception {
+        handler = novoHandler(Clock.fixed(Instant.parse("2026-10-29T15:00:00Z"), ZoneOffset.UTC));
 
         remetente = sessaoAutenticada("a", new AcessoMesaDto(1L, 2L, "joao", "JOGADOR", StatusMesa.ABERTA));
         outroJogador = sessaoAutenticada("b", new AcessoMesaDto(1L, 3L, "maria", "JOGADOR", StatusMesa.ABERTA));
@@ -109,6 +114,37 @@ class MesaChatHandlerTest {
                     }
                 })
                 .toList();
+    }
+
+    @Test
+    void deveIgnorarMensagensQuePassamDoLimiteDaJanela() throws Exception {
+        String texto = "{\"type\":\"TEXTO\",\"content\":\"oi\"}";
+        for (int i = 0; i < MesaChatHandler.LIMITE_MENSAGENS_NA_JANELA; i++) {
+            handler.handleMessage(remetente, new TextMessage(texto));
+        }
+        clearInvocations(outroJogador);
+
+        handler.handleMessage(remetente, new TextMessage(texto));
+
+        assertTrue(mensagensRecebidas(outroJogador).isEmpty());
+        JsonNode aviso = mensagensRecebidas(remetente).get(mensagensRecebidas(remetente).size() - 1);
+        assertEquals("SISTEMA", aviso.get("type").asText());
+        assertTrue(aviso.get("content").asText().contains("rápido demais"));
+    }
+
+    @Test
+    void deveRecusarConexaoAlemDoLimitePorUsuario() throws Exception {
+        AcessoMesaDto acesso = new AcessoMesaDto(1L, 5L, "ana", "JOGADOR", StatusMesa.ABERTA);
+        for (int i = 0; i < MesaChatHandler.LIMITE_CONEXOES_POR_USUARIO; i++) {
+            handler.afterConnectionEstablished(sessaoAutenticada("ana" + i, acesso));
+        }
+        WebSocketSession excedente = sessaoAutenticada("ana-extra", acesso);
+
+        handler.afterConnectionEstablished(excedente);
+
+        verify(excedente).close(any(CloseStatus.class));
+        assertEquals(MesaChatHandler.LIMITE_CONEXOES_POR_USUARIO,
+                gerenciador.buscar(1L).orElseThrow().sessoesDoUsuario(5L).size());
     }
 
     @Test
@@ -389,6 +425,24 @@ class MesaChatHandlerTest {
 
     @Test
     void deveManterApenasAsUltimasMensagensNoHistorico() throws Exception {
+        AtomicLong segundos = new AtomicLong();
+        Clock relogioQueAvanca = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneOffset.UTC;
+            }
+
+            @Override
+            public Clock withZone(ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return Instant.parse("2026-10-29T15:00:00Z").plusSeconds(segundos.addAndGet(10));
+            }
+        };
+        handler = novoHandler(relogioQueAvanca);
         for (int i = 0; i < MesaAtiva.LIMITE_HISTORICO + 10; i++) {
             enviarTexto(remetente, "mensagem " + i);
         }

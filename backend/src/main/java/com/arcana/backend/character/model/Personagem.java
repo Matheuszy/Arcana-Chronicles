@@ -21,6 +21,9 @@ public class Personagem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Long version;
+
     @Column(nullable = false)
     private String name;
 

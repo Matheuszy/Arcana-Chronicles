@@ -112,6 +112,17 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void deveCompararSenhaMesmoQuandoUsuarioNaoExisteParaNaoRevelarContas() {
+        when(repository.findByUsername("fantasma")).thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> service.login(new LoginRequestDto("fantasma", "qualquer")));
+
+        assertEquals("Usuário ou senha inválidos.", exception.getMessage());
+        verify(passwordEncoder).matches(eq("qualquer"), any());
+    }
+
+    @Test
     void deveLancarExcecaoQuandoSenhaInvalidaNoLogin() {
         LoginRequestDto loginDto = new LoginRequestDto("joao", "senha_errada");
         Usuario user = new Usuario("joao", "joao@gmail.com", "encodedPassword");
@@ -160,6 +171,7 @@ class UsuarioServiceTest {
 
     @Test
     void deveAtualizarNomeEEmailSemExigirNovaSenha() {
+        clearInvocations(passwordEncoder);
         Usuario usuario = usuarioComId(1L, "joao", "joao@arcana.com");
         when(repository.findById(1L)).thenReturn(Optional.of(usuario));
         when(repository.findByUsername("joao2")).thenReturn(Optional.empty());

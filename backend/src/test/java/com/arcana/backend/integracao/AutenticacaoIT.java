@@ -2,9 +2,17 @@ package com.arcana.backend.integracao;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.CountDownLatch;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -56,7 +64,7 @@ class AutenticacaoIT extends IntegracaoTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Dados inválidos."))
                 .andExpect(jsonPath("$.details", hasItem("Email inválido")))
-                .andExpect(jsonPath("$.details", hasItem("Senha deve ter ao menos 6 caracteres")));
+                .andExpect(jsonPath("$.details", hasItem("Senha deve ter entre 6 e 72 caracteres")));
     }
 
     @Test
@@ -146,7 +154,7 @@ class AutenticacaoIT extends IntegracaoTest {
         putComo(aria.token(), "/api/users/" + aria.id(), Map.of(
                 "username", aria.username(), "email", aria.username() + "@arcana.test", "password", "123"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.details", hasItem("Senha deve ter ao menos 6 caracteres")));
+                .andExpect(jsonPath("$.details", hasItem("Senha deve ter entre 6 e 72 caracteres")));
     }
 
     @Test
@@ -177,5 +185,47 @@ class AutenticacaoIT extends IntegracaoTest {
         getComo(outroMestre.token(), "/api/tables/" + mesaId).andExpect(status().isNotFound());
         getComo(outroMestre.token(), "/api/tables/" + mesaDeOutro).andExpect(status().isOk());
         getComo(mestre.token(), "/api/tables").andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deveResponderConflitoEmCadastrosSimultaneosDoMesmoUsername() throws Exception {
+        String username = nomeUnico("corrida");
+        int tentativas = 6;
+        CountDownLatch largada = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(tentativas);
+        List<Future<Integer>> resultados = new ArrayList<>();
+        for (int i = 0; i < tentativas; i++) {
+            int indice = i;
+            Callable<Integer> cadastro = () -> {
+                largada.await();
+                return postComo(null, "/api/users/register", Map.of(
+                        "username", username, "email", "corrida" + indice + "_" + username + "@arcana.test",
+                        "password", "senha-secreta", "papel", "JOGADOR"))
+                        .andReturn().getResponse().getStatus();
+            };
+            resultados.add(executor.submit(cadastro));
+        }
+        largada.countDown();
+
+        int criados = 0;
+        for (Future<Integer> resultado : resultados) {
+            int status = resultado.get();
+            if (status == 201) {
+                criados++;
+            } else {
+                assertEquals(409, status);
+            }
+        }
+        executor.shutdown();
+        assertEquals(1, criados);
+    }
+
+    @Test
+    void deveRecusarSenhaMaiorQueOLimiteDoBcrypt() throws Exception {
+        postComo(null, "/api/users/register", Map.of(
+                "username", nomeUnico("longa"), "email", nomeUnico("longa") + "@arcana.test",
+                "password", "x".repeat(73), "papel", "JOGADOR"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details", hasItem("Senha deve ter entre 6 e 72 caracteres")));
     }
 }

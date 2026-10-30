@@ -1,0 +1,43 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+server:
+  port: 8080
+  forward-headers-strategy: native
+
+arcana:
+  cors:
+    origens-permitidas: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4200}
+  seguranca:
+    login-maximo-tentativas: ${LOGIN_MAX_TENTATIVAS:10}
+    login-janela: ${LOGIN_JANELA:1m}
+    cadastro-maximo-tentativas: ${CADASTRO_MAX_TENTATIVAS:10}
+    cadastro-janela: ${CADASTRO_JANELA:10m}
+
+api:
+  security:
+    token:
+      secret: ${JWT_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
