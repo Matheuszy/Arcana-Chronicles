@@ -45,6 +45,12 @@ export type SkillBonuses = Partial<Record<SkillKey, number>>;
 
 export const MAX_PROFICIENCY_BONUS = 20;
 
+export interface ClassEntry {
+  classe: string;
+  subclasse: string;
+  nivel: number;
+}
+
 export interface Character {
   id?: string;
   ownerId?: string;
@@ -76,9 +82,12 @@ export interface Character {
   /** Espaços de magia ainda disponíveis por círculo */
   spellSlotsCurrent?: SpellSlots;
 
-  classe?: string;
-  subclasse?: string;
+  classes?: ClassEntry[];
   habilidades?: string;
+  talentos?: string;
+  raca?: string;
+  alinhamento?: string;
+  habilidadesRaca?: string;
   proficiencyBonus?: number;
   savingThrows?: AttributeBonuses;
   items?: string[];
@@ -89,6 +98,10 @@ export const SPELL_CIRCLES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 export const MAX_ITEMS = 50;
 export const MAX_ITEM_LENGTH = 100;
 export const MAX_CLASS_LENGTH = 60;
+export const MAX_CLASSES = 10;
+export const MAX_CLASS_LEVEL = 20;
+export const MAX_RACE_LENGTH = 60;
+export const MAX_ALIGNMENT_LENGTH = 60;
 export const MAX_ABILITIES_LENGTH = 5000;
 export const DEFAULT_PROFICIENCY_BONUS = 2;
 
@@ -178,6 +191,16 @@ export const SKILL_ATTRIBUTE: Record<SkillKey, keyof Attributes> = {
   religiao: 'inteligencia',
   sobrevivencia: 'sabedoria',
 };
+
+export function totalClassLevel(classes: ClassEntry[]): number {
+  return classes.reduce((sum, entry) => sum + entry.nivel, 0);
+}
+
+export function formatClasses(classes: ClassEntry[]): string {
+  return classes
+    .map((entry) => `${entry.classe}${entry.subclasse ? ` (${entry.subclasse})` : ''} ${entry.nivel}`)
+    .join(' / ');
+}
 
 export function totalSpellSlots(character: Character, circle: string): number {
   return character.spellSlots?.[circle] ?? 0;

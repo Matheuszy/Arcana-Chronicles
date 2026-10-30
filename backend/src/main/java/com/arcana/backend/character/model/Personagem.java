@@ -43,14 +43,25 @@ public class Personagem {
     @Column(nullable = false)
     private Integer armorClass;
 
-    @Column(length = 60)
-    private String classe;
-
-    @Column(length = 60)
-    private String subclasse;
+    @ElementCollection
+    @CollectionTable(name = "personagem_classes", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    private List<ClassePersonagem> classes = new ArrayList<>();
 
     @Column(columnDefinition = "TEXT")
     private String habilidades;
+
+    @Column(columnDefinition = "TEXT")
+    private String talentos;
+
+    @Column(length = 60)
+    private String raca;
+
+    @Column(length = 60)
+    private String alinhamento;
+
+    @Column(name = "habilidades_raca", columnDefinition = "TEXT")
+    private String habilidadesRaca;
 
     @Column(name = "bonus_proficiencia", nullable = false)
     private Integer bonusProficiencia = 2;

@@ -9,6 +9,7 @@ import {
   SkillKey,
   attributeModifier,
   attributeRollModifier,
+  formatClasses,
   formatModifier,
   remainingSpellSlots,
   skillRollModifier,
@@ -27,7 +28,9 @@ interface CharacterSheetProps {
 }
 
 export default function CharacterSheet({ character, origin, onEdit, onClose }: CharacterSheetProps) {
-  const classLine = [character.classe, character.subclasse].filter(Boolean).join(' · ');
+  const classLine = [character.raca, formatClasses(character.classes ?? []), character.alinhamento]
+    .filter(Boolean)
+    .join(' · ');
   const savingThrows = character.savingThrows ?? {};
   const skills = character.skills ?? {};
   const items = character.items ?? [];
@@ -188,6 +191,20 @@ export default function CharacterSheet({ character, origin, onEdit, onClose }: C
           <>
             <h3 className="paper-title">Habilidades</h3>
             <p className="paper-text paper-abilities">{character.habilidades}</p>
+          </>
+        )}
+
+        {character.habilidadesRaca && (
+          <>
+            <h3 className="paper-title">Habilidades de raça</h3>
+            <p className="paper-text paper-abilities">{character.habilidadesRaca}</p>
+          </>
+        )}
+
+        {character.talentos && (
+          <>
+            <h3 className="paper-title">Talentos</h3>
+            <p className="paper-text paper-abilities">{character.talentos}</p>
           </>
         )}
 
