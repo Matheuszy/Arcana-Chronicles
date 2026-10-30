@@ -1,5 +1,6 @@
 import { WS_BASE_URL } from './apiConfig';
-import { ChatMessage, OutgoingChatMessage, RollRequest } from '../types/chat';
+import { ChatMessage, ChatMessageType, OutgoingChatMessage, RollMode, RollRequest } from '../types/chat';
+import { ChallengeChoice, ChallengeCommand, ChallengeMessageTarget } from '../types/challenge';
 
 const AUTH_PROTOCOL = 'arcana.jwt';
 
@@ -127,6 +128,47 @@ class ChatService {
       content: '',
       image: { dataUrl },
     });
+  }
+
+  createChallenge(dc: number, description: string, players: { jogadorId: number; modo: RollMode }[]): void {
+    this.sendChallengeCommand('DESAFIO_CRIAR', { cd: dc, descricao: description, jogadores: players });
+  }
+
+  rollChallenge(choice: ChallengeChoice): void {
+    this.sendChallengeCommand('DESAFIO_ROLAR', {
+      atributo: choice.atributo ?? undefined,
+      pericia: choice.pericia ?? undefined,
+    });
+  }
+
+  allowExtraAttempt(challengeId: string, playerId: number, mode: RollMode): void {
+    this.sendChallengeCommand('DESAFIO_TENTATIVA_EXTRA', { desafioId: challengeId, jogadorId: playerId, modo: mode });
+  }
+
+  endChallengeWithFailure(challengeId: string, playerId: number): void {
+    this.sendChallengeCommand('DESAFIO_ENCERRAR_FALHA', { desafioId: challengeId, jogadorId: playerId });
+  }
+
+  cancelChallenge(challengeId: string, playerId?: number): void {
+    this.sendChallengeCommand('DESAFIO_CANCELAR', { desafioId: challengeId, jogadorId: playerId });
+  }
+
+  sendChallengeMessage(
+    challengeId: string,
+    target: ChallengeMessageTarget,
+    text: string,
+    playerId?: number,
+  ): void {
+    this.sendChallengeCommand('DESAFIO_MENSAGEM', {
+      desafioId: challengeId,
+      destino: target,
+      texto: text,
+      jogadorId: playerId,
+    });
+  }
+
+  private sendChallengeCommand(type: ChatMessageType, command: ChallengeCommand): void {
+    this.send({ type, content: '', comandoDesafio: command });
   }
 
   private send(message: OutgoingChatMessage): void {

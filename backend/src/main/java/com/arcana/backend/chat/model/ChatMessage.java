@@ -1,5 +1,7 @@
 package com.arcana.backend.chat.model;
 
+import com.arcana.backend.chat.desafio.ComandoDesafio;
+import com.arcana.backend.chat.desafio.DesafioDto;
 import com.arcana.backend.chat.dice.PedidoRolagem;
 
 import java.util.List;
@@ -13,7 +15,10 @@ public class ChatMessage {
 
     public enum Type {
         TEXTO, ROLAGEM, IMAGEM, NPC_RESPOSTA, SISTEMA, HISTORICO, PRESENCA, SESSAO_ENCERRADA, STATUS_MESA,
-        PARTICIPANTES, REMOVIDO_DA_MESA
+        PARTICIPANTES, REMOVIDO_DA_MESA,
+        DESAFIO, DESAFIOS,
+        DESAFIO_CRIAR, DESAFIO_ROLAR, DESAFIO_TENTATIVA_EXTRA, DESAFIO_ENCERRAR_FALHA, DESAFIO_CANCELAR,
+        DESAFIO_MENSAGEM
     }
 
     private String id;
@@ -30,6 +35,9 @@ public class ChatMessage {
     private String createdAt;
     private Map<Canal, List<ChatMessage>> historico;
     private List<Presenca> presentes;
+    private ComandoDesafio comandoDesafio;
+    private DesafioDto desafio;
+    private List<DesafioDto> desafios;
 
     // ── DiceRollResult aninhado ───────────────────────────────────────────────
 
@@ -105,4 +113,10 @@ public class ChatMessage {
     public void setHistorico(Map<Canal, List<ChatMessage>> historico) { this.historico = historico; }
     public List<Presenca> getPresentes() { return presentes; }
     public void setPresentes(List<Presenca> presentes) { this.presentes = presentes; }
+    public ComandoDesafio getComandoDesafio() { return comandoDesafio; }
+    public void setComandoDesafio(ComandoDesafio comandoDesafio) { this.comandoDesafio = comandoDesafio; }
+    public DesafioDto getDesafio() { return desafio; }
+    public void setDesafio(DesafioDto desafio) { this.desafio = desafio; }
+    public List<DesafioDto> getDesafios() { return desafios; }
+    public void setDesafios(List<DesafioDto> desafios) { this.desafios = desafios; }
 }

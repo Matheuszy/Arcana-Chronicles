@@ -1,5 +1,6 @@
 package com.arcana.backend.chat.sessao;
 
+import com.arcana.backend.chat.desafio.DesafiosDaMesa;
 import com.arcana.backend.chat.model.Canal;
 import com.arcana.backend.chat.model.ChatMessage;
 import com.arcana.backend.chat.model.Presenca;
@@ -28,6 +29,7 @@ public class MesaAtiva {
     private final Long mesaId;
     private final Map<String, Conexao> conexoes = new LinkedHashMap<>();
     private final Map<Canal, Deque<ChatMessage>> historicos = new EnumMap<>(Canal.class);
+    private final DesafiosDaMesa desafios = new DesafiosDaMesa();
     private ScheduledFuture<?> encerramentoAgendado;
     private StatusMesa status;
 
@@ -38,6 +40,10 @@ public class MesaAtiva {
 
     public Long getMesaId() {
         return mesaId;
+    }
+
+    public DesafiosDaMesa desafios() {
+        return desafios;
     }
 
     public synchronized StatusMesa status() {
@@ -134,6 +140,13 @@ public class MesaAtiva {
 
     public synchronized boolean mestreConectado() {
         return conexoes.values().stream().anyMatch(c -> "MESTRE".equals(c.acesso().role()));
+    }
+
+    public synchronized List<WebSocketSession> sessoesDoUsuario(Long userId) {
+        return conexoes.values().stream()
+                .filter(conexao -> conexao.acesso().userId().equals(userId))
+                .map(Conexao::sessao)
+                .toList();
     }
 
     public synchronized List<WebSocketSession> sessoes() {

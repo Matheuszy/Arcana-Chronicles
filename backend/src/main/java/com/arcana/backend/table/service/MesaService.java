@@ -7,6 +7,7 @@ import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.AcessoMesaDto;
+import com.arcana.backend.table.FichaDeParticipante;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaResponseDto;
 import com.arcana.backend.table.MesaStatusAlteradoEvent;
@@ -203,6 +204,26 @@ public class MesaService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Personagem não encontrado: " + characterId));
 
         return PersonagemResponseDto.from(personagem);
+    }
+
+    @Transactional
+    public FichaDeParticipante buscarFichaDoJogadorNaMesa(Long mesaId, Long jogadorId) {
+        Mesa mesa = findOrThrow(mesaId);
+
+        Participante participante = buscarParticipante(mesa, jogadorId)
+                .filter(p -> "JOGADOR".equals(p.getRole()))
+                .orElseThrow(() -> new RegraDeNegocioException("Este jogador não participa da mesa."));
+
+        if (participante.getCharacterId() == null) {
+            throw new RegraDeNegocioException(participante.getDisplayName() + " ainda não escolheu um personagem para a mesa.");
+        }
+
+        Personagem personagem = personagemRepository.findById(participante.getCharacterId())
+                .filter(p -> p.getOwner().getId().equals(jogadorId))
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Personagem não encontrado: " + participante.getCharacterId()));
+
+        return FichaDeParticipante.from(jogadorId, participante.getDisplayName(), personagem);
     }
 
     @Transactional
