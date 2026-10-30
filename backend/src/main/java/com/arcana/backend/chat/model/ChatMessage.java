@@ -1,5 +1,7 @@
 package com.arcana.backend.chat.model;
 
+import com.arcana.backend.chat.combate.ComandoCombate;
+import com.arcana.backend.chat.combate.CombateDto;
 import com.arcana.backend.chat.desafio.ComandoDesafio;
 import com.arcana.backend.chat.desafio.DesafioDto;
 import com.arcana.backend.chat.dice.PedidoRolagem;
@@ -23,7 +25,8 @@ public class ChatMessage {
         DESAFIO_CRIAR, DESAFIO_ROLAR, DESAFIO_TENTATIVA_EXTRA, DESAFIO_ENCERRAR_FALHA, DESAFIO_CANCELAR,
         DESAFIO_MENSAGEM,
         NOTA_SALVAR, NOTA, STATUS_DEFINIR, STATUS_REMOVER, STATUS, ITEM_CRIAR, ITEM_REMOVER, ITENS,
-        NOTA_COMPARTILHAR, NOTA_RECEBIDA, NOTA_COMPARTILHADA
+        NOTA_COMPARTILHAR, NOTA_RECEBIDA, NOTA_COMPARTILHADA,
+        COMBATE, COMBATE_INICIAR, COMBATE_ROLAR, COMBATE_LIBERAR_REROLL, COMBATE_PASSAR_TURNO, COMBATE_ENCERRAR
     }
 
     private String id;
@@ -46,6 +49,8 @@ public class ChatMessage {
     private ComandoSala comandoSala;
     private StatusDto status;
     private List<ItemDto> itens;
+    private ComandoCombate comandoCombate;
+    private CombateDto combate;
 
     // ── DiceRollResult aninhado ───────────────────────────────────────────────
 
@@ -133,4 +138,8 @@ public class ChatMessage {
     public void setStatus(StatusDto status) { this.status = status; }
     public List<ItemDto> getItens() { return itens; }
     public void setItens(List<ItemDto> itens) { this.itens = itens; }
+    public ComandoCombate getComandoCombate() { return comandoCombate; }
+    public void setComandoCombate(ComandoCombate comandoCombate) { this.comandoCombate = comandoCombate; }
+    public CombateDto getCombate() { return combate; }
+    public void setCombate(CombateDto combate) { this.combate = combate; }
 }
