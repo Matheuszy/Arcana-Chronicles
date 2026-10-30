@@ -29,7 +29,7 @@
   padding: 0.75rem 1.25rem;
   background: rgba(140, 59, 59, 0.12);
   border-bottom: 1px solid var(--seal);
-  color: var(--seal);
+  color: var(--danger-text);
   font-size: 0.88rem;
 }
 .session-ended .btn { padding: 0.3em 0.7em; font-size: 0.8rem; }
@@ -155,7 +155,7 @@
 .conn--conectado { color: var(--ok); }
 .conn--conectando,
 .conn--reconectando { color: var(--ember-bright); }
-.conn--desconectado { color: var(--seal); }
+.conn--desconectado { color: var(--danger-text); }
 
 .connection-banner {
   display: flex;
@@ -353,7 +353,7 @@
   color: var(--arcane-bright);
 }
 .roll-panel-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
-.roll-error { color: var(--seal); font-size: 0.82rem; margin: 0; }
+.roll-error { color: var(--danger-text); font-size: 0.82rem; margin: 0; }
 .composer-error { padding: 0 1.25rem; }
 
 .dice-roll {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AccountRole, authService } from '../../services/authService';
 import { useSession } from '../../context/SessionContext';
+import Tabs from '../../components/ui/Tabs';
 import './Login.css';
 
 type Mode = 'login' | 'register';
@@ -53,23 +54,15 @@ export default function Login() {
       </div>
 
       <div className="login-card card">
-        {/* Tabs */}
-        <div className="login-tabs">
-          <button
-            type="button"
-            className={`login-tab ${mode === 'login' ? 'active' : ''}`}
-            onClick={() => { setMode('login'); setError(''); }}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            className={`login-tab ${mode === 'register' ? 'active' : ''}`}
-            onClick={() => { setMode('register'); setError(''); }}
-          >
-            Criar conta
-          </button>
-        </div>
+        <Tabs
+          label="Entrar ou criar conta"
+          active={mode}
+          onChange={(next) => { setMode(next); setError(''); }}
+          tabs={[
+            { id: 'login', label: 'Entrar' },
+            { id: 'register', label: 'Criar conta' },
+          ]}
+        />
 
         <form
           onSubmit={(e) => { e.preventDefault(); submit(); }}
@@ -115,10 +108,12 @@ export default function Login() {
 
           {mode === 'register' && (
           <div className="field">
-            <label>Tipo de conta</label>
-            <div className="role-pills">
+            <span id="roleLabel" className="role-label">Tipo de conta</span>
+            <div className="role-pills" role="radiogroup" aria-labelledby="roleLabel">
               <button
                 type="button"
+                role="radio"
+                aria-checked={role === 'JOGADOR'}
                 className={`role-pill ${role === 'JOGADOR' ? 'active' : ''}`}
                 onClick={() => setRole('JOGADOR')}
               >
@@ -126,6 +121,8 @@ export default function Login() {
               </button>
               <button
                 type="button"
+                role="radio"
+                aria-checked={role === 'MESTRE'}
                 className={`role-pill role-pill--mestre ${role === 'MESTRE' ? 'active' : ''}`}
                 onClick={() => setRole('MESTRE')}
               >
@@ -138,7 +135,7 @@ export default function Login() {
           </div>
           )}
 
-          {error && <p className="login-error">{error}</p>}
+          {error && <p className="login-error" role="alert">{error}</p>}
 
           <button
             type="submit"

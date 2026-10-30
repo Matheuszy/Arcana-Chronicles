@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { tableService } from '../../services/tableService';
 import { useSession } from '../../context/SessionContext';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
-import LoadError from '../../components/LoadError';
+import Badge, { BadgeTone } from '../../components/ui/Badge';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
+import { useToast } from '../../components/ui/Toast';
 import JoinRequestPanel from './JoinRequestPanel';
 import './TableList.css';
 
@@ -12,11 +15,26 @@ type ScopeFilter = 'TODAS' | 'MINHAS';
 
 const STATUS_FILTERS: StatusFilter[] = ['TODAS', 'ABERTA', 'EM_ANDAMENTO', 'PAUSADA', 'ENCERRADA'];
 
+const STATUS_TONE: Record<TableStatus, BadgeTone> = {
+  ABERTA: 'positive',
+  EM_ANDAMENTO: 'gold',
+  PAUSADA: 'neutral',
+  ENCERRADA: 'danger',
+};
+
+const STATUS_ICON: Record<TableStatus, string> = {
+  ABERTA: '●',
+  EM_ANDAMENTO: '⚔',
+  PAUSADA: '❚❚',
+  ENCERRADA: '✕',
+};
+
 const errorMessage = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
 
 export default function TableList() {
   const { role, userId } = useSession();
   const navigate = useNavigate();
+  const { notify } = useToast();
   const [tables, setTables] = useState<GameTable[]>([]);
   const [joiningTableId, setJoiningTableId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,8 +44,8 @@ export default function TableList() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<{ tableId: string; message: string } | null>(null);
+  const [tableToDelete, setTableToDelete] = useState<GameTable | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('TODAS');
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('TODAS');
@@ -76,19 +94,19 @@ export default function TableList() {
     navigate(`/mesas/${table.id}`);
   };
 
-  const deleteTable = async (table: GameTable) => {
-    if (!table.id) return;
-    const confirmed = window.confirm(`Excluir a mesa "${table.name}"? Essa ação não pode ser desfeita.`);
-    if (!confirmed) return;
-    setDeletingId(table.id);
-    setDeleteError(null);
+  const deleteTable = async () => {
+    if (!tableToDelete?.id) return;
+    setDeleting(true);
     try {
-      await tableService.delete(table.id);
+      await tableService.delete(tableToDelete.id);
+      notify(`A mesa "${tableToDelete.name}" foi excluída.`, 'success');
+      setTableToDelete(null);
       reload();
     } catch (e: unknown) {
-      setDeleteError({ tableId: table.id, message: errorMessage(e, 'Erro ao excluir a mesa.') });
+      setTableToDelete(null);
+      notify(errorMessage(e, 'Erro ao excluir a mesa.'), 'danger');
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
 
@@ -118,7 +136,7 @@ export default function TableList() {
 
     if (participates(table)) {
       if (table.status === 'ENCERRADA') {
-        return <p className="muted join-note">Esta mesa foi encerrada.</p>;
+        return <p className="poster-note">Esta mesa foi encerrada.</p>;
       }
       return (
         <button className="btn btn-primary" onClick={() => enterTable(table)}>
@@ -128,11 +146,11 @@ export default function TableList() {
     }
 
     if (role === 'MESTRE') {
-      return <p className="muted join-note">Mesa de outro mestre.</p>;
+      return <p className="poster-note">Mesa de outro mestre.</p>;
     }
 
     if (table.status !== 'ABERTA') {
-      return <p className="muted join-note">A mesa não está aceitando novos jogadores.</p>;
+      return <p className="poster-note">A mesa não está aceitando novos jogadores.</p>;
     }
 
     if (joiningTableId === table.id) {
@@ -147,42 +165,43 @@ export default function TableList() {
   };
 
   const renderContent = () => {
-    if (loading) return <p className="muted">Buscando mesas abertas...</p>;
+    if (loading) return <LoadingState label="Buscando mesas abertas..." />;
 
     if (loadError) {
-      return <LoadError title="Não foi possível carregar as mesas" message={loadError} onRetry={reload} />;
+      return <ErrorState title="Não foi possível carregar as mesas" message={loadError} onRetry={reload} />;
     }
 
     if (tables.length === 0) {
       return (
-        <div className="empty card">
-          <p>Nenhuma mesa disponível ainda.</p>
-          {role === 'MESTRE' ? (
-            <p className="muted">Que tal abrir a primeira?</p>
-          ) : (
-            <p className="muted">Assim que um mestre abrir uma mesa, ela aparece aqui.</p>
-          )}
-        </div>
+        <EmptyState title="Nenhuma mesa disponível ainda.">
+          {role === 'MESTRE'
+            ? 'Que tal abrir a primeira?'
+            : 'Assim que um mestre abrir uma mesa, ela aparece aqui.'}
+        </EmptyState>
       );
     }
 
     if (visibleTables.length === 0) {
       return (
-        <div className="empty card">
-          <p>Nenhuma mesa corresponde aos filtros.</p>
-          <button className="btn btn-ghost" onClick={clearFilters}>
-            Limpar filtros
-          </button>
-        </div>
+        <EmptyState
+          title="Nenhuma mesa corresponde aos filtros."
+          action={
+            <button className="btn btn-ghost" onClick={clearFilters}>
+              Limpar filtros
+            </button>
+          }
+        />
       );
     }
 
     return (
-      <div className="grid">
+      <div className="grid notice-board">
         {visibleTables.map((t) => (
-          <article key={t.id} className="table-card card">
+          <article key={t.id} className="table-card poster">
             <div className="table-card-top">
-              <span className={`status status--${t.status.toLowerCase()}`}>{TABLE_STATUS_LABEL[t.status]}</span>
+              <Badge tone={STATUS_TONE[t.status]} icon={STATUS_ICON[t.status]}>
+                {TABLE_STATUS_LABEL[t.status]}
+              </Badge>
               <span className="players">{t.participants?.length ?? 0} na mesa</span>
             </div>
             <h3>{t.name}</h3>
@@ -190,15 +209,10 @@ export default function TableList() {
             <p className="master">Mestre: {t.masterName}</p>
             {renderAction(t)}
             {isOwner(t) && (
-              <button
-                className="btn btn-ghost btn-delete-table"
-                onClick={() => deleteTable(t)}
-                disabled={deletingId === t.id}
-              >
-                {deletingId === t.id ? 'Excluindo...' : 'Excluir mesa'}
+              <button className="btn btn-ghost btn-delete-table" onClick={() => setTableToDelete(t)}>
+                Excluir mesa
               </button>
             )}
-            {deleteError && deleteError.tableId === t.id && <p className="join-error">{deleteError.message}</p>}
           </article>
         ))}
       </div>
@@ -210,10 +224,10 @@ export default function TableList() {
       <header className="page-head">
         <div>
           <p className="eyebrow">Tavernas &amp; portais</p>
-          <h1>Mesas</h1>
+          <h1>Mural de missões</h1>
         </div>
         {role === 'MESTRE' && (
-          <button className="btn btn-primary" onClick={toggleCreating}>
+          <button className="btn btn-primary" onClick={toggleCreating} aria-expanded={creating}>
             {creating ? 'Cancelar' : '+ Nova mesa'}
           </button>
         )}
@@ -221,18 +235,20 @@ export default function TableList() {
 
       {creating && (
         <form
-          className="card new-table"
+          className="new-table contract"
           onSubmit={(e) => {
             e.preventDefault();
             createTable();
           }}
         >
+          <h2>Contrato de aventura</h2>
           <div className="field">
             <label htmlFor="tableName">Nome da mesa</label>
             <input
               id="tableName"
               type="text"
               value={newName}
+              maxLength={255}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="ex: As Ruínas de Aranthil"
             />
@@ -247,7 +263,11 @@ export default function TableList() {
               placeholder="Um gancho rápido para os jogadores..."
             />
           </div>
-          {createError && <p className="form-error">{createError}</p>}
+          {createError && (
+            <p className="form-error" role="alert">
+              {createError}
+            </p>
+          )}
           <button type="submit" className="btn btn-primary" disabled={!newName.trim() || submitting}>
             {submitting ? 'Abrindo...' : 'Abrir mesa'}
           </button>
@@ -270,8 +290,10 @@ export default function TableList() {
                 key={status}
                 type="button"
                 className={`chip ${statusFilter === status ? 'active' : ''}`}
+                aria-pressed={statusFilter === status}
                 onClick={() => setStatusFilter(status)}
               >
+                {statusFilter === status && <span aria-hidden="true">✓ </span>}
                 {status === 'TODAS' ? 'Todos os status' : TABLE_STATUS_LABEL[status]}
               </button>
             ))}
@@ -280,20 +302,24 @@ export default function TableList() {
             <button
               type="button"
               className={`chip ${scopeFilter === 'TODAS' ? 'active' : ''}`}
+              aria-pressed={scopeFilter === 'TODAS'}
               onClick={() => setScopeFilter('TODAS')}
             >
+              {scopeFilter === 'TODAS' && <span aria-hidden="true">✓ </span>}
               Todas as mesas
             </button>
             <button
               type="button"
               className={`chip ${scopeFilter === 'MINHAS' ? 'active' : ''}`}
+              aria-pressed={scopeFilter === 'MINHAS'}
               onClick={() => setScopeFilter('MINHAS')}
             >
+              {scopeFilter === 'MINHAS' && <span aria-hidden="true">✓ </span>}
               {role === 'MESTRE' ? 'Minhas mesas' : 'Mesas em que participo'}
             </button>
           </div>
           {filtersActive && (
-            <p className="muted filter-count">
+            <p className="muted filter-count" role="status">
               {visibleTables.length} de {tables.length} {tables.length === 1 ? 'mesa' : 'mesas'}
             </p>
           )}
@@ -301,6 +327,19 @@ export default function TableList() {
       )}
 
       {renderContent()}
+
+      {tableToDelete && (
+        <ConfirmDialog
+          title="Excluir mesa?"
+          confirmLabel="Excluir mesa"
+          danger
+          busy={deleting}
+          onConfirm={deleteTable}
+          onCancel={() => setTableToDelete(null)}
+        >
+          A mesa &quot;{tableToDelete.name}&quot; será apagada. Essa ação não pode ser desfeita.
+        </ConfirmDialog>
+      )}
     </section>
   );
 }

@@ -23,10 +23,11 @@ const SKILL_KEYS = Object.keys(SKILL_LABEL) as SkillKey[];
 
 interface CharacterSheetProps {
   character: Character;
+  origin?: string;
   onClose: () => void;
 }
 
-export default function CharacterSheet({ character, onClose }: CharacterSheetProps) {
+export default function CharacterSheet({ character, origin, onClose }: CharacterSheetProps) {
   const classLine = [character.classe, character.subclasse].filter(Boolean).join(' · ');
   const savingThrows = character.savingThrows ?? {};
   const skills = SKILL_KEYS.filter((skill) => character.skills?.[skill] !== undefined);
@@ -40,6 +41,7 @@ export default function CharacterSheet({ character, onClose }: CharacterSheetPro
           Fechar
         </button>
       </div>
+      {origin && <p className="sheet-origin">{origin}</p>}
       <p className="muted">
         {KIND_LABEL[character.kind]}
         {classLine && ` · ${classLine}`}

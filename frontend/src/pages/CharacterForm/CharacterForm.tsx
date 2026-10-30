@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
 import { useSession } from '../../context/SessionContext';
 import LoadError from '../../components/LoadError';
+import Select from '../../components/ui/Select';
 import {
   attributeModifier,
   attributeRollModifier,
@@ -238,6 +239,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
   return (
     <section className={embedded ? 'character-editor' : 'page'}>
       <p className="eyebrow">{id ? 'Editando ficha' : 'Nova ficha'}</p>
+      <p className="sheet-origin">{role === 'MESTRE' ? 'Ficha do mestre · só você edita' : 'Sua ficha · só você edita'}</p>
       {embedded ? (
         <h2>{id ? 'Ajustar personagem' : 'Forjar novo personagem'}</h2>
       ) : (
@@ -263,21 +265,17 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
               placeholder="ex: Arannis, o Feiticeiro"
             />
           </div>
-          <div className="field">
-            <label htmlFor="kind">Tipo</label>
-            <select
-              id="kind"
-              value={form.kind}
-              onChange={(e) => setField('kind', e.target.value as CharacterKind)}
-              disabled={kindOptions.length === 1}
-            >
-              {kindOptions.map((kind) => (
-                <option key={kind} value={kind} disabled={!allowedKinds.includes(kind)}>
-                  {KIND_LABEL[kind]}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Tipo"
+            value={form.kind}
+            onChange={(kind) => setField('kind', kind)}
+            disabled={kindOptions.length === 1}
+            options={kindOptions.map((kind) => ({
+              value: kind,
+              label: KIND_LABEL[kind],
+              disabled: !allowedKinds.includes(kind),
+            }))}
+          />
         </div>
 
         <div className="row">
@@ -461,7 +459,10 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         </div>
 
         {/* ── Equipamentos ── */}
-        <h3 className="section-title">Equipamentos</h3>
+        <details className="sheet-section" open>
+        <summary>
+          <h3 className="section-title">Inventário</h3>
+        </summary>
         <div className="field">
           <label htmlFor="equipment">Armas e armaduras</label>
           <textarea
@@ -473,7 +474,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           />
         </div>
 
-        <h3 className="section-title">Itens</h3>
+        <h4 className="sheet-subtitle">Itens</h4>
         {items.length > 0 ? (
           <ul className="items-list">
             {items.map((item, i) => (
@@ -517,8 +518,12 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           </button>
         </div>
 
-        {/* ── Magias ── */}
-        <h3 className="section-title">Magias</h3>
+        </details>
+
+        <details className="sheet-section" open>
+        <summary>
+          <h3 className="section-title">Magias</h3>
+        </summary>
 
         <div className="spell-slots-grid">
           {['1','2','3','4','5','6','7','8','9'].map((circle) => (
@@ -577,20 +582,15 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
                 placeholder="ex: Bola de Fogo"
               />
             </div>
-            <div className="field">
-              <label htmlFor="spell-level">Círculo</label>
-              <select
-                id="spell-level"
-                value={newSpell.level}
-                onChange={(e) => setNewSpell((s) => ({ ...s, level: Number(e.target.value) }))}
-              >
-                {SPELL_LEVELS.map((lvl) => (
-                  <option key={lvl} value={lvl}>
-                    {lvl === 0 ? 'Truque' : `${lvl}º`}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="Círculo"
+              value={String(newSpell.level)}
+              onChange={(lvl) => setNewSpell((s) => ({ ...s, level: Number(lvl) }))}
+              options={SPELL_LEVELS.map((lvl) => ({
+                value: String(lvl),
+                label: lvl === 0 ? 'Truque' : `${lvl}º`,
+              }))}
+            />
           </div>
           <div className="field">
             <label htmlFor="spell-desc">Descrição</label>
@@ -611,6 +611,8 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
             + Adicionar magia
           </button>
         </div>
+
+        </details>
 
         {/* ── História ── */}
         <h3 className="section-title">História</h3>
