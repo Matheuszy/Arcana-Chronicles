@@ -75,13 +75,25 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  height: 100vh;
+  height: 100dvh;
   padding: 1.5rem 1rem;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: rgba(10, 8, 6, 0.85);
 }
 
+body:has(.sheet-editor-overlay) { overflow: hidden; }
+
 .sheet-editor-dialog {
   width: min(960px, 100%);
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .sheet-editor-overlay { padding: 0; }
 }
 
 .room {
@@ -133,7 +145,8 @@
 @media (max-width: 860px) {
   .room { grid-template-columns: 1fr; }
   .room-notes { grid-column: 1; }
-  .room-chat { height: 70vh; }
+  .room-chat { height: 75vh; height: 75dvh; min-height: 24rem; }
+  .room-notes { height: 22rem; }
 }
 
 .notes-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; }

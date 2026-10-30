@@ -132,3 +132,9 @@
   width: 100%;
   margin-top: 0.25rem;
 }
+
+@media (max-width: 480px) {
+  .login-hero { padding: 1.5rem 1rem 2rem; justify-content: flex-start; }
+  .login-brand h1 { letter-spacing: 0.1em; }
+  .login-card { padding: 1.25rem 1rem; }
+}
