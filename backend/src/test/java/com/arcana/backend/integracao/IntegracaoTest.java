@@ -8,6 +8,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -53,6 +54,9 @@ abstract class IntegracaoTest {
 
     @Autowired
     protected MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @LocalServerPort
     private int porta;
@@ -135,6 +139,12 @@ abstract class IntegracaoTest {
     protected Long criarPersonagem(Conta dono, String kind) throws Exception {
         return corpo(postComo(dono.token(), "/api/characters", fichaDoTipo(kind))
                 .andExpect(status().isCreated())).get("id").asLong();
+    }
+
+    protected Long criarFichaAntigaForaDaRegra(Conta dono, boolean donoEhMestre, String kindAntigo) throws Exception {
+        Long id = criarPersonagem(dono, donoEhMestre ? "MONSTER" : "PLAYER");
+        jdbcTemplate.update("UPDATE personagens SET kind = ? WHERE id = ?", kindAntigo, id);
+        return id;
     }
 
     protected Long criarMesa(Conta mestre) throws Exception {

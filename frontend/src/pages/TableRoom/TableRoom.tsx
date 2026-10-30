@@ -247,7 +247,7 @@ export default function TableRoom() {
 
   const rollAttribute = (key: keyof Attributes) => {
     if (!activeCharacter) return;
-    sendRoll(diceService.attributeCheckRequest(activeCharacter.attributes, key));
+    sendRoll(diceService.attributeCheckRequest(activeCharacter, key));
   };
 
   if (tableError) {

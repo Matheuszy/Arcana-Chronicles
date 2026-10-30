@@ -134,6 +134,7 @@
 .sheet-attribute-label { font-size: 0.7rem; color: var(--parchment-dim); }
 .sheet-attribute-score { font-family: var(--font-mono); font-size: 1rem; }
 .sheet-attribute-mod { font-size: 0.75rem; color: var(--ember-bright); }
+.sheet-attribute--proficient { border-color: var(--ember); }
 .sheet-text { font-size: 0.82rem; margin: 0; }
 
 .room-side {

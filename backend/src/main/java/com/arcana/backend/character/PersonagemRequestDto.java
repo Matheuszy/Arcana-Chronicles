@@ -37,7 +37,9 @@ public record PersonagemRequestDto(
         AtributosDto attributes,
 
         /** Chaves das perícias com proficiência (ex: "acrobacia", "arcanismo") */
-        List<String> skills,
+        Map<String, @NotNull(message = "Bônus da perícia não pode ser nulo")
+                    @Min(value = 0, message = "Bônus da perícia não pode ser negativo")
+                    @Max(value = 20, message = "Bônus da perícia não pode passar de 20") Integer> skills,
 
         /** Equipamentos em texto livre */
         String equipment,
@@ -52,7 +54,25 @@ public record PersonagemRequestDto(
 
         String personalityPrompt,
 
-        String avatarUrl
+        String avatarUrl,
+
+        @Size(max = 60, message = "Classe não pode ter mais de 60 caracteres")
+        String classe,
+
+        @Size(max = 60, message = "Subclasse não pode ter mais de 60 caracteres")
+        String subclasse,
+
+        @Min(value = 0, message = "Bônus de proficiência não pode ser negativo")
+        @Max(value = 10, message = "Bônus de proficiência não pode passar de 10")
+        Integer proficiencyBonus,
+
+        Map<String, @NotNull(message = "Bônus do atributo não pode ser nulo")
+                    @Min(value = 0, message = "Bônus do atributo não pode ser negativo")
+                    @Max(value = 20, message = "Bônus do atributo não pode passar de 20") Integer> savingThrows,
+
+        @Size(max = 50, message = "A ficha pode ter no máximo 50 itens")
+        List<@NotBlank(message = "Item não pode ser vazio")
+             @Size(max = 100, message = "Item não pode ter mais de 100 caracteres") String> items
 
 ) {
     public record AtributosDto(

@@ -1,12 +1,16 @@
 package com.arcana.backend.character;
 
+import com.arcana.backend.character.model.Atributo;
+import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,7 +24,7 @@ public record PersonagemResponseDto(
         Integer hpCurrent,
         Integer armorClass,
         AtributosDto attributes,
-        List<String> skills,
+        Map<String, Integer> skills,
         String equipment,
         List<SpellDto> spells,
         Map<String, Integer> spellSlots,
@@ -28,7 +32,12 @@ public record PersonagemResponseDto(
         String personalityPrompt,
         String avatarUrl,
         Long ownerId,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String classe,
+        String subclasse,
+        Integer proficiencyBonus,
+        Map<String, Integer> savingThrows,
+        List<String> items
 
 ) {
     public record AtributosDto(
@@ -85,7 +94,7 @@ public record PersonagemResponseDto(
                 p.getHpCurrent(),
                 p.getArmorClass(),
                 attrs,
-                p.getSkills() != null ? p.getSkills() : Collections.emptyList(),
+                periciasEmOrdem(p),
                 p.getEquipment(),
                 spellDtos,
                 slots,
@@ -93,7 +102,28 @@ public record PersonagemResponseDto(
                 p.getPersonalityPrompt(),
                 p.getAvatarUrl(),
                 p.getOwner() != null ? p.getOwner().getId() : null,
-                p.getCreatedAt()
+                p.getCreatedAt(),
+                p.getClasse(),
+                p.getSubclasse(),
+                p.getBonusProficiencia(),
+                salvaguardasEmOrdem(p),
+                List.copyOf(p.getItens())
         );
+    }
+
+    private static Map<String, Integer> periciasEmOrdem(Personagem p) {
+        Map<String, Integer> pericias = new LinkedHashMap<>();
+        Arrays.stream(Pericia.values())
+                .filter(pericia -> p.getSkills().containsKey(pericia.getChave()))
+                .forEach(pericia -> pericias.put(pericia.getChave(), p.getSkills().get(pericia.getChave())));
+        return pericias;
+    }
+
+    private static Map<String, Integer> salvaguardasEmOrdem(Personagem p) {
+        Map<String, Integer> salvaguardas = new LinkedHashMap<>();
+        Arrays.stream(Atributo.values())
+                .filter(p.getSalvaguardas()::containsKey)
+                .forEach(atributo -> salvaguardas.put(atributo.getChave(), p.getSalvaguardas().get(atributo)));
+        return salvaguardas;
     }
 }
