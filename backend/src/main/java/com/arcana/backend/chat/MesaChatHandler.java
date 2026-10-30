@@ -55,6 +55,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
     private final RolagemDadosService rolagemDadosService;
     private final ValidadorImagem validadorImagem;
     private final DesafioChat desafioChat;
+    private final SalaChat salaChat;
     private final GerenciadorMesasAtivas gerenciadorMesas;
     private final TaskScheduler agendador;
     private final Clock clock;
@@ -75,6 +76,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
                            RolagemDadosService rolagemDadosService,
                            ValidadorImagem validadorImagem,
                            DesafioChat desafioChat,
+                           SalaChat salaChat,
                            GerenciadorMesasAtivas gerenciadorMesas,
                            @Qualifier("chatTaskScheduler") TaskScheduler agendador,
                            Clock clock,
@@ -83,6 +85,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         this.rolagemDadosService = rolagemDadosService;
         this.validadorImagem = validadorImagem;
         this.desafioChat = desafioChat;
+        this.salaChat = salaChat;
         this.gerenciadorMesas = gerenciadorMesas;
         this.agendador = agendador;
         this.clock = clock;
@@ -126,6 +129,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         enviarParaSessao(session, sincronizacao);
         imagens.forEach(imagem -> enviarParaSessao(session, imagem));
         desafioChat.sincronizar(mesa, sessaoSegura, acesso.userId());
+        salaChat.sincronizar(mesa, sessaoSegura, acesso);
 
         broadcast(mesa, presenca(mesa, tableId), sessaoSegura);
     }
@@ -202,6 +206,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
 
         gerenciadorMesas.buscar(evento.mesaId()).ifPresent(mesa -> {
             desafioChat.aoJogadorSair(mesa, evento.userId());
+            salaChat.aoJogadorSair(mesa, evento.userId());
             ChatMessage aviso = systemMessage(tableId, evento.removidoPeloMestre()
                     ? "O mestre removeu " + evento.displayName() + " da mesa."
                     : evento.displayName() + " deixou a mesa.");
@@ -275,9 +280,16 @@ public class MesaChatHandler extends TextWebSocketHandler {
         message.setPresentes(null);
         message.setDesafio(null);
         message.setDesafios(null);
+        message.setStatus(null);
+        message.setItens(null);
 
         if (message.getType() != null && DesafioChat.COMANDOS.contains(message.getType())) {
             executarComandoDeDesafio(session, acesso, mesa, message);
+            return;
+        }
+
+        if (message.getType() != null && SalaChat.COMANDOS.contains(message.getType())) {
+            executarComandoDaSala(session, acesso, mesa, message);
             return;
         }
 
@@ -354,6 +366,19 @@ public class MesaChatHandler extends TextWebSocketHandler {
             enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
         } catch (RuntimeException e) {
             enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação do desafio."));
+        }
+    }
+
+    private void executarComandoDaSala(WebSocketSession session, AcessoMesaDto acesso, MesaAtiva mesa,
+                                        ChatMessage message) {
+        String tableId = String.valueOf(acesso.mesaId());
+        try {
+            salaChat.executar(mesa, acesso, message);
+        } catch (IllegalArgumentException | IllegalStateException | AccessDeniedException
+                 | RegraDeNegocioException | RecursoNaoEncontradoException e) {
+            enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
+        } catch (RuntimeException e) {
+            enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação."));
         }
     }
 

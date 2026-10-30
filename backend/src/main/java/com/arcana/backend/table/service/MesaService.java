@@ -7,6 +7,7 @@ import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.AcessoMesaDto;
+import com.arcana.backend.table.AlvoDeStatus;
 import com.arcana.backend.table.FichaDeParticipante;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaResponseDto;
@@ -224,6 +225,24 @@ public class MesaService {
                         "Personagem não encontrado: " + participante.getCharacterId()));
 
         return FichaDeParticipante.from(jogadorId, participante.getDisplayName(), personagem);
+    }
+
+    @Transactional
+    public AlvoDeStatus buscarAlvoDeStatus(Long mesaId, Long personagemId) {
+        Mesa mesa = findOrThrow(mesaId);
+        Personagem personagem = personagemRepository.findById(personagemId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Personagem não encontrado: " + personagemId));
+
+        Long donoId = personagem.getOwner().getId();
+        boolean doMestre = donoId.equals(mesa.getMasterId());
+        boolean emUsoNaMesa = mesa.getParticipants().stream().anyMatch(p ->
+                "JOGADOR".equals(p.getRole())
+                        && donoId.equals(p.getUserId())
+                        && personagemId.equals(p.getCharacterId()));
+        if (!doMestre && !emUsoNaMesa) {
+            throw new RegraDeNegocioException("Esta ficha não está em uso nesta mesa.");
+        }
+        return new AlvoDeStatus(personagemId, personagem.getName(), doMestre, donoId);
     }
 
     @Transactional
