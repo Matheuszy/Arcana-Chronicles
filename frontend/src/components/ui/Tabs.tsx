@@ -12,6 +12,7 @@ interface TabsProps<T extends string> {
   active: T;
   onChange: (id: T) => void;
   label: string;
+  idPrefix?: string;
 }
 
 export function tabId(group: string, id: string): string {
@@ -22,8 +23,9 @@ export function panelId(group: string, id: string): string {
   return `${group}-panel-${id}`;
 }
 
-export default function Tabs<T extends string>({ tabs, active, onChange, label }: TabsProps<T>) {
-  const group = useId();
+export default function Tabs<T extends string>({ tabs, active, onChange, label, idPrefix }: TabsProps<T>) {
+  const generated = useId();
+  const group = idPrefix ?? generated;
   const refs = useRef(new Map<T, HTMLButtonElement>());
 
   const focusTab = (index: number) => {
@@ -70,7 +72,7 @@ export default function Tabs<T extends string>({ tabs, active, onChange, label }
           {tab.icon && <span className="ui-tab-icon" aria-hidden="true">{tab.icon}</span>}
           {tab.label}
           {tab.badge !== undefined && tab.badge > 0 && (
-            <span className="ui-badge ui-badge--gold" aria-label={`${tab.badge} não lidas`}>
+            <span className="ui-badge ui-badge--gold" aria-label={`${tab.badge} novos`}>
               {tab.badge}
             </span>
           )}

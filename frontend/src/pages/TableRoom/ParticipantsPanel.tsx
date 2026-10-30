@@ -65,11 +65,18 @@ export default function ParticipantsPanel({
       <ul className="participant-list">
         {participants.map((p) => (
           <li key={p.userId} className="participant-item">
-            <span>
-              <span className={`presence-dot ${isOnline(p) ? 'online' : ''}`} title={isOnline(p) ? 'Online' : 'Offline'} />
-              {p.displayName}
-              <span className={`participant-role ${p.role === 'MESTRE' ? 'master' : ''}`}>
-                {p.role === 'MESTRE' ? 'mestre' : 'jogador'}
+            <span className="medallion-row">
+              <span
+                className={`medallion ${p.role === 'MESTRE' ? 'medallion--master' : ''} ${isOnline(p) ? 'medallion--online' : ''}`}
+                aria-hidden="true"
+              >
+                {p.displayName.charAt(0).toUpperCase()}
+              </span>
+              <span className="medallion-text">
+                <span className="medallion-name">{p.displayName}</span>
+                <span className={`participant-role ${p.role === 'MESTRE' ? 'master' : ''}`}>
+                  {p.role === 'MESTRE' ? 'mestre' : 'jogador'} · {isOnline(p) ? 'online' : 'offline'}
+                </span>
               </span>
             </span>
             {isMaster && p.role === 'JOGADOR' && (

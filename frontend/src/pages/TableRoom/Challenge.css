@@ -232,7 +232,7 @@
   gap: 0.8rem;
   padding: 1.75rem 1.5rem;
   text-align: center;
-  background: linear-gradient(180deg, #2a2336, var(--ink-900));
+  background: linear-gradient(180deg, #34231a, var(--ink-900));
   border: 1px solid var(--arcane);
   border-radius: var(--radius-lg);
   box-shadow: 0 0 40px rgba(124, 104, 201, 0.35);
