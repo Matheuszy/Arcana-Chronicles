@@ -4,6 +4,9 @@ import com.arcana.backend.chat.desafio.DesafiosDaMesa;
 import com.arcana.backend.chat.model.Canal;
 import com.arcana.backend.chat.model.ChatMessage;
 import com.arcana.backend.chat.model.Presenca;
+import com.arcana.backend.chat.sala.ItensDaMesa;
+import com.arcana.backend.chat.sala.NotasDaMesa;
+import com.arcana.backend.chat.sala.StatusDaMesa;
 import com.arcana.backend.table.AcessoMesaDto;
 import com.arcana.backend.table.model.StatusMesa;
 import org.springframework.web.socket.WebSocketSession;
@@ -30,6 +33,9 @@ public class MesaAtiva {
     private final Map<String, Conexao> conexoes = new LinkedHashMap<>();
     private final Map<Canal, Deque<ChatMessage>> historicos = new EnumMap<>(Canal.class);
     private final DesafiosDaMesa desafios = new DesafiosDaMesa();
+    private final NotasDaMesa notas = new NotasDaMesa();
+    private final StatusDaMesa statusDeFichas = new StatusDaMesa();
+    private final ItensDaMesa itens = new ItensDaMesa();
     private ScheduledFuture<?> encerramentoAgendado;
     private StatusMesa status;
 
@@ -44,6 +50,18 @@ public class MesaAtiva {
 
     public DesafiosDaMesa desafios() {
         return desafios;
+    }
+
+    public NotasDaMesa notas() {
+        return notas;
+    }
+
+    public StatusDaMesa statusDeFichas() {
+        return statusDeFichas;
+    }
+
+    public ItensDaMesa itens() {
+        return itens;
     }
 
     public synchronized StatusMesa status() {
@@ -147,6 +165,10 @@ public class MesaAtiva {
                 .filter(conexao -> conexao.acesso().userId().equals(userId))
                 .map(Conexao::sessao)
                 .toList();
+    }
+
+    public synchronized List<Conexao> conexoes() {
+        return List.copyOf(conexoes.values());
     }
 
     public synchronized List<WebSocketSession> sessoes() {

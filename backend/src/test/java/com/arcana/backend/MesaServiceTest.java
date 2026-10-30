@@ -209,6 +209,45 @@ class MesaServiceTest {
         assertThrows(RegraDeNegocioException.class, () -> service.buscarFichaDoJogadorNaMesa(1L, 99L));
     }
 
+    @Test
+    void deveAceitarComoAlvoDeStatusAFichaEmUsoDeUmJogadorEAFichaDoMestre() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(personagemRepository.findById(100L)).thenReturn(Optional.of(personagemDoJogador(2L, TipoJogador.PLAYER)));
+        Personagem goblin = personagemDoJogador(1L, TipoJogador.MONSTER);
+        goblin.setId(200L);
+        goblin.setName("Goblin");
+        when(personagemRepository.findById(200L)).thenReturn(Optional.of(goblin));
+
+        var doJogador = service.buscarAlvoDeStatus(1L, 100L);
+        var doMestre = service.buscarAlvoDeStatus(1L, 200L);
+
+        assertEquals("Thorn", doJogador.nome());
+        assertFalse(doJogador.doMestre());
+        assertEquals(2L, doJogador.donoId());
+        assertEquals("Goblin", doMestre.nome());
+        assertTrue(doMestre.doMestre());
+    }
+
+    @Test
+    void deveRecusarComoAlvoDeStatusFichaDeOutraPessoaOuForaDeUso() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        Personagem reserva = personagemDoJogador(2L, TipoJogador.PLAYER);
+        reserva.setId(101L);
+        Personagem deOutro = personagemDoJogador(3L, TipoJogador.PLAYER);
+        deOutro.setId(102L);
+        when(personagemRepository.findById(101L)).thenReturn(Optional.of(reserva));
+        when(personagemRepository.findById(102L)).thenReturn(Optional.of(deOutro));
+        when(personagemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(RegraDeNegocioException.class, () -> service.buscarAlvoDeStatus(1L, 101L));
+        assertThrows(RegraDeNegocioException.class, () -> service.buscarAlvoDeStatus(1L, 102L));
+        assertThrows(RecursoNaoEncontradoException.class, () -> service.buscarAlvoDeStatus(1L, 999L));
+    }
+
     private Mesa mesaAbertaDoMestre(Long masterId) {
         Mesa mesa = new Mesa();
         mesa.setId(1L);

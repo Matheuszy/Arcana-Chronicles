@@ -5,6 +5,7 @@ import { tableService } from '../../services/tableService';
 import { characterService } from '../../services/characterService';
 import { chatService, ConnectionState, ConnectionStatus, MAX_RECONNECT_ATTEMPTS } from '../../services/chatService';
 import { diceService, isRollCommand } from '../../services/diceService';
+import { CharacterEditor } from '../CharacterForm/CharacterForm';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
@@ -16,11 +17,17 @@ import DiceRoller from './DiceRoller';
 import DiceRollMessage from './DiceRollMessage';
 import { useChallenges } from './useChallenges';
 import ImageComposer from './ImageComposer';
+import NotesPanel from './NotesPanel';
+import SharedItemsView from './SharedItemsView';
+import StatusControls from './StatusControls';
+import StatusView from './StatusView';
+import { useRoomResources } from './useRoomResources';
 import JoinRequestsPanel from './JoinRequestsPanel';
 import ParticipantsPanel from './ParticipantsPanel';
 import PrivateSheetsPanel from './PrivateSheetsPanel';
 import './TableRoom.css';
 import './Challenge.css';
+import './RoomResources.css';
 
 const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
   'forca',
@@ -32,6 +39,18 @@ const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
 ];
 
 const MASTER_STATUS_OPTIONS: TableStatus[] = ['ABERTA', 'EM_ANDAMENTO', 'PAUSADA'];
+
+type RoomTab = Channel | 'STATUS' | 'ITENS';
+
+const ROOM_TABS: RoomTab[] = [...CHANNELS, 'STATUS', 'ITENS'];
+
+const TAB_LABEL: Record<RoomTab, string> = {
+  ...CHANNEL_LABEL,
+  STATUS: 'Status',
+  ITENS: 'Itens',
+};
+
+const isChannel = (tab: RoomTab): tab is Channel => (CHANNELS as string[]).includes(tab);
 
 type MessagesByChannel = Record<Channel, ChatMessage[]>;
 type UnreadByChannel = Record<Channel, number>;
@@ -65,9 +84,9 @@ export default function TableRoom() {
   const [characterError, setCharacterError] = useState<string | null>(null);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessagesByChannel>(EMPTY_MESSAGES);
-  const [activeChannel, setActiveChannel] = useState<Channel>('CONVERSA');
+  const [activeChannel, setActiveChannel] = useState<RoomTab>('CONVERSA');
   const [unread, setUnread] = useState<UnreadByChannel>(NO_UNREAD);
-  const activeChannelRef = useRef<Channel>('CONVERSA');
+  const activeChannelRef = useRef<RoomTab>('CONVERSA');
   const historyIds = useRef(new Set<string>());
   const [onlineUsers, setOnlineUsers] = useState<Presence[]>([]);
   const [sessionEndedReason, setSessionEndedReason] = useState<string | null>(null);
@@ -77,6 +96,7 @@ export default function TableRoom() {
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [connection, setConnection] = useState<ConnectionStatus>({ state: 'CONECTANDO', attempt: 0 });
+  const [editingSheet, setEditingSheet] = useState<{ id?: string } | null>(null);
   const [draft, setDraft] = useState('');
   const [composerError, setComposerError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -98,6 +118,13 @@ export default function TableRoom() {
     dismissReveal,
     dismissMessage,
   } = useChallenges(isMaster);
+  const {
+    note,
+    status: roomStatus,
+    items: sharedItems,
+    handleMessage: handleRoomMessage,
+    reset: resetRoomResources,
+  } = useRoomResources();
   const rollBlockedByChallenge =
     !isMaster &&
     challenges.some((c) =>
@@ -142,7 +169,7 @@ export default function TableRoom() {
     setSessionEndedReason(null);
     chatService.connect(id, token);
     const offMessage = chatService.onMessage((msg) => {
-      if (handleChallengeMessage(msg)) return;
+      if (handleChallengeMessage(msg) || handleRoomMessage(msg)) return;
       if (msg.type === 'HISTORICO') {
         const restored: MessagesByChannel = {
           CONVERSA: msg.historico?.CONVERSA ?? [],
@@ -161,11 +188,13 @@ export default function TableRoom() {
         setSessionEndedReason(msg.content);
         setOnlineUsers([]);
         resetChallenges();
+        resetRoomResources();
         loadTable();
       } else if (msg.type === 'REMOVIDO_DA_MESA') {
         setRemovedReason(msg.content);
         setOnlineUsers([]);
         resetChallenges();
+        resetRoomResources();
         loadTable();
       } else if (msg.type === 'STATUS_MESA' || msg.type === 'PARTICIPANTES') {
         loadTable();
@@ -184,7 +213,18 @@ export default function TableRoom() {
       offStatus();
       chatService.disconnect();
     };
-  }, [id, isParticipant, token, isClosed, connectionAttempt, loadTable, handleChallengeMessage, resetChallenges]);
+  }, [
+    id,
+    isParticipant,
+    token,
+    isClosed,
+    connectionAttempt,
+    loadTable,
+    handleChallengeMessage,
+    handleRoomMessage,
+    resetChallenges,
+    resetRoomResources,
+  ]);
 
   const changeStatus = async (newStatus: TableStatus) => {
     if (!id) return;
@@ -240,10 +280,21 @@ export default function TableRoom() {
   const reconnecting = connection.state === 'RECONECTANDO' && !sessionEndedReason;
   const connectionLost = connection.state === 'DESCONECTADO' && !sessionEndedReason && !removedReason;
 
-  const selectChannel = (channel: Channel) => {
-    activeChannelRef.current = channel;
-    setActiveChannel(channel);
-    setUnread((prev) => ({ ...prev, [channel]: 0 }));
+  const selectChannel = (tab: RoomTab) => {
+    activeChannelRef.current = tab;
+    setActiveChannel(tab);
+    if (isChannel(tab)) {
+      setUnread((prev) => ({ ...prev, [tab]: 0 }));
+    }
+  };
+
+  const handleSheetSaved = (saved: Character) => {
+    setCharacters((prev) =>
+      prev.some((c) => String(c.id) === String(saved.id))
+        ? prev.map((c) => (String(c.id) === String(saved.id) ? saved : c))
+        : [...prev, saved],
+    );
+    setEditingSheet(null);
   };
 
   const sendRoll = (request: RollRequest) => {
@@ -428,7 +479,22 @@ export default function TableRoom() {
               ? 'Você ainda não criou personagens ou NPCs.'
               : 'Selecione seu personagem nesta mesa para consultar a ficha.'
           }
+          onEdit={(character) => setEditingSheet({ id: String(character.id) })}
+          onCreate={isMaster ? () => setEditingSheet({}) : undefined}
         />
+
+        {isMaster && (
+          <StatusControls
+            status={roomStatus}
+            participants={table.participants}
+            masterCharacters={characters}
+            canSend={connected}
+            onSet={chatService.setCharacterStatus.bind(chatService)}
+            onRemove={chatService.removeCharacterStatus.bind(chatService)}
+          />
+        )}
+
+        <NotesPanel savedNote={note} canSave={connected} onSave={chatService.saveNote.bind(chatService)} />
 
         <h3 className="section-title">Rolar dados</h3>
         <DiceRoller disabled={!canSend || rollBlockedByChallenge} onRoll={sendRoll} />
@@ -491,16 +557,16 @@ export default function TableRoom() {
           </div>
         )}
         <div className="channel-tabs" role="tablist">
-          {CHANNELS.map((channel) => (
+          {ROOM_TABS.map((tab) => (
             <button
-              key={channel}
+              key={tab}
               role="tab"
-              aria-selected={activeChannel === channel}
-              className={`channel-tab ${activeChannel === channel ? 'channel-tab--active' : ''}`}
-              onClick={() => selectChannel(channel)}
+              aria-selected={activeChannel === tab}
+              className={`channel-tab ${activeChannel === tab ? 'channel-tab--active' : ''}`}
+              onClick={() => selectChannel(tab)}
             >
-              {CHANNEL_LABEL[channel]}
-              {unread[channel] > 0 && <span className="badge">{unread[channel]}</span>}
+              {TAB_LABEL[tab]}
+              {isChannel(tab) && unread[tab] > 0 && <span className="badge">{unread[tab]}</span>}
             </button>
           ))}
         </div>
@@ -542,6 +608,19 @@ export default function TableRoom() {
               ))}
             </div>
           ))}
+          <div role="tabpanel" hidden={activeChannel !== 'STATUS'} className="channel-panel">
+            <StatusView status={roomStatus} />
+          </div>
+          <div role="tabpanel" hidden={activeChannel !== 'ITENS'} className="channel-panel">
+            <SharedItemsView
+              items={sharedItems}
+              viewerId={viewerId}
+              isMaster={isMaster}
+              canSend={canSend}
+              onCreate={chatService.createItem.bind(chatService)}
+              onRemove={chatService.removeItem.bind(chatService)}
+            />
+          </div>
         </div>
 
         {activeChannel === 'CONVERSA' && (
@@ -576,6 +655,19 @@ export default function TableRoom() {
           <ImageComposer disabled={!canSend} onSend={(dataUrl) => chatService.sendImage(dataUrl)} />
         )}
       </div>
+
+      {editingSheet && (
+        <div className="sheet-editor-overlay" role="dialog" aria-modal="true">
+          <div className="sheet-editor-dialog">
+            <CharacterEditor
+              id={editingSheet.id}
+              embedded
+              onSaved={handleSheetSaved}
+              onCancel={() => setEditingSheet(null)}
+            />
+          </div>
+        </div>
+      )}
 
       {reveal && <ChallengeRollOverlay key={reveal.key} reveal={reveal} viewerId={viewerId} onClose={dismissReveal} />}
 
