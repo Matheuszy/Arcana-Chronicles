@@ -4,6 +4,8 @@ import com.arcana.backend.config.exception.CredenciaisInvalidasException;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.config.security.TokenService;
+import com.arcana.backend.table.service.MesaService;
+import com.arcana.backend.user.dto.request.AtualizarUsuarioRequestDto;
 import com.arcana.backend.user.dto.request.LoginRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.dto.response.LoginResponseDto;
@@ -21,13 +23,16 @@ public class UsuarioService {
     private final UsuarioRepositorie usuarioRepositorie;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
+    private final MesaService mesaService;
 
     public UsuarioService(UsuarioRepositorie usuarioRepositorie,
                           PasswordEncoder passwordEncoder,
-                          TokenService tokenService) {
+                          TokenService tokenService,
+                          MesaService mesaService) {
         this.usuarioRepositorie = usuarioRepositorie;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
+        this.mesaService = mesaService;
     }
 
     /** Cadastra um novo usuário com senha criptografada em BCrypt */
@@ -35,6 +40,9 @@ public class UsuarioService {
     public UsuarioResponseDto criar(UsuarioRequestDto dto) {
         if (usuarioRepositorie.findByUsername(dto.username()).isPresent()) {
             throw new RegraDeNegocioException("Username já está em uso: " + dto.username());
+        }
+        if (usuarioRepositorie.findByEmail(dto.email()).isPresent()) {
+            throw new RegraDeNegocioException("Email já está em uso.");
         }
 
         String encodedPassword = passwordEncoder.encode(dto.password());
@@ -67,10 +75,21 @@ public class UsuarioService {
 
     /** Atualiza username, email e senha */
     @Transactional
-    public UsuarioResponseDto atualizar(Long id, UsuarioRequestDto dto, Long usuarioAutenticadoId) {
+    public LoginResponseDto atualizar(Long id, AtualizarUsuarioRequestDto dto, Long usuarioAutenticadoId) {
         validarDonoDoRecurso(id, usuarioAutenticadoId);
         Usuario usuario = usuarioRepositorie.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado: " + id));
+
+        usuarioRepositorie.findByUsername(dto.username())
+                .filter(outro -> !outro.getId().equals(id))
+                .ifPresent(outro -> {
+                    throw new RegraDeNegocioException("Username já está em uso: " + dto.username());
+                });
+        usuarioRepositorie.findByEmail(dto.email())
+                .filter(outro -> !outro.getId().equals(id))
+                .ifPresent(outro -> {
+                    throw new RegraDeNegocioException("Email já está em uso.");
+                });
 
         usuario.setUsername(dto.username());
         usuario.setEmail(dto.email());
@@ -78,7 +97,9 @@ public class UsuarioService {
             usuario.setPassword(passwordEncoder.encode(dto.password()));
         }
 
-        return UsuarioResponseDto.from(usuarioRepositorie.save(usuario));
+        Usuario salvo = usuarioRepositorie.save(usuario);
+        return new LoginResponseDto(salvo.getId(), salvo.getUsername(), salvo.getEmail(), salvo.getPapel(),
+                tokenService.gerarToken(salvo));
     }
 
     /** Remove o usuário e todos os seus personagens (cascade) */
@@ -88,6 +109,7 @@ public class UsuarioService {
         if (!usuarioRepositorie.existsById(id)) {
             throw new RecursoNaoEncontradoException("Usuário não encontrado: " + id);
         }
+        mesaService.removerVinculosDoUsuario(id);
         usuarioRepositorie.deleteById(id);
     }
 

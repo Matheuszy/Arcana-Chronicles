@@ -1,6 +1,9 @@
 package com.arcana.backend;
 
+import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.config.security.TokenService;
+import com.arcana.backend.table.service.MesaService;
+import com.arcana.backend.user.dto.request.AtualizarUsuarioRequestDto;
 import com.arcana.backend.user.dto.request.LoginRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.dto.response.LoginResponseDto;
@@ -34,6 +37,9 @@ class UsuarioServiceTest {
 
     @Mock
     private TokenService tokenService;
+
+    @Mock
+    private MesaService mesaService;
 
     @InjectMocks
     private UsuarioService service;
@@ -136,10 +142,89 @@ class UsuarioServiceTest {
 
     @Test
     void deveNegarAtualizarDadosDeOutroUsuario() {
-        UsuarioRequestDto dto = new UsuarioRequestDto("joao", "joao@gmail.com", "12334", PapelUsuario.JOGADOR);
+        AtualizarUsuarioRequestDto dto = new AtualizarUsuarioRequestDto("joao", "joao@gmail.com", "123456");
 
         assertThrows(AccessDeniedException.class, () -> service.atualizar(1L, dto, 2L));
         verify(repository, never()).findById(any());
+    }
+
+    private Usuario usuarioComId(Long id, String username, String email) {
+        Usuario usuario = new Usuario(username, email, "hash-antigo", PapelUsuario.JOGADOR);
+        usuario.setId(id);
+        return usuario;
+    }
+
+    @Test
+    void deveAtualizarNomeEEmailSemExigirNovaSenha() {
+        Usuario usuario = usuarioComId(1L, "joao", "joao@arcana.com");
+        when(repository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(repository.findByUsername("joao2")).thenReturn(Optional.empty());
+        when(repository.findByEmail("novo@arcana.com")).thenReturn(Optional.empty());
+        when(repository.save(usuario)).thenReturn(usuario);
+
+        when(tokenService.gerarToken(usuario)).thenReturn("token-novo");
+
+        LoginResponseDto resposta = service.atualizar(1L,
+                new AtualizarUsuarioRequestDto("joao2", "novo@arcana.com", null), 1L);
+
+        assertEquals("joao2", resposta.username());
+        assertEquals("novo@arcana.com", resposta.email());
+        assertEquals("token-novo", resposta.token());
+        assertEquals("hash-antigo", usuario.getPassword());
+        assertEquals(PapelUsuario.JOGADOR, usuario.getPapel());
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void deveTrocarASenhaQuandoUmaNovaForInformada() {
+        Usuario usuario = usuarioComId(1L, "joao", "joao@arcana.com");
+        when(repository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(repository.findByUsername("joao")).thenReturn(Optional.of(usuario));
+        when(repository.findByEmail("joao@arcana.com")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.encode("segredo1")).thenReturn("hash-novo");
+        when(repository.save(usuario)).thenReturn(usuario);
+
+        service.atualizar(1L, new AtualizarUsuarioRequestDto("joao", "joao@arcana.com", "segredo1"), 1L);
+
+        assertEquals("hash-novo", usuario.getPassword());
+    }
+
+    @Test
+    void deveRecusarAtualizacaoComUsernameOuEmailDeOutraConta() {
+        Usuario usuario = usuarioComId(1L, "joao", "joao@arcana.com");
+        Usuario outro = usuarioComId(2L, "maria", "maria@arcana.com");
+        when(repository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(repository.findByUsername("maria")).thenReturn(Optional.of(outro));
+        when(repository.findByUsername("joao")).thenReturn(Optional.of(usuario));
+        when(repository.findByEmail("maria@arcana.com")).thenReturn(Optional.of(outro));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.atualizar(1L,
+                new AtualizarUsuarioRequestDto("maria", "joao@arcana.com", null), 1L));
+        assertThrows(RegraDeNegocioException.class, () -> service.atualizar(1L,
+                new AtualizarUsuarioRequestDto("joao", "maria@arcana.com", null), 1L));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void deveRecusarCadastroComEmailJaUsado() {
+        when(repository.findByUsername("novo")).thenReturn(Optional.empty());
+        when(repository.findByEmail("joao@arcana.com"))
+                .thenReturn(Optional.of(usuarioComId(1L, "joao", "joao@arcana.com")));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.criar(
+                new UsuarioRequestDto("novo", "joao@arcana.com", "123456", PapelUsuario.JOGADOR)));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void deveLimparMesasEParticipacoesAntesDeExcluirAConta() {
+        when(repository.existsById(1L)).thenReturn(true);
+
+        service.deletar(1L, 1L);
+
+        var ordem = inOrder(mesaService, repository);
+        ordem.verify(mesaService).removerVinculosDoUsuario(1L);
+        ordem.verify(repository).deleteById(1L);
     }
 
     @Test

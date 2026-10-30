@@ -1,5 +1,6 @@
 package com.arcana.backend.user.controller;
 
+import com.arcana.backend.user.dto.request.AtualizarUsuarioRequestDto;
 import com.arcana.backend.user.dto.request.LoginRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.dto.response.LoginResponseDto;
@@ -50,9 +51,9 @@ public class UsuarioController {
 
     /** PUT /api/users/{id} — atualizar dados */
     @PutMapping("/{id}")
-    public ResponseEntity<UsuarioResponseDto> atualizar(
+    public ResponseEntity<LoginResponseDto> atualizar(
             @PathVariable Long id,
-            @RequestBody @Valid UsuarioRequestDto dto,
+            @RequestBody @Valid AtualizarUsuarioRequestDto dto,
             @AuthenticationPrincipal Usuario usuarioAutenticado) {
 
         return ResponseEntity.ok(usuarioService.atualizar(id, dto, usuarioAutenticado.getId()));

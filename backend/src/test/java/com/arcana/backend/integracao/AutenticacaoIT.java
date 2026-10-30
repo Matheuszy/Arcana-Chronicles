@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -99,5 +100,82 @@ class AutenticacaoIT extends IntegracaoTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.password").doesNotExist())
                 .andExpect(content().string(not(containsString("senha-secreta"))));
+    }
+
+    @Test
+    void deveEditarNomeEEmailSemSenhaEMantendoOLogin() throws Exception {
+        Conta conta = registrar("JOGADOR");
+        String novoNome = nomeUnico("renomeado");
+
+        putComo(conta.token(), "/api/users/" + conta.id(), Map.of(
+                "username", novoNome, "email", novoNome + "@arcana.test"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value(novoNome))
+                .andExpect(jsonPath("$.papel").value("JOGADOR"))
+                .andExpect(jsonPath("$.token").isNotEmpty());
+
+        postComo(null, "/api/users/login", Map.of("username", novoNome, "password", "senha-secreta"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void deveTrocarASenhaSemExigirASenhaAtual() throws Exception {
+        Conta conta = registrar("JOGADOR");
+
+        putComo(conta.token(), "/api/users/" + conta.id(), Map.of(
+                "username", conta.username(), "email", conta.username() + "@arcana.test", "password", "outra-senha"))
+                .andExpect(status().isOk());
+
+        postComo(null, "/api/users/login", Map.of("username", conta.username(), "password", "outra-senha"))
+                .andExpect(status().isOk());
+        postComo(null, "/api/users/login", Map.of("username", conta.username(), "password", "senha-secreta"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deveRecusarEdicaoComNomeOuEmailDeOutraContaEComSenhaCurta() throws Exception {
+        Conta aria = registrar("JOGADOR");
+        Conta brom = registrar("JOGADOR");
+
+        putComo(aria.token(), "/api/users/" + aria.id(), Map.of(
+                "username", brom.username(), "email", aria.username() + "@arcana.test"))
+                .andExpect(status().isConflict());
+        putComo(aria.token(), "/api/users/" + aria.id(), Map.of(
+                "username", aria.username(), "email", brom.username() + "@arcana.test"))
+                .andExpect(status().isConflict());
+        putComo(aria.token(), "/api/users/" + aria.id(), Map.of(
+                "username", aria.username(), "email", aria.username() + "@arcana.test", "password", "123"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details", hasItem("Senha deve ter ao menos 6 caracteres")));
+    }
+
+    @Test
+    void deveRecusarCadastroComEmailJaUsado() throws Exception {
+        Conta existente = registrar("JOGADOR");
+
+        postComo(null, "/api/users/register", Map.of(
+                "username", nomeUnico("outro"),
+                "email", existente.username() + "@arcana.test",
+                "password", "senha-secreta",
+                "papel", "JOGADOR"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void deveExcluirContaLimpandMesasEParticipacoes() throws Exception {
+        Conta mestre = registrar("MESTRE");
+        Long mesaId = criarMesa(mestre);
+        JogadorNaMesa jogador = jogadorAceitoNaMesa(mestre, mesaId);
+        Conta outroMestre = registrar("MESTRE");
+        Long mesaDeOutro = criarMesa(outroMestre);
+
+        deleteComo(jogador.conta().token(), "/api/users/" + jogador.conta().id()).andExpect(status().isNoContent());
+        assertFalse(corpo(getComo(mestre.token(), "/api/tables/" + mesaId)).get("participants").toString()
+                .contains(jogador.conta().username()));
+
+        deleteComo(mestre.token(), "/api/users/" + mestre.id()).andExpect(status().isNoContent());
+        getComo(outroMestre.token(), "/api/tables/" + mesaId).andExpect(status().isNotFound());
+        getComo(outroMestre.token(), "/api/tables/" + mesaDeOutro).andExpect(status().isOk());
+        getComo(mestre.token(), "/api/tables").andExpect(status().isUnauthorized());
     }
 }
