@@ -1,6 +1,16 @@
-import { Attributes, Character, attributeModifier } from '../../types/character';
+import {
+  ATTRIBUTE_KEYS,
+  Character,
+  KIND_LABEL,
+  SKILL_LABEL,
+  SkillKey,
+  attributeModifier,
+  attributeRollModifier,
+  formatModifier,
+  skillRollModifier,
+} from '../../types/character';
 
-const ATTRIBUTE_LABEL: Record<keyof Attributes, string> = {
+const ATTRIBUTE_SHORT_LABEL: Record<(typeof ATTRIBUTE_KEYS)[number], string> = {
   forca: 'FOR',
   destreza: 'DES',
   constituicao: 'CON',
@@ -9,17 +19,19 @@ const ATTRIBUTE_LABEL: Record<keyof Attributes, string> = {
   carisma: 'CAR',
 };
 
+const SKILL_KEYS = Object.keys(SKILL_LABEL) as SkillKey[];
+
 interface CharacterSheetProps {
   character: Character;
   onClose: () => void;
 }
 
-function formatModifier(score: number): string {
-  const mod = attributeModifier(score);
-  return mod >= 0 ? `+${mod}` : String(mod);
-}
-
 export default function CharacterSheet({ character, onClose }: CharacterSheetProps) {
+  const classLine = [character.classe, character.subclasse].filter(Boolean).join(' · ');
+  const savingThrows = character.savingThrows ?? {};
+  const skills = SKILL_KEYS.filter((skill) => character.skills?.[skill] !== undefined);
+  const items = character.items ?? [];
+
   return (
     <div className="sheet-view">
       <div className="sheet-view-head">
@@ -29,18 +41,39 @@ export default function CharacterSheet({ character, onClose }: CharacterSheetPro
         </button>
       </div>
       <p className="muted">
+        {KIND_LABEL[character.kind]}
+        {classLine && ` · ${classLine}`}
+      </p>
+      <p className="muted">
         Nível {character.level} · PV {character.hpCurrent}/{character.hpMax} · CA {character.armorClass}
       </p>
       <div className="sheet-attributes">
-        {(Object.keys(ATTRIBUTE_LABEL) as (keyof Attributes)[]).map((key) => (
-          <div key={key} className="sheet-attribute">
-            <span className="sheet-attribute-label">{ATTRIBUTE_LABEL[key]}</span>
-            <span className="sheet-attribute-score">{character.attributes[key]}</span>
-            <span className="sheet-attribute-mod">{formatModifier(character.attributes[key])}</span>
-          </div>
-        ))}
+        {ATTRIBUTE_KEYS.map((key) => {
+          const bonus = savingThrows[key];
+          return (
+            <div
+              key={key}
+              className={`sheet-attribute ${bonus !== undefined ? 'sheet-attribute--proficient' : ''}`}
+              title={bonus !== undefined ? `Proficiente (bônus ${formatModifier(bonus)})` : undefined}
+            >
+              <span className="sheet-attribute-label">{ATTRIBUTE_SHORT_LABEL[key]}</span>
+              <span className="sheet-attribute-score">{character.attributes[key]}</span>
+              <span className="sheet-attribute-mod">{formatModifier(attributeModifier(character.attributes[key]))}</span>
+              {bonus !== undefined && (
+                <span className="sheet-attribute-mod">teste {formatModifier(attributeRollModifier(character, key))}</span>
+              )}
+            </div>
+          );
+        })}
       </div>
-      {character.equipment && <p className="sheet-text"><strong>Equipamento:</strong> {character.equipment}</p>}
+      {skills.length > 0 && (
+        <p className="sheet-text">
+          <strong>Perícias:</strong>{' '}
+          {skills.map((skill) => `${SKILL_LABEL[skill]} ${formatModifier(skillRollModifier(character, skill))}`).join(', ')}
+        </p>
+      )}
+      {character.equipment && <p className="sheet-text"><strong>Armas e armaduras:</strong> {character.equipment}</p>}
+      {items.length > 0 && <p className="sheet-text"><strong>Itens:</strong> {items.join(', ')}</p>}
       {character.backstory && <p className="sheet-text"><strong>História:</strong> {character.backstory}</p>}
     </div>
   );

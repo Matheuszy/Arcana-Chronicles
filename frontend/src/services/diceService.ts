@@ -1,5 +1,5 @@
 import { DICE_SIDES, RollMode, RollRequest } from '../types/chat';
-import { attributeModifier, Attributes } from '../types/character';
+import { attributeRollModifier, Attributes, Character } from '../types/character';
 
 const ROLL_COMMAND_REGEX = /^\/r(?:olar)?\s+(\d*)d(\d+)\s*([+-]\s*\d+)?\s*(vantagem|desvantagem|adv|dis)?$/i;
 
@@ -50,11 +50,11 @@ export const diceService = {
     return request;
   },
 
-  attributeCheckRequest(attributes: Attributes, attributeKey: keyof Attributes): RollRequest {
+  attributeCheckRequest(character: Character, attributeKey: keyof Attributes): RollRequest {
     return {
       lados: 20,
       quantidade: 1,
-      modificador: attributeModifier(attributes[attributeKey]),
+      modificador: attributeRollModifier(character, attributeKey),
       modo: 'NORMAL',
     };
   },

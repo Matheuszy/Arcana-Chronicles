@@ -138,7 +138,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
                         boolean mestreSaiu = ehMestre(acesso) && !mesa.mestreConectado();
                         String texto = mestreSaiu
                                 ? "O mestre " + acesso.displayName() + " desconectou. A sessão será encerrada em "
-                                        + toleranciaMestre.toSeconds() + " segundos se ele não voltar."
+                                        + toleranciaMestre.toSeconds() + " segundos se o mestre não voltar."
                                 : acesso.displayName() + " saiu da mesa.";
                         ChatMessage aviso = systemMessage(tableId, texto);
                         mesa.registrar(aviso);
