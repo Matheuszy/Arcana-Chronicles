@@ -20,6 +20,21 @@ class TokenServiceTest {
     }
 
     @Test
+    void deveRecusarSegredoCurtoOuAusente() {
+        TokenService semSegredo = new TokenService();
+        ReflectionTestUtils.setField(semSegredo, "secret", "curto-demais");
+        TokenService nulo = new TokenService();
+
+        assertThrows(IllegalStateException.class, semSegredo::validarSegredo);
+        assertThrows(IllegalStateException.class, nulo::validarSegredo);
+    }
+
+    @Test
+    void deveAceitarSegredoComTamanhoSuficiente() {
+        assertDoesNotThrow(tokenService::validarSegredo);
+    }
+
+    @Test
     void deveGerarEValidarTokenComSucesso() {
         Usuario usuario = new Usuario("gandalf", "gandalf@arcana.com", "hash");
         usuario.setId(10L);

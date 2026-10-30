@@ -11,6 +11,7 @@ application-*.yml
 application-*.yaml
 !application.properties.example
 !application-*.yml.example
+!src/test/resources/application-test.yml
 .env
 .env.*
 !.env.example

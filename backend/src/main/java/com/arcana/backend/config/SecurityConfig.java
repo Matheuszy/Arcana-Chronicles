@@ -2,6 +2,7 @@ package com.arcana.backend.config;
 
 import com.arcana.backend.config.security.AutenticacaoEntryPoint;
 import com.arcana.backend.config.security.SecurityFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -27,10 +28,14 @@ public class SecurityConfig {
 
     private final SecurityFilter securityFilter;
     private final AutenticacaoEntryPoint autenticacaoEntryPoint;
+    private final List<String> origensPermitidas;
 
-    public SecurityConfig(SecurityFilter securityFilter, AutenticacaoEntryPoint autenticacaoEntryPoint) {
+    public SecurityConfig(SecurityFilter securityFilter,
+                          AutenticacaoEntryPoint autenticacaoEntryPoint,
+                          @Value("${arcana.cors.origens-permitidas}") List<String> origensPermitidas) {
         this.securityFilter = securityFilter;
         this.autenticacaoEntryPoint = autenticacaoEntryPoint;
+        this.origensPermitidas = origensPermitidas;
     }
 
     @Bean
@@ -67,7 +72,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:4200"));
+        configuration.setAllowedOrigins(origensPermitidas);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
@@ -78,4 +83,4 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-}
+}

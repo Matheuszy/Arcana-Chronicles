@@ -18,6 +18,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 public class UsuarioService {
 
@@ -26,6 +28,7 @@ public class UsuarioService {
     private final TokenService tokenService;
     private final MesaService mesaService;
     private final SessoesAtivasDeMesa sessoesAtivas;
+    private final String hashParaComparacaoFalsa;
 
     public UsuarioService(UsuarioRepositorie usuarioRepositorie,
                           PasswordEncoder passwordEncoder,
@@ -37,6 +40,7 @@ public class UsuarioService {
         this.tokenService = tokenService;
         this.mesaService = mesaService;
         this.sessoesAtivas = sessoesAtivas;
+        this.hashParaComparacaoFalsa = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
     /** Cadastra um novo usuário com senha criptografada em BCrypt */
@@ -58,8 +62,12 @@ public class UsuarioService {
      * Autentica usuário e retorna dados com Token JWT.
      */
     public LoginResponseDto login(LoginRequestDto dto) {
-        Usuario usuario = usuarioRepositorie.findByUsername(dto.username())
-                .orElseThrow(() -> new CredenciaisInvalidasException("Usuário ou senha inválidos."));
+        Usuario usuario = usuarioRepositorie.findByUsername(dto.username()).orElse(null);
+
+        if (usuario == null) {
+            passwordEncoder.matches(dto.password(), hashParaComparacaoFalsa);
+            throw new CredenciaisInvalidasException("Usuário ou senha inválidos.");
+        }
 
         if (!passwordEncoder.matches(dto.password(), usuario.getPassword())) {
             throw new CredenciaisInvalidasException("Usuário ou senha inválidos.");
