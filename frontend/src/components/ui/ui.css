@@ -28,14 +28,20 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  height: 100vh;
+  height: 100dvh;
   padding: 2rem 1rem;
-  overflow-y: auto;
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: rgba(10, 7, 4, 0.82);
   animation: ui-fade-in 0.15s ease-out;
 }
 
 .ui-modal {
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  max-height: 100%;
   background: var(--surface-raised);
   border: 1px solid var(--leather);
   border-radius: var(--radius-lg);
@@ -47,6 +53,7 @@
 .ui-modal--lg { max-width: 60rem; }
 
 .ui-modal-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -55,9 +62,19 @@
   border-bottom: 1px solid var(--ink-700);
 }
 .ui-modal-header h2 { margin: 0; font-size: 1.15rem; }
-.ui-modal-body { padding: 1.25rem; }
+.ui-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 1.25rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
 .ui-modal-footer {
+  flex-shrink: 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.6rem;
   padding: 1rem 1.25rem;
@@ -236,7 +253,11 @@
 
 @media (max-width: 640px) {
   .ui-modal-backdrop { padding: 0; align-items: stretch; }
-  .ui-modal { border-radius: 0; min-height: 100%; max-width: none; }
+  .ui-modal { border-radius: 0; height: 100%; max-width: none; }
+  .ui-modal-header { padding: 0.75rem 1rem; }
+  .ui-modal-body { padding: 1rem; }
+  .ui-modal-footer { padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); }
+  .ui-modal-footer .btn { flex: 1 1 8rem; }
   .ui-toast-region { right: 0.5rem; left: 0.5rem; width: auto; }
 }
 

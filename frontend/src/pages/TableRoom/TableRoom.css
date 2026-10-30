@@ -467,3 +467,15 @@
   border-top: 1px solid var(--ink-700);
 }
 .composer input { flex: 1; }
+
+@media (max-width: 640px) {
+  .messages { padding: 0.9rem; }
+  .msg { max-width: 94%; }
+  .dice-roll { min-width: 0; max-width: 100%; }
+  .composer { padding: 0.75rem; padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+  .session-ended,
+  .connection-banner { flex-wrap: wrap; padding: 0.6rem 1rem; }
+  .combat-tracker { max-height: 16rem; }
+  .combat-monster-pick { flex-wrap: wrap; }
+  .image-composer { flex-wrap: wrap; gap: 0.5rem; }
+}

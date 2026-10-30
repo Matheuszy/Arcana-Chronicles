@@ -35,8 +35,16 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   gap: 1.25rem;
+}
+
+.stats-row { flex-wrap: wrap; }
+.sheet-card-actions { flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .page { padding-top: 1.25rem; }
+  .page-head .btn { width: 100%; }
 }
 
 .sheet-card {

@@ -81,7 +81,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
   gap: 0.2rem 1.5rem;
 }
 .paper-skill {
@@ -114,3 +114,12 @@
 .paper-slot--empty { opacity: 0.55; text-decoration: line-through; }
 
 .paper-abilities { white-space: pre-wrap; overflow-wrap: anywhere; }
+.paper-sheet { overflow-wrap: anywhere; }
+.paper-skill-name { min-width: 0; }
+
+@media (max-width: 640px) {
+  .paper-sheet { padding: 1rem 0.85rem; }
+  .paper-vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .paper-attributes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .paper-items { columns: 1; }
+}

@@ -281,6 +281,21 @@
 }
 
 .save-error { margin-top: 1rem; }
+
+@media (max-width: 640px) {
+  .page { padding-top: 1.25rem; }
+  .form.card { padding: 1.25rem 1rem; }
+  .row .field { min-width: min(110px, 100%); }
+  .row .grow { min-width: min(220px, 100%); }
+  .attrs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .skills-grid { grid-template-columns: minmax(0, 1fr); }
+  .spell-slots-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .actions { flex-wrap: wrap; }
+  .actions .btn { flex: 1 1 8rem; }
+  .spell-card-header { flex-wrap: wrap; }
+  .slot-total { margin-left: 0; }
+  .item-row { flex-wrap: wrap; }
+}
 .back-to-list { margin-top: 1rem; }
 
 .slot-tracker { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
