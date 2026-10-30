@@ -1,5 +1,7 @@
 package com.arcana.backend.chat.desafio;
 
+import com.arcana.backend.chat.combate.Combate;
+import com.arcana.backend.chat.combate.CombateDto;
 import com.arcana.backend.chat.dice.ModoRolagem;
 import com.arcana.backend.chat.dice.PedidoRolagem;
 import com.arcana.backend.chat.dice.RolagemDadosService;
@@ -40,8 +42,15 @@ public class DesafioService {
         this.clock = clock;
     }
 
-    public DesafioDto criar(MesaAtiva mesa, AcessoMesaDto mestre, NovoDesafio pedido) {
-        exigirMestre(mestre);
+    public DesafioDto criar(MesaAtiva mesa, AcessoMesaDto criador, NovoDesafio pedido) {
+        if (criador == null) {
+            throw new AccessDeniedException("Apenas o mestre pode administrar desafios.");
+        }
+        boolean ehMestre = "MESTRE".equals(criador.role());
+        CombateDto combate = mesa.combate().estado().orElse(null);
+        if (!ehMestre) {
+            exigirJogadorNoTurnoDoCombate(combate, criador);
+        }
         exigirMesaEmAndamento(mesa);
         if (pedido == null) {
             throw new IllegalArgumentException("Pedido de desafio ausente.");
@@ -50,11 +59,12 @@ public class DesafioService {
         String descricao = validarDescricao(pedido.descricao());
         List<NovoDesafio.Convocacao> convocacoes = validarConvocacoes(pedido.jogadores());
 
-        Desafio desafio = new Desafio(UUID.randomUUID().toString(), mestre.userId(), cd, descricao, clock.instant());
-        for (NovoDesafio.Convocacao convocacao : convocacoes) {
-            FichaDeParticipante ficha = mesaService.buscarFichaDoJogadorNaMesa(mesa.getMesaId(), convocacao.jogadorId());
-            ModoRolagem modo = convocacao.modo() != null ? convocacao.modo() : ModoRolagem.NORMAL;
-            desafio.convocar(ficha.jogadorId(), ficha.nomeJogador(), ficha.nomePersonagem(), modo);
+        Desafio desafio = new Desafio(UUID.randomUUID().toString(), criador.userId(), criador.displayName(),
+                !ehMestre, cd, descricao, clock.instant());
+        if (ehMestre) {
+            convocarJogadoresDaMesa(desafio, mesa, convocacoes);
+        } else {
+            convocarParticipantesDoCombate(desafio, combate, criador, convocacoes);
         }
         return mesa.desafios().adicionar(desafio);
     }
@@ -65,6 +75,7 @@ public class DesafioService {
             throw new IllegalArgumentException("Escolha um atributo ou uma perícia para o teste.");
         }
         Long jogadorId = jogador.userId();
+        String alvoId = Desafio.idDoJogador(jogadorId);
         DesafioDto ativo = mesa.desafios().ativoDoJogador(jogadorId)
                 .orElseThrow(() -> new IllegalStateException("Você não tem um desafio em andamento."));
 
@@ -73,55 +84,70 @@ public class DesafioService {
 
         RolagemDeDesafio[] feita = new RolagemDeDesafio[1];
         DesafioDto atualizado = mesa.desafios().alterar(ativo.id(), jogadorId, desafio -> {
-            desafio.validarRolagem(jogadorId);
-            Desafio.Participacao participacao = desafio.participacao(jogadorId);
-            DiceRollResult dados = rolarD20(participacao.getModo(), modificador, escolha);
-            int total = dados.getTotal();
-            feita[0] = new RolagemDeDesafio(participacao.proximaTentativa(), escolha, escolha.descricao(),
-                    dados, total, total >= desafio.getCd());
-            desafio.registrarRolagem(jogadorId, feita[0]);
+            desafio.validarRolagem(alvoId);
+            Desafio.Participacao participacao = desafio.participacao(alvoId);
+            feita[0] = rolarParticipacao(desafio, participacao, participacao.getModo(), modificador, escolha);
         });
         return new ResultadoRolagem(atualizado, feita[0]);
     }
 
-    public DesafioDto liberarTentativaExtra(MesaAtiva mesa, AcessoMesaDto mestre, String desafioId,
-                                            Long jogadorId, ModoRolagem modo) {
+    public DesafioDto rolarMonstros(MesaAtiva mesa, AcessoMesaDto mestre, String desafioId, List<String> alvoIds,
+                                    EscolhaTeste escolha, ModoRolagem modo) {
         exigirMestre(mestre);
+        exigirMesaEmAndamento(mesa);
+        if (escolha == null) {
+            throw new IllegalArgumentException("Escolha um atributo ou uma perícia para o teste.");
+        }
+        ModoRolagem modoEscolhido = modo != null ? modo : ModoRolagem.NORMAL;
+
+        return mesa.desafios().alterar(desafioId, mestre.userId(), desafio -> {
+            if (!desafio.envolve(mestre.userId())) {
+                throw new IllegalArgumentException("Desafio não encontrado.");
+            }
+            List<Desafio.Participacao> monstros = monstrosParaRolar(desafio, mestre, alvoIds);
+            for (Desafio.Participacao monstro : monstros) {
+                FichaDeParticipante ficha = mesaService.buscarFichaDeNpcDaMesa(mesa.getMesaId(),
+                        monstro.getPersonagemId(), mestre.userId());
+                monstro.definirModo(modoEscolhido);
+                rolarParticipacao(desafio, monstro, modoEscolhido, escolha.modificadorEm(ficha), escolha);
+            }
+        });
+    }
+
+    public DesafioDto liberarTentativaExtra(MesaAtiva mesa, AcessoMesaDto criador, String desafioId,
+                                            String alvoId, ModoRolagem modo) {
         exigirMesaEmAndamento(mesa);
         if (modo == null) {
             throw new IllegalArgumentException("Defina se a nova tentativa será normal, com vantagem ou com desvantagem.");
         }
-        return mesa.desafios().alterar(desafioId, mestre.userId(), desafio -> {
-            exigirDonoDoDesafio(desafio, mestre);
-            desafio.liberarTentativaExtra(jogadorId, modo);
+        return mesa.desafios().alterar(desafioId, criador.userId(), desafio -> {
+            exigirCriadorDoDesafio(desafio, criador);
+            desafio.liberarTentativaExtra(alvoId, modo);
         });
     }
 
-    public DesafioDto encerrarComFalha(MesaAtiva mesa, AcessoMesaDto mestre, String desafioId, Long jogadorId) {
-        exigirMestre(mestre);
+    public DesafioDto encerrarComFalha(MesaAtiva mesa, AcessoMesaDto criador, String desafioId, String alvoId) {
         exigirMesaEmAndamento(mesa);
-        return mesa.desafios().alterar(desafioId, mestre.userId(), desafio -> {
-            exigirDonoDoDesafio(desafio, mestre);
-            desafio.encerrarComFalha(jogadorId);
+        return mesa.desafios().alterar(desafioId, criador.userId(), desafio -> {
+            exigirCriadorDoDesafio(desafio, criador);
+            desafio.encerrarComFalha(alvoId);
         });
     }
 
-    public DesafioDto cancelar(MesaAtiva mesa, AcessoMesaDto mestre, String desafioId, Long jogadorIdOuTodos) {
-        exigirMestre(mestre);
-        return mesa.desafios().alterar(desafioId, mestre.userId(), desafio -> {
-            exigirDonoDoDesafio(desafio, mestre);
-            boolean cancelou = jogadorIdOuTodos == null
+    public DesafioDto cancelar(MesaAtiva mesa, AcessoMesaDto criador, String desafioId, String alvoIdOuTodos) {
+        return mesa.desafios().alterar(desafioId, criador.userId(), desafio -> {
+            exigirCriadorDoDesafio(desafio, criador);
+            boolean cancelou = alvoIdOuTodos == null
                     ? desafio.cancelarTodos()
-                    : desafio.cancelar(jogadorIdOuTodos);
+                    : desafio.cancelar(alvoIdOuTodos);
             if (!cancelou) {
                 throw new IllegalStateException("Não há desafio em andamento para cancelar.");
             }
         });
     }
 
-    public MensagemEnviada enviarMensagem(MesaAtiva mesa, AcessoMesaDto mestre, String desafioId,
-                                          MensagemDeResultado.Destino destino, Long jogadorId, String texto) {
-        exigirMestre(mestre);
+    public MensagemEnviada enviarMensagem(MesaAtiva mesa, AcessoMesaDto criador, String desafioId,
+                                          MensagemDeResultado.Destino destino, String alvoId, String texto) {
         exigirMesaEmAndamento(mesa);
         if (destino == null) {
             throw new IllegalArgumentException("Escolha para quem a mensagem será enviada.");
@@ -129,10 +155,10 @@ public class DesafioService {
         String limpo = validarTextoDaMensagem(texto);
 
         MensagemDeResultado[] enviada = new MensagemDeResultado[1];
-        DesafioDto atualizado = mesa.desafios().alterar(desafioId, mestre.userId(), desafio -> {
-            exigirDonoDoDesafio(desafio, mestre);
+        DesafioDto atualizado = mesa.desafios().alterar(desafioId, criador.userId(), desafio -> {
+            exigirCriadorDoDesafio(desafio, criador);
             enviada[0] = new MensagemDeResultado(UUID.randomUUID().toString(), limpo, destino,
-                    desafio.destinatariosDaMensagem(destino, jogadorId), clock.instant());
+                    desafio.destinatariosDaMensagem(destino, alvoId), clock.instant());
             desafio.registrarMensagem(enviada[0]);
         });
         return new MensagemEnviada(atualizado, enviada[0]);
@@ -150,6 +176,10 @@ public class DesafioService {
         return mesa.desafios().cancelarDoJogador(jogadorId);
     }
 
+    public List<DesafioDto> cancelarDoCombate(MesaAtiva mesa) {
+        return mesa.desafios().cancelarDoCombate();
+    }
+
     public List<DesafioDto> cancelarPorAusenciaDoMestre(MesaAtiva mesa) {
         return mesa.desafios().cancelarTodos();
     }
@@ -162,6 +192,80 @@ public class DesafioService {
         return mesa.desafios().visiveisPara(userId);
     }
 
+    private void convocarJogadoresDaMesa(Desafio desafio, MesaAtiva mesa, List<NovoDesafio.Convocacao> convocacoes) {
+        for (NovoDesafio.Convocacao convocacao : convocacoes) {
+            FichaDeParticipante ficha = mesaService.buscarFichaDoJogadorNaMesa(mesa.getMesaId(),
+                    jogadorDoAlvo(convocacao.alvo()));
+            ModoRolagem modo = convocacao.modo() != null ? convocacao.modo() : ModoRolagem.NORMAL;
+            desafio.convocarJogador(ficha.jogadorId(), ficha.nomeJogador(), ficha.nomePersonagem(), modo);
+        }
+    }
+
+    private void convocarParticipantesDoCombate(Desafio desafio, CombateDto combate, AcessoMesaDto criador,
+                                                List<NovoDesafio.Convocacao> convocacoes) {
+        String proprioId = Desafio.idDoJogador(criador.userId());
+        for (NovoDesafio.Convocacao convocacao : convocacoes) {
+            String alvoId = convocacao.alvo();
+            if (proprioId.equals(alvoId)) {
+                throw new IllegalArgumentException("Você não pode desafiar a si mesmo.");
+            }
+            CombateDto.EntradaDto alvo = combate.participantes().stream()
+                    .filter(entrada -> entrada.id().equals(alvoId))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Este alvo não participa do combate."));
+            if (alvo.tipo() == Combate.TipoEntrada.JOGADOR) {
+                ModoRolagem modo = convocacao.modo() != null ? convocacao.modo() : ModoRolagem.NORMAL;
+                desafio.convocarJogador(alvo.controladorId(), alvo.nomeJogador(), alvo.nomePersonagem(), modo);
+            } else {
+                desafio.convocarMonstro(alvo.id(), alvo.controladorId(), alvo.personagemId(), alvo.nomeJogador(),
+                        alvo.nomePersonagem());
+            }
+        }
+    }
+
+    private void exigirJogadorNoTurnoDoCombate(CombateDto combate, AcessoMesaDto jogador) {
+        if (combate == null) {
+            throw new AccessDeniedException("Jogadores só podem desafiar durante o combate.");
+        }
+        if (combate.fase() != Combate.Fase.EM_ANDAMENTO) {
+            throw new IllegalStateException("O combate só começa depois que todos rolarem a iniciativa.");
+        }
+        if (!jogador.userId().equals(combate.controladorDoTurno())) {
+            throw new AccessDeniedException("Só é possível desafiar no seu turno.");
+        }
+    }
+
+    private List<Desafio.Participacao> monstrosParaRolar(Desafio desafio, AcessoMesaDto mestre, List<String> alvoIds) {
+        List<Desafio.Participacao> escolhidos = alvoIds == null || alvoIds.isEmpty()
+                ? desafio.participacoes().stream()
+                .filter(p -> p.getTipo() == Desafio.TipoAlvo.MONSTRO)
+                .filter(p -> p.getEstado().aguardandoRolagem())
+                .toList()
+                : alvoIds.stream().map(desafio::participacao).toList();
+
+        if (escolhidos.isEmpty()) {
+            throw new IllegalStateException("Nenhum monstro aguarda rolagem neste desafio.");
+        }
+        for (Desafio.Participacao participacao : escolhidos) {
+            if (participacao.getTipo() != Desafio.TipoAlvo.MONSTRO
+                    || !participacao.getControladorId().equals(mestre.userId())) {
+                throw new AccessDeniedException("O mestre só rola por monstros, NPCs e chefes.");
+            }
+            desafio.validarRolagem(participacao.getId());
+        }
+        return escolhidos;
+    }
+
+    private RolagemDeDesafio rolarParticipacao(Desafio desafio, Desafio.Participacao participacao, ModoRolagem modo,
+                                               int modificador, EscolhaTeste escolha) {
+        DiceRollResult dados = rolarD20(modo, modificador, escolha);
+        int total = dados.getTotal();
+        RolagemDeDesafio rolagem = new RolagemDeDesafio(participacao.proximaTentativa(), escolha,
+                escolha.descricao(), dados, total, total >= desafio.getCd());
+        desafio.registrarRolagem(participacao.getId(), rolagem);
+        return rolagem;
+    }
+
     private DiceRollResult rolarD20(ModoRolagem modo, int modificador, EscolhaTeste escolha) {
         DiceRollResult dados = rolagemDados.rolar(new PedidoRolagem(20, 1, 0, modo));
         dados.setModifier(modificador);
@@ -171,15 +275,28 @@ public class DesafioService {
         return dados;
     }
 
+    private Long jogadorDoAlvo(String alvoId) {
+        try {
+            return Long.valueOf(alvoId);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Jogador do desafio inválido.");
+        }
+    }
+
     private void exigirMestre(AcessoMesaDto acesso) {
         if (acesso == null || !"MESTRE".equals(acesso.role())) {
             throw new AccessDeniedException("Apenas o mestre pode administrar desafios.");
         }
     }
 
-    private void exigirDonoDoDesafio(Desafio desafio, AcessoMesaDto mestre) {
-        if (!desafio.getMestreId().equals(mestre.userId())) {
-            throw new AccessDeniedException("Apenas o mestre que criou o desafio pode alterá-lo.");
+    private void exigirCriadorDoDesafio(Desafio desafio, AcessoMesaDto acesso) {
+        if (acesso == null) {
+            throw new AccessDeniedException("Apenas quem criou o desafio pode alterá-lo.");
+        }
+        if (!desafio.getCriadorId().equals(acesso.userId())) {
+            throw new AccessDeniedException(desafio.isDoCombate()
+                    ? "Apenas quem criou o desafio pode alterá-lo."
+                    : "Apenas o mestre pode administrar desafios.");
         }
     }
 
@@ -222,12 +339,12 @@ public class DesafioService {
         if (convocacoes == null || convocacoes.isEmpty()) {
             throw new IllegalArgumentException("Selecione ao menos um jogador para o desafio.");
         }
-        Set<Long> vistos = new HashSet<>();
+        Set<String> vistos = new HashSet<>();
         for (NovoDesafio.Convocacao convocacao : convocacoes) {
-            if (convocacao == null || convocacao.jogadorId() == null) {
+            if (convocacao == null || convocacao.alvo() == null) {
                 throw new IllegalArgumentException("Jogador do desafio não informado.");
             }
-            if (!vistos.add(convocacao.jogadorId())) {
+            if (!vistos.add(convocacao.alvo())) {
                 throw new IllegalArgumentException("Cada jogador só pode aparecer uma vez no desafio.");
             }
         }

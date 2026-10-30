@@ -43,7 +43,20 @@ export interface ChallengeRoll {
   sucesso: boolean;
 }
 
+export type ChallengeTargetKind = 'JOGADOR' | 'MONSTRO';
+
+export interface ChallengeTarget {
+  id: string;
+  kind: ChallengeTargetKind;
+  label: string;
+  detail?: string;
+  online?: boolean;
+  disabledReason?: string;
+}
+
 export interface ChallengePlayer {
+  id: string;
+  tipo: ChallengeTargetKind;
   jogadorId: number;
   nomeJogador: string;
   nomePersonagem: string;
@@ -64,6 +77,9 @@ export interface ChallengeMessage {
 
 export interface Challenge {
   id: string;
+  criadorId: number;
+  criadorNome: string;
+  doCombate: boolean;
   cd: number;
   descricao: string | null;
   criadoEm: string;
@@ -75,9 +91,10 @@ export interface Challenge {
 export interface ChallengeCommand {
   cd?: number;
   descricao?: string;
-  jogadores?: { jogadorId: number; modo: RollMode }[];
+  jogadores?: { alvoId: string; modo: RollMode }[];
   desafioId?: string;
-  jogadorId?: number;
+  alvoId?: string;
+  alvos?: string[];
   modo?: RollMode;
   atributo?: keyof Attributes;
   pericia?: SkillKey;

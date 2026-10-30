@@ -230,6 +230,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
             desafioChat.aoJogadorSair(mesa, evento.userId());
             salaChat.aoJogadorSair(mesa, evento.userId());
             combateChat.aoJogadorSair(mesa, evento.userId());
+            cancelarDesafiosSeCombateAcabou(mesa);
             ChatMessage aviso = systemMessage(tableId, evento.removidoPeloMestre()
                     ? "O mestre removeu " + evento.displayName() + " da mesa."
                     : evento.displayName() + " deixou a mesa.");
@@ -434,12 +435,19 @@ public class MesaChatHandler extends TextWebSocketHandler {
         String tableId = String.valueOf(acesso.mesaId());
         try {
             combateChat.executar(mesa, acesso, message);
+            cancelarDesafiosSeCombateAcabou(mesa);
         } catch (IllegalArgumentException | IllegalStateException | AccessDeniedException
                  | RegraDeNegocioException | RecursoNaoEncontradoException e) {
             enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
         } catch (RuntimeException e) {
             log.error("Falha inesperada no combate da mesa {}", acesso.mesaId(), e);
             enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação do combate. Tente novamente."));
+        }
+    }
+
+    private void cancelarDesafiosSeCombateAcabou(MesaAtiva mesa) {
+        if (!combateChat.ativo(mesa)) {
+            desafioChat.aoCombateEncerrado(mesa);
         }
     }
 

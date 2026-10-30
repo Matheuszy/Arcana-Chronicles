@@ -47,15 +47,18 @@ public class DesafioChat {
         String desafioId = switch (mensagem.getType()) {
             case DESAFIO_CRIAR -> desafioService.criar(mesa, acesso,
                     new NovoDesafio(comando.cd(), comando.descricao(), comando.jogadores())).id();
-            case DESAFIO_ROLAR -> desafioService.rolar(mesa, acesso, comando.escolha()).desafio().id();
+            case DESAFIO_ROLAR -> "MESTRE".equals(acesso.role())
+                    ? desafioService.rolarMonstros(mesa, acesso, comando.desafioId(), comando.alvos(),
+                    comando.escolha(), comando.modo()).id()
+                    : desafioService.rolar(mesa, acesso, comando.escolha()).desafio().id();
             case DESAFIO_TENTATIVA_EXTRA -> desafioService.liberarTentativaExtra(
-                    mesa, acesso, comando.desafioId(), comando.jogadorId(), comando.modo()).id();
+                    mesa, acesso, comando.desafioId(), comando.alvo(), comando.modo()).id();
             case DESAFIO_ENCERRAR_FALHA -> desafioService.encerrarComFalha(
-                    mesa, acesso, comando.desafioId(), comando.jogadorId()).id();
+                    mesa, acesso, comando.desafioId(), comando.alvo()).id();
             case DESAFIO_CANCELAR -> desafioService.cancelar(
-                    mesa, acesso, comando.desafioId(), comando.jogadorId()).id();
+                    mesa, acesso, comando.desafioId(), comando.alvo()).id();
             case DESAFIO_MENSAGEM -> desafioService.enviarMensagem(
-                    mesa, acesso, comando.desafioId(), comando.destino(), comando.jogadorId(), comando.texto())
+                    mesa, acesso, comando.desafioId(), comando.destino(), comando.alvo(), comando.texto())
                     .desafio().id();
             default -> throw new IllegalArgumentException("Comando de desafio desconhecido.");
         };
@@ -71,6 +74,10 @@ public class DesafioChat {
 
     public void aoJogadorSair(MesaAtiva mesa, Long jogadorId) {
         desafioService.cancelarDoJogador(mesa, jogadorId).forEach(desafio -> notificar(mesa, desafio.id()));
+    }
+
+    public void aoCombateEncerrado(MesaAtiva mesa) {
+        desafioService.cancelarDoCombate(mesa).forEach(desafio -> notificar(mesa, desafio.id()));
     }
 
     public boolean jogadorBloqueado(MesaAtiva mesa, Long userId) {

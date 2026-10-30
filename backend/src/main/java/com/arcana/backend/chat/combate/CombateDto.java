@@ -6,12 +6,17 @@ public record CombateDto(
         String id,
         Combate.Fase fase,
         int rodada,
-        Long turnoDe,
+        String turnoDe,
+        Long controladorDoTurno,
         List<EntradaDto> participantes
 ) {
 
     public record EntradaDto(
-            Long jogadorId,
+            String id,
+            Combate.TipoEntrada tipo,
+            Long controladorId,
+            Long personagemId,
+            String grupo,
             String nomeJogador,
             String nomePersonagem,
             boolean aguardandoRolagem,
@@ -24,10 +29,12 @@ public record CombateDto(
                 combate.getId(),
                 combate.getFase(),
                 combate.getRodada(),
-                combate.jogadorDoTurno(),
+                combate.idDoTurno(),
+                combate.controladorDoTurno(),
                 combate.entradasEmOrdem().stream()
-                        .map(entrada -> new EntradaDto(entrada.getJogadorId(), entrada.getNomeJogador(),
-                                entrada.getNomePersonagem(), entrada.aguardandoRolagem(),
+                        .map(entrada -> new EntradaDto(entrada.getId(), entrada.getTipo(),
+                                entrada.getControladorId(), entrada.getPersonagemId(), entrada.getGrupo(),
+                                entrada.getNomeJogador(), entrada.getNomePersonagem(), entrada.aguardandoRolagem(),
                                 entrada.isRerolagemLiberada(), entrada.getIniciativa()))
                         .toList());
     }

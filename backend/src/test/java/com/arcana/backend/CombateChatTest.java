@@ -87,6 +87,8 @@ class CombateChatTest {
         when(mesaService.buscarFichaDoJogadorNaMesa(1L, ARIA.userId())).thenReturn(ficha(ARIA, "Lyra", 14, 3));
         when(mesaService.buscarFichaDoJogadorNaMesa(1L, BROM.userId())).thenReturn(ficha(BROM, "Thorn", 16, 2));
 
+        when(mesaService.buscarFichaDeNpcDaMesa(1L, 500L, MESTRE.userId())).thenReturn(fichaDeMonstro());
+
         sessaoMestre = sessao("m", MESTRE);
         sessaoAria = sessao("a", ARIA);
         sessaoBrom = sessao("b", BROM);
@@ -110,6 +112,16 @@ class CombateChatTest {
         valores.put(Atributo.DESTREZA, destreza);
         return new FichaDeParticipante(jogador.userId(), jogador.displayName(), 100L + jogador.userId(), personagem,
                 valores, Map.of(), Map.of(), bonusProficiencia);
+    }
+
+    private static FichaDeParticipante fichaDeMonstro() {
+        Map<Atributo, Integer> valores = new EnumMap<>(Atributo.class);
+        for (Atributo atributo : Atributo.values()) {
+            valores.put(atributo, 10);
+        }
+        valores.put(Atributo.DESTREZA, 14);
+        return new FichaDeParticipante(MESTRE.userId(), MESTRE.displayName(), 500L, "Goblin", valores, Map.of(),
+                Map.of(), 2);
     }
 
     private WebSocketSession sessao(String id, AcessoMesaDto acesso) {
@@ -274,7 +286,7 @@ class CombateChatTest {
         iniciarComBromNoPrimeiroTurno();
 
         enviar(sessaoMestre, """
-                {"type":"COMBATE_LIBERAR_REROLL","comandoCombate":{"jogadores":[20]}}
+                {"type":"COMBATE_LIBERAR_REROLL","comandoCombate":{"entradas":["20"]}}
                 """);
 
         assertTrue(ultimoCombate(sessaoAria).get("participantes").get(1).get("rerolagemLiberada").asBoolean());
@@ -295,12 +307,12 @@ class CombateChatTest {
         iniciarCombateComAriaEBrom();
 
         enviar(sessaoAria, """
-                {"type":"COMBATE_LIBERAR_REROLL","comandoCombate":{"jogadores":[20]}}
+                {"type":"COMBATE_LIBERAR_REROLL","comandoCombate":{"entradas":["20"]}}
                 """);
         assertEquals("Apenas o mestre pode administrar o combate.", ultimoAviso(sessaoAria));
 
         enviar(sessaoMestre, """
-                {"type":"COMBATE_LIBERAR_REROLL","comandoCombate":{"jogadores":[20]}}
+                {"type":"COMBATE_LIBERAR_REROLL","comandoCombate":{"entradas":["20"]}}
                 """);
         assertEquals("A rolagem só pode ser liberada depois que todos rolarem a iniciativa.",
                 ultimoAviso(sessaoMestre));
@@ -410,5 +422,233 @@ class CombateChatTest {
         JsonNode combate = ultimoCombate(retornada);
         assertEquals("EM_ANDAMENTO", combate.get("fase").asText());
         assertEquals(30L, combate.get("turnoDe").asLong());
+    }
+
+    private void iniciarComAriaETresGoblins() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":3}]}}
+                """);
+    }
+
+    private void rolarMonstros(String comando) throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_ROLAR_MONSTROS","comandoCombate":%s}
+                """.formatted(comando));
+    }
+
+    private JsonNode participante(JsonNode combate, String id) {
+        for (JsonNode participante : combate.get("participantes")) {
+            if (id.equals(participante.get("id").asText())) {
+                return participante;
+            }
+        }
+        throw new AssertionError("Participante ausente: " + id);
+    }
+
+    @Test
+    void deveCriarUmaEntradaPorMonstroDoGrupoSemDuplicarAFicha() throws Exception {
+        iniciarComAriaETresGoblins();
+
+        JsonNode combate = ultimoCombate(sessaoAria);
+        assertEquals(4, combate.get("participantes").size());
+        assertEquals("Lyra", participante(combate, "20").get("nomePersonagem").asText());
+        for (int numero = 1; numero <= 3; numero++) {
+            JsonNode monstro = participante(combate, "monstro-" + numero);
+            assertEquals("Goblin " + numero, monstro.get("nomePersonagem").asText());
+            assertEquals("MONSTRO", monstro.get("tipo").asText());
+            assertEquals(500L, monstro.get("personagemId").asLong());
+            assertEquals("Goblin", monstro.get("grupo").asText());
+            assertEquals(10L, monstro.get("controladorId").asLong());
+        }
+        verify(mesaService, times(1)).buscarFichaDeNpcDaMesa(1L, 500L, MESTRE.userId());
+    }
+
+    @Test
+    void deveUsarONomeEscolhidoPeloMestreNoLugarDoNomeDaFicha() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":2,"nome":" Orc da Ponte "}]}}
+                """);
+
+        JsonNode combate = ultimoCombate(sessaoMestre);
+        assertEquals("Orc da Ponte 1", participante(combate, "monstro-1").get("nomePersonagem").asText());
+        assertEquals("Orc da Ponte 2", participante(combate, "monstro-2").get("nomePersonagem").asText());
+        assertEquals("Orc da Ponte", participante(combate, "monstro-1").get("grupo").asText());
+    }
+
+    @Test
+    void deveRecusarNomeDeMonstroMuitoLongo() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":1,"nome":"%s"}]}}
+                """.formatted("x".repeat(61)));
+
+        assertEquals("O nome do monstro deve ter até 60 caracteres.", ultimoAviso(sessaoMestre));
+    }
+
+    @Test
+    void deveNomearMonstroSemNumeroQuandoOGrupoTemUmSo() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":1}]}}
+                """);
+
+        assertEquals("Goblin", participante(ultimoCombate(sessaoMestre), "monstro-1").get("nomePersonagem").asText());
+    }
+
+    @Test
+    void deveRolarUmD20PorMonstroComUmUnicoComandoEFecharAOrdemComOsJogadores() throws Exception {
+        iniciarComAriaETresGoblins();
+        faces.add(10);
+        rolarIniciativa(sessaoAria, "NORMAL", false);
+        assertEquals("INICIATIVA", ultimoCombate(sessaoAria).get("fase").asText());
+
+        faces.addAll(List.of(3, 18, 11));
+        rolarMonstros("{\"modo\":\"NORMAL\",\"somarProficiencia\":false}");
+
+        JsonNode combate = ultimoCombate(sessaoAria);
+        assertEquals("EM_ANDAMENTO", combate.get("fase").asText());
+        assertEquals(5, participante(combate, "monstro-1").get("iniciativa").get("total").asInt());
+        assertEquals(20, participante(combate, "monstro-2").get("iniciativa").get("total").asInt());
+        assertEquals(13, participante(combate, "monstro-3").get("iniciativa").get("total").asInt());
+        assertEquals("monstro-2", combate.get("turnoDe").asText());
+        assertEquals(10L, combate.get("controladorDoTurno").asLong());
+        List<JsonNode> avisos = recebidas(sessaoCael, "SISTEMA");
+        assertEquals("Ordem de iniciativa:\n1. Goblin 2 (Mestre): 20\n2. Goblin 3 (Mestre): 13\n3. Lyra (Aria): 12\n4. Goblin 1 (Mestre): 5",
+                avisos.get(avisos.size() - 2).get("content").asText());
+        assertEquals("Rodada 1: turno de Goblin 2 (Mestre).", avisos.get(avisos.size() - 1).get("content").asText());
+    }
+
+    @Test
+    void deveRolarSoOsMonstrosEscolhidosComVantagemEProficiencia() throws Exception {
+        iniciarComAriaETresGoblins();
+
+        faces.addAll(List.of(4, 15));
+        rolarMonstros("{\"entradas\":[\"monstro-2\"],\"modo\":\"VANTAGEM\",\"somarProficiencia\":true}");
+
+        JsonNode combate = ultimoCombate(sessaoMestre);
+        JsonNode iniciativa = participante(combate, "monstro-2").get("iniciativa");
+        assertEquals(19, iniciativa.get("total").asInt());
+        assertEquals(15, iniciativa.get("mantido").asInt());
+        assertEquals(2, iniciativa.get("bonusProficiencia").asInt());
+        assertTrue(participante(combate, "monstro-1").get("iniciativa").isNull());
+        assertTrue(participante(combate, "monstro-3").get("iniciativa").isNull());
+    }
+
+    @Test
+    void deveNegarAoJogadorRolarAIniciativaDosMonstros() throws Exception {
+        iniciarComAriaETresGoblins();
+
+        enviar(sessaoAria, """
+                {"type":"COMBATE_ROLAR_MONSTROS","comandoCombate":{"modo":"NORMAL"}}
+                """);
+
+        assertEquals("Apenas o mestre pode administrar o combate.", ultimoAviso(sessaoAria));
+    }
+
+    @Test
+    void deveNegarRolarComoMonstroAEntradaDeUmJogador() throws Exception {
+        iniciarComAriaETresGoblins();
+
+        rolarMonstros("{\"entradas\":[\"20\"]}");
+
+        assertEquals("O mestre só rola a iniciativa dos monstros, NPCs e chefes.", ultimoAviso(sessaoMestre));
+    }
+
+    @Test
+    void deveNegarSegundaRolagemDoMonstroAteOMestreLiberar() throws Exception {
+        iniciarComAriaETresGoblins();
+        faces.addAll(List.of(3, 18, 11));
+        rolarMonstros("{}");
+
+        rolarMonstros("{\"entradas\":[\"monstro-2\"]}");
+        assertEquals("Você já rolou a iniciativa. Peça ao mestre para liberar uma nova rolagem.",
+                ultimoAviso(sessaoMestre));
+
+        faces.add(20);
+        rolarIniciativa(sessaoAria, "NORMAL", false);
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_LIBERAR_REROLL","comandoCombate":{"entradas":["monstro-2"]}}
+                """);
+        faces.add(1);
+        rolarMonstros("{\"entradas\":[\"monstro-2\"]}");
+
+        assertEquals(3, participante(ultimoCombate(sessaoMestre), "monstro-2").get("iniciativa").get("total").asInt());
+    }
+
+    @Test
+    void deveRecusarRolagemDosMonstrosQuandoNenhumAguardaRolagem() throws Exception {
+        iniciarComAriaETresGoblins();
+        faces.addAll(List.of(3, 18, 11));
+        rolarMonstros("{}");
+
+        rolarMonstros("{}");
+
+        assertEquals("Nenhum monstro aguarda rolagem de iniciativa.", ultimoAviso(sessaoMestre));
+    }
+
+    @Test
+    void devePermitirAoMestreRolarLivrementeSoNoTurnoDeUmMonstro() throws Exception {
+        iniciarComAriaETresGoblins();
+        faces.add(10);
+        rolarIniciativa(sessaoAria, "NORMAL", false);
+        faces.addAll(List.of(18, 3, 3));
+        rolarMonstros("{}");
+        faces.add(9);
+
+        enviar(sessaoMestre, ROLAGEM_LIVRE);
+        assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
+
+        enviar(sessaoAria, ROLAGEM_LIVRE);
+        assertEquals("Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.",
+                ultimoAviso(sessaoAria));
+        assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
+    }
+
+    @Test
+    void devePassarOTurnoDoMonstroSoParaOMestre() throws Exception {
+        iniciarComAriaETresGoblins();
+        faces.add(10);
+        rolarIniciativa(sessaoAria, "NORMAL", false);
+        faces.addAll(List.of(18, 3, 3));
+        rolarMonstros("{}");
+
+        enviar(sessaoAria, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertEquals("Só quem está no turno, ou o mestre, pode passar o turno.", ultimoAviso(sessaoAria));
+        assertEquals("monstro-1", ultimoCombate(sessaoAria).get("turnoDe").asText());
+
+        enviar(sessaoMestre, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertEquals("20", ultimoCombate(sessaoAria).get("turnoDe").asText());
+        assertEquals(20L, ultimoCombate(sessaoAria).get("controladorDoTurno").asLong());
+        faces.add(8);
+        enviar(sessaoAria, ROLAGEM_LIVRE);
+        assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
+    }
+
+    @Test
+    void deveNegarGrupoDeFichaRepetidaOuComQuantidadeInvalida() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":1},{"personagemId":500,"quantidade":2}]}}
+                """);
+        assertEquals("Cada ficha só pode aparecer uma vez. Use a quantidade para replicar.",
+                ultimoAviso(sessaoMestre));
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":21}]}}
+                """);
+        assertEquals("A quantidade de monstros deve ficar entre 1 e 20.", ultimoAviso(sessaoMestre));
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":0}]}}
+                """);
+        assertEquals("A quantidade de monstros deve ficar entre 1 e 20.", ultimoAviso(sessaoMestre));
+        assertTrue(recebidas(sessaoAria, "COMBATE").isEmpty());
+    }
+
+    @Test
+    void deveNegarAoJogadorIniciarCombateComMonstros() throws Exception {
+        enviar(sessaoAria, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":2}]}}
+                """);
+
+        assertEquals("Apenas o mestre pode administrar o combate.", ultimoAviso(sessaoAria));
+        verify(mesaService, never()).buscarFichaDeNpcDaMesa(anyLong(), anyLong(), anyLong());
     }
 }
