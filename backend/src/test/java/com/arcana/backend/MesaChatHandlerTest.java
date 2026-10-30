@@ -3,6 +3,8 @@ package com.arcana.backend;
 import com.arcana.backend.chat.AutenticacaoHandshakeInterceptor;
 import com.arcana.backend.chat.DesafioChat;
 import com.arcana.backend.chat.MesaChatHandler;
+import com.arcana.backend.chat.SalaChat;
+import com.arcana.backend.chat.sala.SalaService;
 import com.arcana.backend.chat.desafio.DesafioService;
 import com.arcana.backend.config.JacksonConfig;
 import com.arcana.backend.table.service.MesaService;
@@ -70,7 +72,8 @@ class MesaChatHandlerTest {
         RolagemDadosService rolagens = new RolagemDadosService(sempreQuatro);
         DesafioChat desafioChat = new DesafioChat(
                 new DesafioService(mock(MesaService.class), rolagens, relogio), objectMapper);
-        handler = new MesaChatHandler(objectMapper, rolagens, new ValidadorImagem(), desafioChat, gerenciador,
+        SalaChat salaChat = new SalaChat(new SalaService(mock(MesaService.class), relogio), objectMapper);
+        handler = new MesaChatHandler(objectMapper, rolagens, new ValidadorImagem(), desafioChat, salaChat, gerenciador,
                 agendador, relogio, Duration.ofSeconds(60));
 
         remetente = sessaoAutenticada("a", new AcessoMesaDto(1L, 2L, "joao", "JOGADOR", StatusMesa.ABERTA));

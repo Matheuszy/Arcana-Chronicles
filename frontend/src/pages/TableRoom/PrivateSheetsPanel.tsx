@@ -8,9 +8,11 @@ interface PrivateSheetsPanelProps {
   loading: boolean;
   error: string | null;
   emptyText: string;
+  onEdit?: (character: Character) => void;
+  onCreate?: () => void;
 }
 
-export default function PrivateSheetsPanel({ title, characters, loading, error, emptyText }: PrivateSheetsPanelProps) {
+export default function PrivateSheetsPanel({ title, characters, loading, error, emptyText, onEdit, onCreate }: PrivateSheetsPanelProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const openCharacter = characters.find((c) => String(c.id) === openId);
 
@@ -25,15 +27,29 @@ export default function PrivateSheetsPanel({ title, characters, loading, error, 
         {characters.map((c) => (
           <li key={c.id} className="participant-item">
             <span>{c.name}</span>
-            <button
-              className="btn btn-ghost"
-              onClick={() => setOpenId(openId === String(c.id) ? null : String(c.id))}
-            >
-              {openId === String(c.id) ? 'Fechar' : 'Abrir ficha'}
-            </button>
+            <span className="participant-actions">
+              <button
+                className="btn btn-ghost"
+                onClick={() => setOpenId(openId === String(c.id) ? null : String(c.id))}
+              >
+                {openId === String(c.id) ? 'Fechar' : 'Abrir ficha'}
+              </button>
+              {onEdit && (
+                <button className="btn btn-ghost" onClick={() => onEdit(c)}>
+                  Editar
+                </button>
+              )}
+            </span>
           </li>
         ))}
       </ul>
+      {onCreate && (
+        <div className="sheet-actions">
+          <button className="btn btn-ghost" onClick={onCreate}>
+            Nova ficha
+          </button>
+        </div>
+      )}
       {openCharacter && <CharacterSheet character={openCharacter} onClose={() => setOpenId(null)} />}
     </div>
   );

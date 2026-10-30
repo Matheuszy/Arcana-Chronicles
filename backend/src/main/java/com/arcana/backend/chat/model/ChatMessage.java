@@ -3,6 +3,9 @@ package com.arcana.backend.chat.model;
 import com.arcana.backend.chat.desafio.ComandoDesafio;
 import com.arcana.backend.chat.desafio.DesafioDto;
 import com.arcana.backend.chat.dice.PedidoRolagem;
+import com.arcana.backend.chat.sala.ComandoSala;
+import com.arcana.backend.chat.sala.ItemDto;
+import com.arcana.backend.chat.sala.StatusDto;
 
 import java.util.List;
 import java.util.Map;
@@ -18,7 +21,8 @@ public class ChatMessage {
         PARTICIPANTES, REMOVIDO_DA_MESA,
         DESAFIO, DESAFIOS,
         DESAFIO_CRIAR, DESAFIO_ROLAR, DESAFIO_TENTATIVA_EXTRA, DESAFIO_ENCERRAR_FALHA, DESAFIO_CANCELAR,
-        DESAFIO_MENSAGEM
+        DESAFIO_MENSAGEM,
+        NOTA_SALVAR, NOTA, STATUS_DEFINIR, STATUS_REMOVER, STATUS, ITEM_CRIAR, ITEM_REMOVER, ITENS
     }
 
     private String id;
@@ -38,6 +42,9 @@ public class ChatMessage {
     private ComandoDesafio comandoDesafio;
     private DesafioDto desafio;
     private List<DesafioDto> desafios;
+    private ComandoSala comandoSala;
+    private StatusDto status;
+    private List<ItemDto> itens;
 
     // ── DiceRollResult aninhado ───────────────────────────────────────────────
 
@@ -119,4 +126,10 @@ public class ChatMessage {
     public void setDesafio(DesafioDto desafio) { this.desafio = desafio; }
     public List<DesafioDto> getDesafios() { return desafios; }
     public void setDesafios(List<DesafioDto> desafios) { this.desafios = desafios; }
+    public ComandoSala getComandoSala() { return comandoSala; }
+    public void setComandoSala(ComandoSala comandoSala) { this.comandoSala = comandoSala; }
+    public StatusDto getStatus() { return status; }
+    public void setStatus(StatusDto status) { this.status = status; }
+    public List<ItemDto> getItens() { return itens; }
+    public void setItens(List<ItemDto> itens) { this.itens = itens; }
 }

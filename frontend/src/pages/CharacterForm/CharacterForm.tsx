@@ -57,9 +57,14 @@ const EMPTY_CHARACTER: Character = {
   items: [],
 };
 
-export default function CharacterForm() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+interface CharacterEditorProps {
+  id?: string;
+  embedded?: boolean;
+  onSaved: (saved: Character) => void;
+  onCancel: () => void;
+}
+
+export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: CharacterEditorProps) {
   const { role } = useSession();
   const allowedKinds = KINDS_BY_ROLE[role === 'MESTRE' ? 'MESTRE' : 'JOGADOR'];
   const initialCharacter: Character = { ...EMPTY_CHARACTER, kind: allowedKinds[0] };
@@ -106,7 +111,7 @@ export default function CharacterForm() {
 
   const cancel = () => {
     if (dirty && !window.confirm('Descartar as alterações desta ficha?')) return;
-    navigate('/fichas');
+    onCancel();
   };
 
   const isNpcOrMonster = form.kind !== 'PLAYER';
@@ -203,12 +208,8 @@ export default function CharacterForm() {
     setSaving(true);
     setSaveError(null);
     try {
-      if (id) {
-        await characterService.update(id, form);
-      } else {
-        await characterService.create(form);
-      }
-      navigate('/fichas');
+      const saved = id ? await characterService.update(id, form) : await characterService.create(form);
+      onSaved(saved);
     } catch (e: unknown) {
       setSaveError(e instanceof Error ? e.message : 'Erro ao salvar a ficha.');
       setSaving(false);
@@ -217,7 +218,7 @@ export default function CharacterForm() {
 
   if (loading) {
     return (
-      <section className="page">
+      <section className={embedded ? 'character-editor' : 'page'}>
         <p className="muted">Abrindo a ficha...</p>
       </section>
     );
@@ -225,9 +226,9 @@ export default function CharacterForm() {
 
   if (loadError) {
     return (
-      <section className="page">
+      <section className={embedded ? 'character-editor' : 'page'}>
         <LoadError title="Não foi possível abrir a ficha" message={loadError} onRetry={loadCharacter} />
-        <button type="button" className="btn btn-ghost back-to-list" onClick={() => navigate('/fichas')}>
+        <button type="button" className="btn btn-ghost back-to-list" onClick={onCancel}>
           Voltar para as fichas
         </button>
       </section>
@@ -235,9 +236,13 @@ export default function CharacterForm() {
   }
 
   return (
-    <section className="page">
+    <section className={embedded ? 'character-editor' : 'page'}>
       <p className="eyebrow">{id ? 'Editando ficha' : 'Nova ficha'}</p>
-      <h1>{id ? 'Ajustar personagem' : 'Forjar novo personagem'}</h1>
+      {embedded ? (
+        <h2>{id ? 'Ajustar personagem' : 'Forjar novo personagem'}</h2>
+      ) : (
+        <h1>{id ? 'Ajustar personagem' : 'Forjar novo personagem'}</h1>
+      )}
 
       <form
         className="form card"
@@ -645,5 +650,14 @@ export default function CharacterForm() {
         </div>
       </form>
     </section>
+  );
+}
+
+export default function CharacterForm() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  return (
+    <CharacterEditor id={id} onSaved={() => navigate('/fichas')} onCancel={() => navigate('/fichas')} />
   );
 }

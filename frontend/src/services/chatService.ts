@@ -1,5 +1,6 @@
 import { WS_BASE_URL } from './apiConfig';
 import { ChatMessage, ChatMessageType, OutgoingChatMessage, RollMode, RollRequest } from '../types/chat';
+import { RoomCommand } from '../types/room';
 import { ChallengeChoice, ChallengeCommand, ChallengeMessageTarget } from '../types/challenge';
 
 const AUTH_PROTOCOL = 'arcana.jwt';
@@ -165,6 +166,30 @@ class ChatService {
       texto: text,
       jogadorId: playerId,
     });
+  }
+
+  saveNote(text: string): void {
+    this.send({ type: 'NOTA_SALVAR', content: text });
+  }
+
+  setCharacterStatus(characterId: number, text: string): void {
+    this.sendRoomCommand('STATUS_DEFINIR', { personagemId: characterId, texto: text });
+  }
+
+  removeCharacterStatus(characterId: number): void {
+    this.sendRoomCommand('STATUS_REMOVER', { personagemId: characterId });
+  }
+
+  createItem(name: string, description: string): void {
+    this.sendRoomCommand('ITEM_CRIAR', { nome: name, descricao: description });
+  }
+
+  removeItem(itemId: string): void {
+    this.sendRoomCommand('ITEM_REMOVER', { itemId });
+  }
+
+  private sendRoomCommand(type: ChatMessageType, command: RoomCommand): void {
+    this.send({ type, content: '', comandoSala: command });
   }
 
   private sendChallengeCommand(type: ChatMessageType, command: ChallengeCommand): void {

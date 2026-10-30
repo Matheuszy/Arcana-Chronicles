@@ -1,4 +1,5 @@
 import type { Challenge, ChallengeCommand } from './challenge';
+import type { RoomCommand, SharedItem, StatusSnapshot } from './room';
 
 export type ChatMessageType =
   | 'TEXTO'
@@ -19,7 +20,15 @@ export type ChatMessageType =
   | 'DESAFIO_TENTATIVA_EXTRA'
   | 'DESAFIO_ENCERRAR_FALHA'
   | 'DESAFIO_CANCELAR'
-  | 'DESAFIO_MENSAGEM';
+  | 'DESAFIO_MENSAGEM'
+  | 'NOTA_SALVAR'
+  | 'NOTA'
+  | 'STATUS_DEFINIR'
+  | 'STATUS_REMOVER'
+  | 'STATUS'
+  | 'ITEM_CRIAR'
+  | 'ITEM_REMOVER'
+  | 'ITENS';
 
 export type Channel = 'CONVERSA' | 'ROLAGENS' | 'IMAGENS';
 
@@ -90,9 +99,12 @@ export interface ChatMessage {
   desafio?: Challenge | null;
   desafios?: Challenge[] | null;
   comandoDesafio?: ChallengeCommand | null;
+  comandoSala?: RoomCommand | null;
+  status?: StatusSnapshot | null;
+  itens?: SharedItem[] | null;
 }
 
 export type OutgoingChatMessage = Pick<
   ChatMessage,
-  'type' | 'canal' | 'content' | 'rollRequest' | 'image' | 'mentionedNpcId' | 'comandoDesafio'
+  'type' | 'canal' | 'content' | 'rollRequest' | 'image' | 'mentionedNpcId' | 'comandoDesafio' | 'comandoSala'
 >;
