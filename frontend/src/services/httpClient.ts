@@ -20,13 +20,13 @@ export class ApiError extends Error {
 }
 
 const SERVER_ERROR_MESSAGE = 'Algo deu errado do nosso lado. Tente novamente em instantes.';
-const NETWORK_ERROR_MESSAGE = 'Não foi possível falar com o servidor. Verifique sua conexão e tente de novo.';
+export const NETWORK_ERROR_MESSAGE = 'Não foi possível falar com o servidor. Verifique sua conexão e tente de novo.';
 
 function friendlyFallback(status: number, fallback: string): string {
   return status >= 500 ? SERVER_ERROR_MESSAGE : fallback;
 }
 
-async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+export async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   const text = await response.text();
   try {
     const body = JSON.parse(text) as { message?: string; details?: string[] };

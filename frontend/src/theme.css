@@ -1,0 +1,177 @@
+body {
+  background:
+    radial-gradient(ellipse at 12% -5%, rgba(230, 184, 89, 0.20), transparent 42%),
+    radial-gradient(ellipse at 88% -5%, rgba(230, 184, 89, 0.12), transparent 38%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 140px),
+    linear-gradient(180deg, var(--wood-800), var(--wood-950));
+  background-attachment: fixed;
+}
+
+.card {
+  background: linear-gradient(180deg, #261a11, var(--surface));
+  border-color: var(--leather);
+}
+
+.topbar {
+  background: rgba(19, 13, 8, 0.94);
+  border-bottom: 2px solid var(--leather);
+  box-shadow: 0 2px 0 rgba(201, 150, 47, 0.25), 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.nav a { padding: 0.5rem 0; min-height: var(--touch-target); display: inline-flex; align-items: center; }
+
+.btn { min-height: var(--touch-target); }
+.chip { min-height: 2.25rem; }
+.chip.active { background: rgba(201, 150, 47, 0.14); }
+
+.role-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--parchment-dim);
+}
+
+.ui-tabs { margin-bottom: 1.5rem; }
+.login-card .ui-tab { flex: 1; justify-content: center; }
+
+.sheet-origin {
+  display: inline-block;
+  margin: 0 0 0.75rem;
+  padding: 0.15em 0.7em;
+  border: 1px solid var(--leather-bright);
+  border-radius: 999px;
+  color: var(--ember-bright);
+  font-size: 0.78rem;
+}
+
+.notice-board {
+  padding: 1.25rem;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 46px),
+    linear-gradient(180deg, #4a3320, #36241a);
+  border: 3px solid var(--leather);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.45), var(--shadow-card);
+}
+
+.poster,
+.sheet-card,
+.contract {
+  position: relative;
+  padding: 1.25rem 1.1rem 1.1rem;
+  background: linear-gradient(180deg, var(--paper-100), var(--paper-200));
+  color: var(--paper-ink);
+  border: 1px solid #b89c6a;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+
+.poster::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  background: radial-gradient(circle at 35% 35%, #d9534a, #7a1f19);
+  border-radius: 50%;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
+}
+
+.poster h3,
+.sheet-card h3,
+.contract h2 { color: var(--paper-ink); }
+
+.poster .desc,
+.poster .master,
+.poster .players,
+.poster-note,
+.sheet-card .stats-row,
+.sheet-card .attrs,
+.sheet-card .level { color: #4f3d2a; }
+
+.poster-note { font-size: 0.85rem; margin: 0; }
+.sheet-card .attrs { border-top-color: #b89c6a; }
+
+.poster .btn-ghost,
+.sheet-card .btn-ghost {
+  color: var(--paper-ink);
+  border-color: var(--leather);
+}
+.poster .btn-ghost:hover,
+.sheet-card .btn-ghost:hover { background: rgba(107, 68, 41, 0.12); color: var(--paper-ink); }
+.poster .btn-danger,
+.sheet-card .btn-danger,
+.poster .btn-delete-table { color: #8c2a22; border-color: #8c2a22; }
+
+.poster .ui-badge--positive,
+.sheet-card .ui-badge--positive { color: #1f5a2c; }
+.poster .ui-badge--gold,
+.sheet-card .ui-badge--gold { color: #7a5200; }
+.poster .ui-badge--neutral,
+.sheet-card .ui-badge--neutral { color: #4a3b2a; }
+.poster .ui-badge--danger,
+.sheet-card .ui-badge--danger { color: #8c2a22; }
+.poster .ui-badge--info,
+.sheet-card .ui-badge--info { color: #1f4f7a; }
+
+.poster .ui-select-label,
+.poster .join-panel label,
+.poster .join-note,
+.contract .field label { color: #4f3d2a; }
+.poster .join-note--pending { color: #7a5200; }
+.poster .join-note--refused,
+.poster .join-error,
+.contract .form-error { color: #8c2a22; }
+.poster .join-note a { color: #1f4f7a; }
+
+.contract { margin-bottom: 1.75rem; max-width: 640px; }
+.contract .field input,
+.contract .field textarea {
+  background: #fffaf0;
+  color: var(--paper-ink);
+  border-color: var(--leather);
+}
+
+.sheet-card[data-kind='PLAYER'] { border-left: 5px solid #c9962f; }
+.sheet-card[data-kind='NPC_FRIENDLY'] { border-left: 5px solid #4b7fb0; }
+.sheet-card[data-kind='MONSTER'],
+.sheet-card[data-kind='BOSS'] { border-left: 5px solid #8c3b3b; }
+
+.form.card {
+  border: 2px solid var(--leather);
+  box-shadow: inset 0 0 0 4px var(--wood-900), inset 0 0 0 5px var(--leather), var(--shadow-card);
+  padding: 2rem 1.75rem;
+}
+
+@media (max-width: 720px) {
+  .topbar { flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0.7rem 1rem; }
+  .nav { order: 3; flex-basis: 100%; gap: 1rem; overflow-x: auto; }
+  .who { margin-left: auto; }
+  .notice-board { padding: 0.75rem; }
+}
+
+.sheet-section { margin-top: 0.5rem; }
+.sheet-section > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  cursor: pointer;
+  list-style: none;
+}
+.sheet-section > summary::-webkit-details-marker { display: none; }
+.sheet-section > summary::before {
+  content: '▸';
+  margin-right: 0.5rem;
+  color: var(--ember-bright);
+}
+.sheet-section[open] > summary::before { content: '▾'; }
+.sheet-section > summary .section-title { margin: 0; }
+.sheet-subtitle {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--parchment-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}

@@ -3,18 +3,39 @@
    Paleta: tinta noturna + ouro de vela + selo de cera
    ========================================================= */
 :root {
-  --ink-950: #100e17;
-  --ink-900: #17141f;
-  --ink-800: #221d2e;
-  --ink-700: #322a41;
-  --parchment: #eee5d3;
-  --parchment-dim: #a99d8a;
+  --ink-950: #130d08;
+  --ink-900: #1d140d;
+  --ink-800: #2a1d13;
+  --ink-700: #4a3322;
+  --parchment: #f0e6d0;
+  --parchment-dim: #b8aa90;
   --ember: #c9962f;
   --ember-bright: #e6b859;
   --seal: #8c3b3b;
   --arcane: #5b4b9e;
   --arcane-bright: #7c68c9;
   --ok: #4f8a5b;
+
+  --wood-950: #130d08;
+  --wood-900: #1d130c;
+  --wood-800: #2c1c11;
+  --wood-700: #3f2a19;
+  --leather: #6b4429;
+  --leather-bright: #8a5a37;
+  --paper-100: #f3e9d2;
+  --paper-200: #e6d8b8;
+  --paper-ink: #2b1d12;
+  --seal-bright: #b4483f;
+  --danger-text: #e8978d;
+  --positive: #4f8a5b;
+  --positive-text: #8fcf9b;
+  --info: #4b7fb0;
+  --info-text: #8fbce6;
+  --surface: var(--ink-900);
+  --surface-raised: #2a1d13;
+  --focus-ring: #f0c969;
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.65);
+  --touch-target: 2.5rem;
 
   --font-display: 'Cinzel', serif;
   --font-body: 'Spectral', serif;
@@ -27,6 +48,20 @@
 }
 
 * { box-sizing: border-box; }
+
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 html, body, #root {
   height: 100%;
@@ -86,7 +121,7 @@ button { font-family: var(--font-body); cursor: pointer; }
 
 .btn-danger {
   background: transparent;
-  color: var(--seal);
+  color: var(--danger-text);
   border-color: var(--seal);
 }
 .btn-danger:hover { background: rgba(140, 59, 59, 0.15); }
@@ -125,10 +160,8 @@ button { font-family: var(--font-body); cursor: pointer; }
   font-size: 0.95rem;
 }
 
-.field input:focus, .field select:focus, .field textarea:focus {
-  outline: none;
+.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible {
   border-color: var(--ember);
-  box-shadow: 0 0 0 3px rgba(201, 150, 47, 0.2);
 }
 
 .filters {
@@ -160,10 +193,10 @@ button { font-family: var(--font-body); cursor: pointer; }
   text-align: center;
   border-color: var(--seal);
 }
-.load-error-message { color: var(--seal); margin: 0; }
+.load-error-message { color: var(--danger-text); margin: 0; }
 
 .form-error {
-  color: var(--seal);
+  color: var(--danger-text);
   font-size: 0.85rem;
   margin: 0;
 }
