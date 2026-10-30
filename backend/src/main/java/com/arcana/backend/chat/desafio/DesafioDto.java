@@ -8,6 +8,9 @@ import java.util.Set;
 
 public record DesafioDto(
         String id,
+        Long criadorId,
+        String criadorNome,
+        boolean doCombate,
         int cd,
         String descricao,
         Instant criadoEm,
@@ -17,6 +20,8 @@ public record DesafioDto(
 ) {
 
     public record ParticipacaoDto(
+            String id,
+            Desafio.TipoAlvo tipo,
             Long jogadorId,
             String nomeJogador,
             String nomePersonagem,
@@ -33,30 +38,33 @@ public record DesafioDto(
             Instant enviadaEm
     ) {
 
-        static MensagemDto paraUsuario(MensagemDeResultado mensagem, boolean ehMestre) {
+        static MensagemDto paraUsuario(MensagemDeResultado mensagem, boolean ehCriador) {
             return new MensagemDto(mensagem.id(), mensagem.texto(), mensagem.destino(),
-                    ehMestre ? mensagem.destinatarios() : null, mensagem.enviadaEm());
+                    ehCriador ? mensagem.destinatarios() : null, mensagem.enviadaEm());
         }
     }
 
     public static DesafioDto paraUsuario(Desafio desafio, Long userId) {
-        boolean ehMestre = desafio.getMestreId().equals(userId);
+        boolean ehCriador = desafio.getCriadorId().equals(userId);
         return new DesafioDto(
                 desafio.getId(),
+                desafio.getCriadorId(),
+                desafio.getNomeDoCriador(),
+                desafio.isDoCombate(),
                 desafio.getCd(),
                 desafio.getDescricao(),
                 desafio.getCriadoEm(),
                 desafio.ativo(),
                 desafio.participacoes().stream()
-                        .map(p -> new ParticipacaoDto(p.getJogadorId(), p.getNomeJogador(), p.getNomePersonagem(),
+                        .map(p -> new ParticipacaoDto(p.getId(), p.getTipo(), p.getControladorId(), p.getNomeJogador(), p.getNomePersonagem(),
                                 p.getModo(), p.getEstado(), p.getRolagens()))
                         .toList(),
                 desafio.mensagensVisiveisPara(userId).stream()
-                        .map(m -> MensagemDto.paraUsuario(m, ehMestre))
+                        .map(m -> MensagemDto.paraUsuario(m, ehCriador))
                         .toList());
     }
 
     public static DesafioDto paraMestre(Desafio desafio) {
-        return paraUsuario(desafio, desafio.getMestreId());
+        return paraUsuario(desafio, desafio.getCriadorId());
     }
 }

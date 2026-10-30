@@ -16,14 +16,20 @@ public class DesafiosDaMesa {
 
     public synchronized DesafioDto adicionar(Desafio desafio) {
         for (Desafio.Participacao participacao : desafio.participacoes()) {
-            if (jogadorEmDesafioAtivo(participacao.getJogadorId())) {
-                throw new IllegalStateException(
-                        participacao.getNomeJogador() + " já tem um desafio em andamento.");
+            if (alvoEmDesafioAtivo(participacao.getId())) {
+                String nome = participacao.getTipo() == Desafio.TipoAlvo.JOGADOR
+                        ? participacao.getNomeJogador()
+                        : participacao.getNomePersonagem();
+                throw new IllegalStateException(nome + " já tem um desafio em andamento.");
             }
         }
         desafios.put(desafio.getId(), desafio);
         descartarConcluidosExcedentes();
         return DesafioDto.paraMestre(desafio);
+    }
+
+    public synchronized boolean alvoEmDesafioAtivo(String alvoId) {
+        return desafios.values().stream().anyMatch(d -> d.alvoAtivo(alvoId));
     }
 
     public synchronized boolean jogadorEmDesafioAtivo(Long jogadorId) {
@@ -65,7 +71,21 @@ public class DesafiosDaMesa {
     public synchronized List<DesafioDto> cancelarDoJogador(Long jogadorId) {
         List<DesafioDto> alterados = new ArrayList<>();
         for (Desafio desafio : desafios.values()) {
-            if (desafio.cancelar(jogadorId)) {
+            boolean cancelou = desafio.cancelar(Desafio.idDoJogador(jogadorId));
+            if (desafio.getCriadorId().equals(jogadorId)) {
+                cancelou |= desafio.cancelarTodos();
+            }
+            if (cancelou) {
+                alterados.add(DesafioDto.paraMestre(desafio));
+            }
+        }
+        return alterados;
+    }
+
+    public synchronized List<DesafioDto> cancelarDoCombate() {
+        List<DesafioDto> alterados = new ArrayList<>();
+        for (Desafio desafio : desafios.values()) {
+            if (desafio.isDoCombate() && desafio.cancelarTodos()) {
                 alterados.add(DesafioDto.paraMestre(desafio));
             }
         }

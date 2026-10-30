@@ -13,9 +13,29 @@ interface CombatTrackerProps {
   isMaster: boolean;
   canSend: boolean;
   onRollInitiative: (mode: RollMode, addProficiency: boolean) => void;
+  onRollMonsters: (entryIds: string[], mode: RollMode, addProficiency: boolean) => void;
   onPassTurn: () => void;
-  onAllowReroll: (playerIds: number[]) => void;
+  onAllowReroll: (entryIds: string[]) => void;
   onEnd: () => void;
+}
+
+interface MonsterGroupPending {
+  key: string;
+  label: string;
+  entryIds: string[];
+}
+
+function pendingMonsterGroups(combat: Combat): MonsterGroupPending[] {
+  const groups = new Map<string, MonsterGroupPending>();
+  combat.participantes
+    .filter((entry) => entry.tipo === 'MONSTRO' && entry.aguardandoRolagem)
+    .forEach((entry) => {
+      const key = String(entry.personagemId);
+      const group = groups.get(key) ?? { key, label: entry.grupo ?? entry.nomePersonagem, entryIds: [] };
+      group.entryIds.push(entry.id);
+      groups.set(key, group);
+    });
+  return [...groups.values()];
 }
 
 function describeInitiative(entry: CombatEntry): string {
@@ -32,6 +52,7 @@ export default function CombatTracker({
   isMaster,
   canSend,
   onRollInitiative,
+  onRollMonsters,
   onPassTurn,
   onAllowReroll,
   onEnd,
@@ -41,10 +62,11 @@ export default function CombatTracker({
   const [addProficiency, setAddProficiency] = useState(false);
 
   const inProgress = combat.fase === 'EM_ANDAMENTO';
-  const mine = combat.participantes.find((p) => String(p.jogadorId) === viewerId);
+  const mine = combat.participantes.find((p) => p.tipo === 'JOGADOR' && String(p.controladorId) === viewerId);
   const myTurn = isMyTurn(combat, viewerId);
   const canPassTurn = canSend && inProgress && (myTurn || isMaster);
   const pending = combat.participantes.filter((p) => p.iniciativa === null).length;
+  const monsterGroups = isMaster ? pendingMonsterGroups(combat) : [];
 
   const endCombat = async () => {
     const confirmed = await confirm({
@@ -62,7 +84,7 @@ export default function CombatTracker({
         <h3>{inProgress ? `Combate · Rodada ${combat.rodada}` : 'Combate · Rolando iniciativa'}</h3>
         {!inProgress && (
           <span className="muted">
-            {pending} {pending === 1 ? 'jogador falta' : 'jogadores faltam'} rolar
+            {pending} {pending === 1 ? 'participante falta' : 'participantes faltam'} rolar
           </span>
         )}
       </header>
@@ -75,9 +97,12 @@ export default function CombatTracker({
 
       <ol className="combat-list">
         {combat.participantes.map((entry, index) => {
-          const current = inProgress && entry.jogadorId === combat.turnoDe;
+          const current = inProgress && entry.id === combat.turnoDe;
           return (
-            <li key={entry.jogadorId} className={`combat-entry ${current ? 'combat-entry--current' : ''}`}>
+            <li
+              key={entry.id}
+              className={`combat-entry ${current ? 'combat-entry--current' : ''} ${entry.tipo === 'MONSTRO' ? 'combat-entry--monster' : ''}`}
+            >
               {inProgress && <span className="combat-position">{index + 1}</span>}
               <div className="combat-entry-info">
                 <strong>{entry.nomePersonagem}</strong>
@@ -91,7 +116,7 @@ export default function CombatTracker({
                 <button
                   className="btn btn-ghost combat-reroll"
                   disabled={!canSend}
-                  onClick={() => onAllowReroll([entry.jogadorId])}
+                  onClick={() => onAllowReroll([entry.id])}
                 >
                   Liberar nova rolagem
                 </button>
@@ -101,7 +126,7 @@ export default function CombatTracker({
         })}
       </ol>
 
-      {mine?.aguardandoRolagem && (
+      {(mine?.aguardandoRolagem || monsterGroups.length > 0) && (
         <div className="combat-roll">
           <Select
             label="Modo da rolagem"
@@ -115,13 +140,27 @@ export default function CombatTracker({
             <input type="checkbox" checked={addProficiency} onChange={(e) => setAddProficiency(e.target.checked)} />
             Somar bônus de proficiência
           </label>
-          <button
-            className="btn btn-primary"
-            disabled={!canSend}
-            onClick={() => onRollInitiative(mode, addProficiency)}
-          >
-            {mine.iniciativa ? 'Rolar iniciativa de novo' : 'Rolar iniciativa'}
-          </button>
+          {mine?.aguardandoRolagem && (
+            <button
+              className="btn btn-primary"
+              disabled={!canSend}
+              onClick={() => onRollInitiative(mode, addProficiency)}
+            >
+              {mine.iniciativa ? 'Rolar iniciativa de novo' : 'Rolar iniciativa'}
+            </button>
+          )}
+          {monsterGroups.map((group) => (
+            <button
+              key={group.key}
+              className="btn btn-primary"
+              disabled={!canSend}
+              onClick={() => onRollMonsters(group.entryIds, mode, addProficiency)}
+            >
+              {group.entryIds.length === 1
+                ? `Rolar iniciativa: ${group.label}`
+                : `Rolar iniciativa: ${group.label} (${group.entryIds.length})`}
+            </button>
+          ))}
         </div>
       )}
 

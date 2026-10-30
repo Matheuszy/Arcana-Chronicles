@@ -9,7 +9,7 @@ import { CharacterEditor } from '../CharacterForm/CharacterForm';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
-import { isActiveState } from '../../types/challenge';
+import { ChallengeTarget, isActiveState } from '../../types/challenge';
 import { BLOCKED_ROLL_DURING_COMBAT, isMyTurn } from '../../types/combat';
 import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
@@ -18,6 +18,7 @@ import { useToast } from '../../components/ui/Toast';
 import NpcLinksPanel from './NpcLinksPanel';
 import ChallengeMasterPanel from './ChallengeMasterPanel';
 import ChallengePlayerPanel from './ChallengePlayerPanel';
+import ChallengeMonsterRolls from './ChallengeMonsterRolls';
 import ChallengeRollOverlay from './ChallengeRollOverlay';
 import CombatStartPanel from './CombatStartPanel';
 import CombatTracker from './CombatTracker';
@@ -180,7 +181,7 @@ export default function TableRoom() {
   const rollBlockedByChallenge =
     !isMaster &&
     challenges.some((c) =>
-      c.jogadores.some((p) => String(p.jogadorId) === viewerId && isActiveState(p.estado)),
+      c.jogadores.some((p) => p.tipo === 'JOGADOR' && String(p.jogadorId) === viewerId && isActiveState(p.estado)),
     );
   const rollBlockedByCombat = combat !== null && !isMyTurn(combat, viewerId);
   const rollBlocked = rollBlockedByChallenge || rollBlockedByCombat;
@@ -479,6 +480,35 @@ export default function TableRoom() {
     );
   }
 
+  const masterChallengeTargets: ChallengeTarget[] = table.participants
+    .filter((p) => p.role === 'JOGADOR')
+    .map((p) => {
+      const online = onlineUsers.some((u) => String(u.userId) === String(p.userId));
+      return {
+        id: String(p.userId),
+        kind: 'JOGADOR',
+        label: p.displayName,
+        detail: online ? '(online)' : '(offline)',
+        online,
+        disabledReason: p.characterId ? undefined : 'sem personagem',
+      };
+    });
+  const combatChallengeTargets: ChallengeTarget[] = (combat?.participantes ?? [])
+    .filter((entry) => !(entry.tipo === 'JOGADOR' && String(entry.controladorId) === viewerId))
+    .map((entry) => ({
+      id: entry.id,
+      kind: entry.tipo,
+      label: entry.nomePersonagem,
+      detail: entry.tipo === 'JOGADOR' ? `(${entry.nomeJogador})` : '(monstro do mestre)',
+    }));
+  const myCreatedChallenges = challenges.filter((c) => String(c.criadorId) === viewerId);
+  const playerChallengeHint =
+    combat === null
+      ? 'Desafiar outros jogadores ou monstros só é possível durante o combate.'
+      : !isMyTurn(combat, viewerId)
+        ? 'Você só pode desafiar no seu turno.'
+        : undefined;
+
   return (
     <section className="room">
       <aside className="room-side card">
@@ -592,10 +622,37 @@ export default function TableRoom() {
         </div>
         <div className="side-section" hidden={sideTab !== 'DESAFIO'}>
         {isMaster && (
+          <>
+          <ChallengeMonsterRolls
+            challenges={challenges}
+            paused={Boolean(isPaused)}
+            canSend={canSend}
+            onRoll={chatService.rollMonsterChallenge.bind(chatService)}
+          />
           <ChallengeMasterPanel
             challenges={challenges}
             participants={table.participants}
-            onlineUserIds={onlineUsers.map((u) => String(u.userId))}
+            targets={masterChallengeTargets}
+            viewerId={viewerId}
+            title="Desafios de CD"
+            canSend={canSend}
+            onCreate={chatService.createChallenge.bind(chatService)}
+            onAllowExtraAttempt={chatService.allowExtraAttempt.bind(chatService)}
+            onEndWithFailure={chatService.endChallengeWithFailure.bind(chatService)}
+            onCancel={chatService.cancelChallenge.bind(chatService)}
+            onSendMessage={chatService.sendChallengeMessage.bind(chatService)}
+          />
+          </>
+        )}
+
+        {!isMaster && (combat !== null || myCreatedChallenges.length > 0) && (
+          <ChallengeMasterPanel
+            challenges={myCreatedChallenges}
+            participants={table.participants}
+            targets={combatChallengeTargets}
+            viewerId={viewerId}
+            title="Meus desafios de combate"
+            createHint={playerChallengeHint}
             canSend={canSend}
             onCreate={chatService.createChallenge.bind(chatService)}
             onAllowExtraAttempt={chatService.allowExtraAttempt.bind(chatService)}
@@ -623,6 +680,7 @@ export default function TableRoom() {
           <div className="side-section" hidden={sideTab !== 'COMBATE'}>
             <CombatStartPanel
               participants={table.participants}
+              npcs={characters.filter((c) => c.kind !== 'PLAYER' && table.npcIds.includes(String(c.id)))}
               onlineUserIds={onlineUsers.map((u) => String(u.userId))}
               combatActive={combat !== null}
               canSend={canSend}
@@ -698,6 +756,7 @@ export default function TableRoom() {
             isMaster={isMaster}
             canSend={canSend}
             onRollInitiative={chatService.rollInitiative.bind(chatService)}
+            onRollMonsters={chatService.rollMonsterInitiative.bind(chatService)}
             onPassTurn={chatService.passTurn.bind(chatService)}
             onAllowReroll={chatService.allowInitiativeReroll.bind(chatService)}
             onEnd={chatService.endCombat.bind(chatService)}

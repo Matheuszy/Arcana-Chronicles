@@ -2,7 +2,7 @@ import { WS_BASE_URL } from './apiConfig';
 import { ChatMessage, ChatMessageType, OutgoingChatMessage, RollMode, RollRequest } from '../types/chat';
 import { RoomCommand } from '../types/room';
 import { ChallengeChoice, ChallengeCommand, ChallengeMessageTarget } from '../types/challenge';
-import { CombatCommand } from '../types/combat';
+import { CombatCommand, MonsterGroup } from '../types/combat';
 
 const AUTH_PROTOCOL = 'arcana.jwt';
 
@@ -132,8 +132,8 @@ class ChatService {
     });
   }
 
-  createChallenge(dc: number, description: string, players: { jogadorId: number; modo: RollMode }[]): void {
-    this.sendChallengeCommand('DESAFIO_CRIAR', { cd: dc, descricao: description, jogadores: players });
+  createChallenge(dc: number, description: string, targets: { alvoId: string; modo: RollMode }[]): void {
+    this.sendChallengeCommand('DESAFIO_CRIAR', { cd: dc, descricao: description, jogadores: targets });
   }
 
   rollChallenge(choice: ChallengeChoice): void {
@@ -143,42 +143,60 @@ class ChatService {
     });
   }
 
-  allowExtraAttempt(challengeId: string, playerId: number, mode: RollMode): void {
-    this.sendChallengeCommand('DESAFIO_TENTATIVA_EXTRA', { desafioId: challengeId, jogadorId: playerId, modo: mode });
+  rollMonsterChallenge(challengeId: string, targetIds: string[], choice: ChallengeChoice, mode: RollMode): void {
+    this.sendChallengeCommand('DESAFIO_ROLAR', {
+      desafioId: challengeId,
+      alvos: targetIds,
+      atributo: choice.atributo ?? undefined,
+      pericia: choice.pericia ?? undefined,
+      modo: mode,
+    });
   }
 
-  endChallengeWithFailure(challengeId: string, playerId: number): void {
-    this.sendChallengeCommand('DESAFIO_ENCERRAR_FALHA', { desafioId: challengeId, jogadorId: playerId });
+  allowExtraAttempt(challengeId: string, targetId: string, mode: RollMode): void {
+    this.sendChallengeCommand('DESAFIO_TENTATIVA_EXTRA', { desafioId: challengeId, alvoId: targetId, modo: mode });
   }
 
-  cancelChallenge(challengeId: string, playerId?: number): void {
-    this.sendChallengeCommand('DESAFIO_CANCELAR', { desafioId: challengeId, jogadorId: playerId });
+  endChallengeWithFailure(challengeId: string, targetId: string): void {
+    this.sendChallengeCommand('DESAFIO_ENCERRAR_FALHA', { desafioId: challengeId, alvoId: targetId });
+  }
+
+  cancelChallenge(challengeId: string, targetId?: string): void {
+    this.sendChallengeCommand('DESAFIO_CANCELAR', { desafioId: challengeId, alvoId: targetId });
   }
 
   sendChallengeMessage(
     challengeId: string,
     target: ChallengeMessageTarget,
     text: string,
-    playerId?: number,
+    targetId?: string,
   ): void {
     this.sendChallengeCommand('DESAFIO_MENSAGEM', {
       desafioId: challengeId,
       destino: target,
       texto: text,
-      jogadorId: playerId,
+      alvoId: targetId,
     });
   }
 
-  startCombat(playerIds: number[]): void {
-    this.sendCombatCommand('COMBATE_INICIAR', { jogadores: playerIds });
+  startCombat(playerIds: number[], monsters: MonsterGroup[]): void {
+    this.sendCombatCommand('COMBATE_INICIAR', { jogadores: playerIds, monstros: monsters });
   }
 
   rollInitiative(mode: RollMode, addProficiency: boolean): void {
     this.sendCombatCommand('COMBATE_ROLAR', { modo: mode, somarProficiencia: addProficiency });
   }
 
-  allowInitiativeReroll(playerIds: number[]): void {
-    this.sendCombatCommand('COMBATE_LIBERAR_REROLL', { jogadores: playerIds });
+  rollMonsterInitiative(entryIds: string[], mode: RollMode, addProficiency: boolean): void {
+    this.sendCombatCommand('COMBATE_ROLAR_MONSTROS', {
+      entradas: entryIds,
+      modo: mode,
+      somarProficiencia: addProficiency,
+    });
+  }
+
+  allowInitiativeReroll(entryIds: string[]): void {
+    this.sendCombatCommand('COMBATE_LIBERAR_REROLL', { entradas: entryIds });
   }
 
   passTurn(): void {

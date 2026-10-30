@@ -5,10 +5,10 @@ import { Challenge, IncomingChallengeMessage, RollReveal } from '../../types/cha
 function findNewRoll(previous: Challenge | undefined, updated: Challenge): RollReveal | null {
   if (!previous) return null;
   for (const player of updated.jogadores) {
-    const before = previous.jogadores.find((p) => p.jogadorId === player.jogadorId)?.rolagens.length ?? 0;
+    const before = previous.jogadores.find((p) => p.id === player.id)?.rolagens.length ?? 0;
     if (player.rolagens.length > before) {
       const roll = player.rolagens[player.rolagens.length - 1];
-      return { key: `${updated.id}-${player.jogadorId}-${roll.tentativa}`, challenge: updated, player, roll };
+      return { key: `${updated.id}-${player.id}-${roll.tentativa}`, challenge: updated, player, roll };
     }
   }
   return null;

@@ -8,6 +8,7 @@ import {
   Challenge,
   ChallengeMessageTarget,
   ChallengePlayer,
+  ChallengeTarget,
   MAX_CHALLENGE_DC,
   MAX_CHALLENGE_DESCRIPTION,
   MAX_CHALLENGE_MESSAGE,
@@ -21,13 +22,16 @@ const MODES: RollMode[] = ['NORMAL', 'VANTAGEM', 'DESVANTAGEM'];
 interface ChallengeMasterPanelProps {
   challenges: Challenge[];
   participants: TableParticipant[];
-  onlineUserIds: string[];
+  targets: ChallengeTarget[];
+  viewerId: string | null;
+  title: string;
+  createHint?: string;
   canSend: boolean;
-  onCreate: (dc: number, description: string, players: { jogadorId: number; modo: RollMode }[]) => void;
-  onAllowExtraAttempt: (challengeId: string, playerId: number, mode: RollMode) => void;
-  onEndWithFailure: (challengeId: string, playerId: number) => void;
-  onCancel: (challengeId: string, playerId?: number) => void;
-  onSendMessage: (challengeId: string, target: ChallengeMessageTarget, text: string, playerId?: number) => void;
+  onCreate: (dc: number, description: string, targets: { alvoId: string; modo: RollMode }[]) => void;
+  onAllowExtraAttempt: (challengeId: string, targetId: string, mode: RollMode) => void;
+  onEndWithFailure: (challengeId: string, targetId: string) => void;
+  onCancel: (challengeId: string, targetId?: string) => void;
+  onSendMessage: (challengeId: string, target: ChallengeMessageTarget, text: string, targetId?: string) => void;
 }
 
 interface Selection {
@@ -51,6 +55,7 @@ function ModeSelect({ value, onChange }: { value: RollMode; onChange: (mode: Rol
 function PlayerRow({
   challenge,
   player,
+  manage,
   canSend,
   onAllowExtraAttempt,
   onEndWithFailure,
@@ -58,6 +63,7 @@ function PlayerRow({
 }: {
   challenge: Challenge;
   player: ChallengePlayer;
+  manage: boolean;
   canSend: boolean;
   onAllowExtraAttempt: ChallengeMasterPanelProps['onAllowExtraAttempt'];
   onEndWithFailure: ChallengeMasterPanelProps['onEndWithFailure'];
@@ -83,27 +89,27 @@ function PlayerRow({
         {player.rolagens.map((r) => ` · ${r.descricaoEscolha}: ${r.total}${r.sucesso ? ' ✓' : ' ✗'}`).join('')}
       </p>
 
-      {player.estado === 'AGUARDANDO_DECISAO_DO_MESTRE' && last && (
+      {manage && player.estado === 'AGUARDANDO_DECISAO_DO_MESTRE' && last && (
         <div className="challenge-actions">
           <ModeSelect value={extraMode} onChange={setExtraMode} />
           <button
             className="btn btn-primary"
             disabled={!canSend}
-            onClick={() => onAllowExtraAttempt(challenge.id, player.jogadorId, extraMode)}
+            onClick={() => onAllowExtraAttempt(challenge.id, player.id, extraMode)}
           >
             Permitir nova tentativa
           </button>
           <button
             className="btn btn-ghost"
             disabled={!canSend}
-            onClick={() => onEndWithFailure(challenge.id, player.jogadorId)}
+            onClick={() => onEndWithFailure(challenge.id, player.id)}
           >
             Encerrar com falha
           </button>
         </div>
       )}
 
-      {active && (
+      {manage && active && (
         <button
           className="btn btn-ghost challenge-cancel"
           onClick={async () => {
@@ -114,10 +120,10 @@ function PlayerRow({
               cancelLabel: 'Voltar',
               danger: true,
             });
-            if (confirmed) onCancel(challenge.id, player.jogadorId);
+            if (confirmed) onCancel(challenge.id, player.id);
           }}
         >
-          Cancelar este jogador
+          Cancelar este participante
         </button>
       )}
     </li>
@@ -139,19 +145,19 @@ function MessageComposer({
   const winners = resolved.filter((p) => p.estado === 'SUCESSO');
   const losers = resolved.filter((p) => p.estado === 'FALHA');
   const [target, setTarget] = useState<ChallengeMessageTarget>('VENCEDORES');
-  const [playerId, setPlayerId] = useState('');
+  const [targetId, setTargetId] = useState('');
   const [text, setText] = useState('');
 
   if (resolved.length === 0) return null;
 
   const nameOf = (id: number) =>
     participants.find((p) => String(p.userId) === String(id))?.displayName ?? String(id);
-  const recipientCount = target === 'VENCEDORES' ? winners.length : target === 'DERROTADOS' ? losers.length : playerId ? 1 : 0;
+  const recipientCount = target === 'VENCEDORES' ? winners.length : target === 'DERROTADOS' ? losers.length : targetId ? 1 : 0;
   const trimmed = text.trim();
 
   const send = () => {
     if (!trimmed || recipientCount === 0) return;
-    onSendMessage(challenge.id, target, trimmed, target === 'JOGADOR' ? Number(playerId) : undefined);
+    onSendMessage(challenge.id, target, trimmed, target === 'JOGADOR' ? targetId : undefined);
     setText('');
   };
 
@@ -166,18 +172,18 @@ function MessageComposer({
           options={[
             { value: 'VENCEDORES', label: `Todos que venceram (${winners.length})` },
             { value: 'DERROTADOS', label: `Todos que falharam (${losers.length})` },
-            { value: 'JOGADOR', label: 'Um jogador específico' },
+            { value: 'JOGADOR', label: 'Um participante específico' },
           ]}
         />
       </div>
       {target === 'JOGADOR' && (
         <div className="field">
           <Select
-            label="Jogador"
-            value={playerId}
-            onChange={setPlayerId}
+            label="Participante"
+            value={targetId}
+            onChange={setTargetId}
             options={resolved.map((p) => ({
-              value: String(p.jogadorId),
+              value: p.id,
               label: `${p.nomePersonagem} — ${p.estado === 'SUCESSO' ? 'venceu' : 'falhou'}`,
             }))}
           />
@@ -223,7 +229,10 @@ function MessageComposer({
 export default function ChallengeMasterPanel({
   challenges,
   participants,
-  onlineUserIds,
+  targets,
+  viewerId,
+  title,
+  createHint,
   canSend,
   onCreate,
   onAllowExtraAttempt,
@@ -238,11 +247,10 @@ export default function ChallengeMasterPanel({
   const [selection, setSelection] = useState<Record<string, Selection>>({});
   const [formError, setFormError] = useState<string | null>(null);
 
-  const players = participants.filter((p) => p.role === 'JOGADOR');
-  const busyPlayerIds = new Set(
-    challenges.flatMap((c) => c.jogadores.filter((p) => isActiveState(p.estado)).map((p) => String(p.jogadorId))),
+  const busyTargetIds = new Set(
+    challenges.flatMap((c) => c.jogadores.filter((p) => isActiveState(p.estado)).map((p) => p.id)),
   );
-  const chosen = players.filter((p) => selection[p.userId]?.selected);
+  const chosen = targets.filter((t) => selection[t.id]?.selected);
 
   const toggle = (userId: string) =>
     setSelection((prev) => ({
@@ -260,13 +268,13 @@ export default function ChallengeMasterPanel({
       return;
     }
     if (chosen.length === 0) {
-      setFormError('Selecione ao menos um jogador.');
+      setFormError('Selecione ao menos um alvo.');
       return;
     }
     onCreate(
       parsedDc,
       description.trim(),
-      chosen.map((p) => ({ jogadorId: Number(p.userId), modo: selection[p.userId]?.mode ?? 'NORMAL' })),
+      chosen.map((t) => ({ alvoId: t.id, modo: selection[t.id]?.mode ?? 'NORMAL' })),
     );
     setFormError(null);
     setDescription('');
@@ -279,15 +287,18 @@ export default function ChallengeMasterPanel({
   return (
     <div className="challenge-panel">
       <h3 className="section-title">
-        Desafios de CD
+        {title}
         {challenges.some((c) => c.ativo) && <span className="badge">{challenges.filter((c) => c.ativo).length}</span>}
       </h3>
 
-      {!formOpen ? (
+      {!formOpen && createHint && <p className="muted">{createHint}</p>}
+      {!formOpen && !createHint ? (
         <button className="btn btn-primary challenge-new" onClick={() => setFormOpen(true)}>
           Novo desafio
         </button>
-      ) : (
+      ) : null}
+
+      {formOpen && !createHint && (
         <div className="challenge-form">
           <div className="row">
             <div className="field">
@@ -316,33 +327,37 @@ export default function ChallengeMasterPanel({
             </div>
           </div>
 
-          <p className="muted">Jogadores do desafio e a rolagem de cada um:</p>
-          {players.length === 0 && <p className="muted">Nenhum jogador na mesa.</p>}
+          <p className="muted">Alvos do desafio e a rolagem de cada um:</p>
+          {targets.length === 0 && <p className="muted">Nenhum alvo disponível.</p>}
           <ul className="challenge-pick-list">
-            {players.map((p) => {
-              const busy = busyPlayerIds.has(String(p.userId));
-              const noCharacter = !p.characterId;
-              const blocked = busy || noCharacter;
-              const current = selection[p.userId];
+            {targets.map((target) => {
+              const busy = busyTargetIds.has(target.id);
+              const reason = busy ? 'em desafio' : target.disabledReason;
+              const blocked = Boolean(reason);
+              const current = selection[target.id];
               return (
-                <li key={p.userId} className="challenge-pick">
+                <li key={target.id} className="challenge-pick">
                   <label>
                     <input
                       type="checkbox"
                       disabled={blocked}
                       checked={Boolean(current?.selected) && !blocked}
-                      onChange={() => toggle(p.userId)}
+                      onChange={() => toggle(target.id)}
                     />
-                    <span className={`presence-dot ${onlineUserIds.includes(String(p.userId)) ? 'online' : ''}`} aria-hidden="true" />
-                    {p.displayName}
-                    <small className="muted">{onlineUserIds.includes(String(p.userId)) ? ' (online)' : ' (offline)'}</small>
+                    {target.online !== undefined && (
+                      <span className={`presence-dot ${target.online ? 'online' : ''}`} aria-hidden="true" />
+                    )}
+                    {target.label}
+                    {target.detail && <small className="muted"> {target.detail}</small>}
                   </label>
                   {blocked ? (
-                    <small className="muted">{busy ? 'em desafio' : 'sem personagem'}</small>
+                    <small className="muted">{reason}</small>
+                  ) : target.kind === 'MONSTRO' ? (
+                    <small className="muted">o mestre escolhe a rolagem</small>
                   ) : (
                     <ModeSelect
                       value={current?.mode ?? 'NORMAL'}
-                      onChange={(mode) => changeMode(p.userId, mode)}
+                      onChange={(mode) => changeMode(target.id, mode)}
                     />
                   )}
                 </li>
@@ -365,18 +380,22 @@ export default function ChallengeMasterPanel({
       {ordered.length === 0 && !formOpen && <p className="muted">Nenhum desafio nesta sessão.</p>}
 
       <ul className="challenge-list">
-        {ordered.map((challenge) => (
+        {ordered.map((challenge) => {
+          const own = String(challenge.criadorId) === viewerId;
+          return (
           <li key={challenge.id} className={`challenge-card ${challenge.ativo ? 'challenge-card--ativo' : ''}`}>
             <div className="challenge-card-head">
               <strong>{challenge.descricao ?? 'Desafio'}</strong>
               <span className="challenge-card-dc">CD {challenge.cd}</span>
             </div>
+            {!own && <p className="muted">Lançado por {challenge.criadorNome}</p>}
             <ul className="challenge-players">
               {challenge.jogadores.map((player) => (
                 <PlayerRow
-                  key={player.jogadorId}
+                  key={player.id}
                   challenge={challenge}
                   player={player}
+                  manage={own}
                   canSend={canSend}
                   onAllowExtraAttempt={onAllowExtraAttempt}
                   onEndWithFailure={onEndWithFailure}
@@ -384,7 +403,7 @@ export default function ChallengeMasterPanel({
                 />
               ))}
             </ul>
-            {challenge.ativo && challenge.jogadores.length > 1 && (
+            {own && challenge.ativo && challenge.jogadores.length > 1 && (
               <button
                 className="btn btn-danger challenge-cancel"
                 onClick={async () => {
@@ -401,14 +420,17 @@ export default function ChallengeMasterPanel({
                 Cancelar para todos
               </button>
             )}
-            <MessageComposer
-              challenge={challenge}
-              participants={participants}
-              canSend={canSend}
-              onSendMessage={onSendMessage}
-            />
+            {own && (
+              <MessageComposer
+                challenge={challenge}
+                participants={participants}
+                canSend={canSend}
+                onSendMessage={onSendMessage}
+              />
+            )}
           </li>
-        ))}
+          );
+        })}
       </ul>
     </div>
   );

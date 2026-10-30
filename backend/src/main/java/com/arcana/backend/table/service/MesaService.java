@@ -228,6 +228,24 @@ public class MesaService {
     }
 
     @Transactional
+    public FichaDeParticipante buscarFichaDeNpcDaMesa(Long mesaId, Long npcId, Long mestreId) {
+        Mesa mesa = findOrThrow(mesaId);
+        validarMestreDaMesa(mesa, mestreId, "Apenas o mestre da mesa pode usar os NPCs da mesa.");
+
+        if (!mesa.getNpcIds().contains(npcId)) {
+            throw new RegraDeNegocioException("Este NPC não está vinculado à mesa.");
+        }
+
+        Personagem personagem = personagemRepository.findById(npcId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Personagem não encontrado: " + npcId));
+        String nomeDoMestre = buscarParticipante(mesa, mestreId)
+                .map(Participante::getDisplayName)
+                .orElse("Mestre");
+
+        return FichaDeParticipante.from(mestreId, nomeDoMestre, personagem);
+    }
+
+    @Transactional
     public AlvoDeStatus buscarAlvoDeStatus(Long mesaId, Long personagemId) {
         Mesa mesa = findOrThrow(mesaId);
         Personagem personagem = personagemRepository.findById(personagemId)
