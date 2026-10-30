@@ -34,14 +34,23 @@ public record PersonagemResponseDto(
         String avatarUrl,
         Long ownerId,
         LocalDateTime createdAt,
-        String classe,
-        String subclasse,
+        List<ClasseDto> classes,
         Integer proficiencyBonus,
         Map<String, Integer> savingThrows,
         List<String> items,
-        String habilidades
+        String habilidades,
+        String raca,
+        String alinhamento,
+        String habilidadesRaca,
+        String talentos
 
 ) {
+    public record ClasseDto(
+            String classe,
+            String subclasse,
+            Integer nivel
+    ) {}
+
     public record AtributosDto(
             Integer forca,
             Integer destreza,
@@ -104,12 +113,17 @@ public record PersonagemResponseDto(
                 p.getAvatarUrl(),
                 p.getOwner() != null ? p.getOwner().getId() : null,
                 p.getCreatedAt(),
-                p.getClasse(),
-                p.getSubclasse(),
+                p.getClasses().stream()
+                        .map(c -> new ClasseDto(c.getClasse(), c.getSubclasse(), c.getNivel()))
+                        .toList(),
                 p.getBonusProficiencia(),
                 salvaguardasEmOrdem(p),
                 List.copyOf(p.getItens()),
-                p.getHabilidades()
+                p.getHabilidades(),
+                p.getRaca(),
+                p.getAlinhamento(),
+                p.getHabilidadesRaca(),
+                p.getTalentos()
         );
     }
 

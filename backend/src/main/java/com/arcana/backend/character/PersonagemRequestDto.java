@@ -58,11 +58,8 @@ public record PersonagemRequestDto(
 
         String avatarUrl,
 
-        @Size(max = 60, message = "Classe não pode ter mais de 60 caracteres")
-        String classe,
-
-        @Size(max = 60, message = "Subclasse não pode ter mais de 60 caracteres")
-        String subclasse,
+        @Size(max = 10, message = "A ficha pode ter no máximo 10 classes")
+        List<@Valid ClasseDto> classes,
 
         @Min(value = 0, message = "Bônus de proficiência não pode ser negativo")
         @Max(value = 10, message = "Bônus de proficiência não pode passar de 10")
@@ -77,9 +74,35 @@ public record PersonagemRequestDto(
              @Size(max = 100, message = "Item não pode ter mais de 100 caracteres") String> items,
 
         @Size(max = 5000, message = "Habilidades não podem ter mais de 5000 caracteres")
-        String habilidades
+        String habilidades,
+
+        @Size(max = 60, message = "Raça não pode ter mais de 60 caracteres")
+        String raca,
+
+        @Size(max = 60, message = "Alinhamento não pode ter mais de 60 caracteres")
+        String alinhamento,
+
+        @Size(max = 5000, message = "Habilidades de raça não podem ter mais de 5000 caracteres")
+        String habilidadesRaca,
+
+        @Size(max = 5000, message = "Talentos não podem ter mais de 5000 caracteres")
+        String talentos
 
 ) {
+    public record ClasseDto(
+            @NotBlank(message = "Toda classe precisa de um nome")
+            @Size(max = 60, message = "Classe não pode ter mais de 60 caracteres")
+            String classe,
+
+            @Size(max = 60, message = "Subclasse não pode ter mais de 60 caracteres")
+            String subclasse,
+
+            @NotNull(message = "O nível da classe é obrigatório")
+            @Min(value = 1, message = "O nível da classe deve ser de 1 a 20")
+            @Max(value = 20, message = "O nível da classe deve ser de 1 a 20")
+            Integer nivel
+    ) {}
+
     public record AtributosDto(
             @NotNull(message = "Força é obrigatória") @Min(value = 8, message = "Força deve ser no mínimo 8") @Max(value = 20, message = "Força deve ser no máximo 20") Integer forca,
             @NotNull(message = "Destreza é obrigatória") @Min(value = 8, message = "Destreza deve ser no mínimo 8") @Max(value = 20, message = "Destreza deve ser no máximo 20") Integer destreza,

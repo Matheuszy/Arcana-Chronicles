@@ -4,6 +4,7 @@ import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Atributos;
+import com.arcana.backend.character.model.ClassePersonagem;
 import com.arcana.backend.character.model.Magia;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
@@ -129,9 +130,12 @@ public class PersonagemService {
         personagem.setPersonalityPrompt(dto.personalityPrompt());
         personagem.setAvatarUrl(dto.avatarUrl());
         personagem.setEquipment(dto.equipment());
-        personagem.setClasse(textoOuNulo(dto.classe()));
-        personagem.setSubclasse(textoOuNulo(dto.subclasse()));
+        mapearClasses(dto, personagem);
         personagem.setHabilidades(textoOuNulo(dto.habilidades()));
+        personagem.setTalentos(textoOuNulo(dto.talentos()));
+        personagem.setRaca(textoOuNulo(dto.raca()));
+        personagem.setAlinhamento(textoOuNulo(dto.alinhamento()));
+        personagem.setHabilidadesRaca(textoOuNulo(dto.habilidadesRaca()));
         personagem.setBonusProficiencia(dto.proficiencyBonus() != null ? dto.proficiencyBonus() : 2);
 
         personagem.getSalvaguardas().clear();
@@ -175,6 +179,14 @@ public class PersonagemService {
         validarEspacosDeMagia(dto);
         personagem.setSpellSlots(serializeSlots(dto.spellSlots()));
         personagem.setSpellSlotsCurrent(serializeSlots(dto.spellSlotsCurrent()));
+    }
+
+    private void mapearClasses(PersonagemRequestDto dto, Personagem personagem) {
+        personagem.getClasses().clear();
+        if (dto.classes() == null || dto.classes().isEmpty()) return;
+        dto.classes().forEach(classe -> personagem.getClasses().add(
+                new ClassePersonagem(classe.classe().trim(), textoOuNulo(classe.subclasse()), classe.nivel())));
+        personagem.setLevel(personagem.getClasses().stream().mapToInt(ClassePersonagem::getNivel).sum());
     }
 
     private void validarEspacosDeMagia(PersonagemRequestDto dto) {

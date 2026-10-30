@@ -13,6 +13,7 @@ import {
   Attributes,
   Character,
   CharacterKind,
+  ClassEntry,
   DEFAULT_PROFICIENCY_BONUS,
   EMPTY_ATTRIBUTES,
   EMPTY_SPELL_SLOTS,
@@ -20,13 +21,18 @@ import {
   KIND_LABEL,
   KINDS_BY_ROLE,
   MAX_ABILITIES_LENGTH,
+  MAX_ALIGNMENT_LENGTH,
   MAX_CLASS_LENGTH,
+  MAX_CLASS_LEVEL,
+  MAX_CLASSES,
   MAX_ITEM_LENGTH,
   MAX_ITEMS,
   MAX_PROFICIENCY_BONUS,
+  MAX_RACE_LENGTH,
   MAX_SPELL_SLOTS,
   remainingSpellSlots,
   rollAttribute,
+  totalClassLevel,
   SKILL_ATTRIBUTE,
   SKILL_LABEL,
   skillRollModifier,
@@ -56,9 +62,12 @@ const EMPTY_CHARACTER: Character = {
   equipment: '',
   spells: [],
   spellSlots: { ...EMPTY_SPELL_SLOTS },
-  classe: '',
-  subclasse: '',
+  classes: [],
   habilidades: '',
+  talentos: '',
+  raca: '',
+  alinhamento: '',
+  habilidadesRaca: '',
   proficiencyBonus: DEFAULT_PROFICIENCY_BONUS,
   savingThrows: {},
   items: [],
@@ -96,9 +105,12 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         const loaded: Character = {
           ...EMPTY_CHARACTER,
           ...char,
-          classe: char.classe ?? '',
-          subclasse: char.subclasse ?? '',
+          classes: (char.classes ?? []).map((entry) => ({ ...entry, subclasse: entry.subclasse ?? '' })),
           habilidades: char.habilidades ?? '',
+          talentos: char.talentos ?? '',
+          raca: char.raca ?? '',
+          alinhamento: char.alinhamento ?? '',
+          habilidadesRaca: char.habilidadesRaca ?? '',
           spellSlots: { ...EMPTY_SPELL_SLOTS, ...(char.spellSlots ?? {}) },
         };
         setForm(loaded);
@@ -164,6 +176,28 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
   const setSavingThrowBonus = (key: keyof Attributes, value: number) =>
     setField('savingThrows', { ...(form.savingThrows ?? {}), [key]: clampBonus(value) });
+
+  const classes = form.classes ?? [];
+  const hasClasses = classes.length > 0;
+
+  const updateClasses = (next: ClassEntry[]) =>
+    setForm((prev) => ({
+      ...prev,
+      classes: next,
+      level: next.length > 0 ? totalClassLevel(next) : prev.level,
+    }));
+
+  const addClass = () => {
+    if (classes.length >= MAX_CLASSES) return;
+    updateClasses([...classes, { classe: '', subclasse: '', nivel: 1 }]);
+  };
+
+  const changeClass = (index: number, changes: Partial<ClassEntry>) =>
+    updateClasses(classes.map((entry, i) => (i === index ? { ...entry, ...changes } : entry)));
+
+  const clampClassLevel = (value: number) => Math.min(MAX_CLASS_LEVEL, Math.max(1, Math.trunc(value) || 1));
+
+  const removeClass = (index: number) => updateClasses(classes.filter((_, i) => i !== index));
 
   const addItem = () => {
     if (!canAddItem) return;
@@ -275,6 +309,10 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
       setSaveError('Dê um nome ao personagem antes de salvar.');
       return;
     }
+    if (classes.some((entry) => !entry.classe.trim())) {
+      setSaveError('Preencha o nome de todas as classes ou remova as linhas vazias.');
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -347,29 +385,60 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           />
         </div>
 
+        <h4 className="sheet-subtitle">Classes</h4>
+        {hasClasses ? (
+          classes.map((entry, i) => (
+            <div className="row" key={i}>
+              <div className="field grow">
+                <label htmlFor={`classe-${i}`}>Classe</label>
+                <input
+                  id={`classe-${i}`}
+                  type="text"
+                  maxLength={MAX_CLASS_LENGTH}
+                  value={entry.classe}
+                  onChange={(e) => changeClass(i, { classe: e.target.value })}
+                  placeholder="ex: Guerreiro"
+                />
+              </div>
+              <div className="field grow">
+                <label htmlFor={`subclasse-${i}`}>Subclasse</label>
+                <input
+                  id={`subclasse-${i}`}
+                  type="text"
+                  maxLength={MAX_CLASS_LENGTH}
+                  value={entry.subclasse}
+                  onChange={(e) => changeClass(i, { subclasse: e.target.value })}
+                  placeholder="ex: Campeão"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor={`nivel-${i}`}>Nível</label>
+                <input
+                  id={`nivel-${i}`}
+                  type="number"
+                  min={1}
+                  max={MAX_CLASS_LEVEL}
+                  value={entry.nivel}
+                  onChange={(e) => changeClass(i, { nivel: clampClassLevel(Number(e.target.value)) })}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn-remove"
+                onClick={() => removeClass(i)}
+                aria-label={`Remover classe ${entry.classe || i + 1}`}
+              >
+                ✕
+              </button>
+            </div>
+          ))
+        ) : (
+          <p className="muted-hint">Nenhuma classe na ficha.</p>
+        )}
         <div className="row">
-          <div className="field grow">
-            <label htmlFor="classe">Classe</label>
-            <input
-              id="classe"
-              type="text"
-              maxLength={MAX_CLASS_LENGTH}
-              value={form.classe ?? ''}
-              onChange={(e) => setField('classe', e.target.value)}
-              placeholder="ex: Guerreiro"
-            />
-          </div>
-          <div className="field grow">
-            <label htmlFor="subclasse">Subclasse</label>
-            <input
-              id="subclasse"
-              type="text"
-              maxLength={MAX_CLASS_LENGTH}
-              value={form.subclasse ?? ''}
-              onChange={(e) => setField('subclasse', e.target.value)}
-              placeholder="ex: Campeão"
-            />
-          </div>
+          <button type="button" className="btn btn-ghost" onClick={addClass} disabled={classes.length >= MAX_CLASSES}>
+            + Adicionar classe
+          </button>
           <div className="field">
             <label htmlFor="proficiencyBonus" title="Valor sugerido ao marcar um atributo ou perícia">
               Bônus padrão
@@ -385,14 +454,42 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           </div>
         </div>
 
+        <div className="row">
+          <div className="field grow">
+            <label htmlFor="raca">Raça</label>
+            <input
+              id="raca"
+              type="text"
+              maxLength={MAX_RACE_LENGTH}
+              value={form.raca ?? ''}
+              onChange={(e) => setField('raca', e.target.value)}
+              placeholder="ex: Elfo"
+            />
+          </div>
+          <div className="field grow">
+            <label htmlFor="alinhamento">Alinhamento</label>
+            <input
+              id="alinhamento"
+              type="text"
+              maxLength={MAX_ALIGNMENT_LENGTH}
+              value={form.alinhamento ?? ''}
+              onChange={(e) => setField('alinhamento', e.target.value)}
+              placeholder="ex: Neutro e Bom"
+            />
+          </div>
+        </div>
+
         {/* ── Stats base ── */}
         <div className="row">
           <div className="field">
-            <label htmlFor="level">Nível</label>
+            <label htmlFor="level" title={hasClasses ? 'Soma dos níveis das classes' : undefined}>
+              Nível
+            </label>
             <input
               id="level"
               type="number"
               min={1}
+              readOnly={hasClasses}
               value={form.level}
               onChange={(e) => setField('level', Number(e.target.value))}
             />
@@ -807,6 +904,38 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           />
           <span className="muted">
             {(form.habilidades ?? '').length}/{MAX_ABILITIES_LENGTH}
+          </span>
+        </div>
+
+        <h3 className="section-title">Habilidades de raça</h3>
+        <div className="field">
+          <label htmlFor="habilidadesRaca">Habilidades de raça</label>
+          <textarea
+            id="habilidadesRaca"
+            rows={4}
+            maxLength={MAX_ABILITIES_LENGTH}
+            value={form.habilidadesRaca ?? ''}
+            onChange={(e) => setField('habilidadesRaca', e.target.value)}
+            placeholder="Escreva livremente as habilidades da raça, com efeito e usos."
+          />
+          <span className="muted">
+            {(form.habilidadesRaca ?? '').length}/{MAX_ABILITIES_LENGTH}
+          </span>
+        </div>
+
+        <h3 className="section-title">Talentos</h3>
+        <div className="field">
+          <label htmlFor="talentos">Talentos</label>
+          <textarea
+            id="talentos"
+            rows={4}
+            maxLength={MAX_ABILITIES_LENGTH}
+            value={form.talentos ?? ''}
+            onChange={(e) => setField('talentos', e.target.value)}
+            placeholder="Escreva livremente os talentos do personagem, com efeito e usos."
+          />
+          <span className="muted">
+            {(form.talentos ?? '').length}/{MAX_ABILITIES_LENGTH}
           </span>
         </div>
 

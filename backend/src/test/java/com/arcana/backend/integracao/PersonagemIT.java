@@ -145,11 +145,12 @@ class PersonagemIT extends IntegracaoTest {
     }
 
     @Test
-    void deveGravarClasseSubclasseItensEProficiencias() throws Exception {
+    void deveGravarClassesItensEProficiencias() throws Exception {
         Conta dono = registrar("JOGADOR");
         Map<String, Object> ficha = new HashMap<>(fichaDoTipo("PLAYER"));
-        ficha.put("classe", "Ladino");
-        ficha.put("subclasse", "Assassino");
+        ficha.put("classes", List.of(
+                Map.of("classe", "Ladino", "subclasse", "Assassino", "nivel", 4),
+                Map.of("classe", "Mago de Sangue", "nivel", 2)));
         ficha.put("proficiencyBonus", 3);
         ficha.put("savingThrows", Map.of("destreza", 3, "inteligencia", 3));
         ficha.put("skills", Map.of("furtividade", 6, "persuasao", 3));
@@ -160,8 +161,12 @@ class PersonagemIT extends IntegracaoTest {
 
         getComo(dono.token(), "/api/characters/" + id)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.classe").value("Ladino"))
-                .andExpect(jsonPath("$.subclasse").value("Assassino"))
+                .andExpect(jsonPath("$.classes[0].classe").value("Ladino"))
+                .andExpect(jsonPath("$.classes[0].subclasse").value("Assassino"))
+                .andExpect(jsonPath("$.classes[0].nivel").value(4))
+                .andExpect(jsonPath("$.classes[1].classe").value("Mago de Sangue"))
+                .andExpect(jsonPath("$.classes[1].subclasse").doesNotExist())
+                .andExpect(jsonPath("$.level").value(6))
                 .andExpect(jsonPath("$.proficiencyBonus").value(3))
                 .andExpect(jsonPath("$.savingThrows.destreza").value(3))
                 .andExpect(jsonPath("$.savingThrows.inteligencia").value(3))
@@ -169,6 +174,47 @@ class PersonagemIT extends IntegracaoTest {
                 .andExpect(jsonPath("$.skills.furtividade").value(6))
                 .andExpect(jsonPath("$.skills.persuasao").value(3))
                 .andExpect(jsonPath("$.items", contains("Ferramentas de ladrão", "Corda de 15 m")));
+    }
+
+    @Test
+    void deveGravarRacaAlinhamentoEHabilidadesDeRaca() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Map<String, Object> ficha = new HashMap<>(fichaDoTipo("PLAYER"));
+        ficha.put("raca", "Meio-elfo");
+        ficha.put("alinhamento", "Caótico e Bom");
+        ficha.put("habilidadesRaca", "Ancestral feérico: vantagem contra encantamento");
+        ficha.put("talentos", "Sentinela: ataque de oportunidade ao sair do alcance");
+
+        Long id = corpo(postComo(dono.token(), "/api/characters", ficha).andExpect(status().isCreated()))
+                .get("id").asLong();
+
+        getComo(dono.token(), "/api/characters/" + id)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.raca").value("Meio-elfo"))
+                .andExpect(jsonPath("$.alinhamento").value("Caótico e Bom"))
+                .andExpect(jsonPath("$.habilidadesRaca").value("Ancestral feérico: vantagem contra encantamento"))
+                .andExpect(jsonPath("$.talentos").value("Sentinela: ataque de oportunidade ao sair do alcance"));
+    }
+
+    @Test
+    void deveRecusarClasseSemNomeOuComNivelInvalido() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Map<String, Object> semNome = new HashMap<>(fichaDoTipo("PLAYER"));
+        semNome.put("classes", List.of(Map.of("classe", " ", "nivel", 1)));
+        Map<String, Object> nivelZero = new HashMap<>(fichaDoTipo("PLAYER"));
+        nivelZero.put("classes", List.of(Map.of("classe", "Bardo", "nivel", 0)));
+
+        postComo(dono.token(), "/api/characters", semNome).andExpect(status().isBadRequest());
+        postComo(dono.token(), "/api/characters", nivelZero).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deveRecusarRacaMuitoLonga() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Map<String, Object> ficha = new HashMap<>(fichaDoTipo("PLAYER"));
+        ficha.put("raca", "x".repeat(61));
+
+        postComo(dono.token(), "/api/characters", ficha).andExpect(status().isBadRequest());
     }
 
     @Test
