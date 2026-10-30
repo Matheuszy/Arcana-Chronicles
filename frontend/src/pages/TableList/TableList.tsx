@@ -60,6 +60,13 @@ export default function TableList() {
       .finally(() => setLoading(false));
   };
 
+  const refresh = () => {
+    tableService
+      .list()
+      .then(setTables)
+      .catch(() => undefined);
+  };
+
   useEffect(reload, []);
 
   const toggleCreating = () => {
@@ -154,7 +161,15 @@ export default function TableList() {
     }
 
     if (joiningTableId === table.id) {
-      return <JoinRequestPanel tableId={table.id} />;
+      return (
+        <JoinRequestPanel
+          tableId={table.id}
+          onAccepted={() => {
+            setJoiningTableId(null);
+            refresh();
+          }}
+        />
+      );
     }
 
     return (

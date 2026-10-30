@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useConfirm } from '../../components/ui/Confirm';
+import { usePolling } from '../../hooks/usePolling';
 import { tableService } from '../../services/tableService';
 import { JoinRequest } from '../../types/table';
-
-const REFRESH_INTERVAL_MS = 15000;
 
 interface JoinRequestsPanelProps {
   tableId: string;
@@ -30,9 +29,9 @@ export default function JoinRequestsPanel({ tableId, onAccepted }: JoinRequestsP
 
   useEffect(() => {
     load();
-    const timer = window.setInterval(load, REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(timer);
   }, [load]);
+
+  usePolling(load);
 
   const decide = async (request: JoinRequest, accept: boolean) => {
     if (
