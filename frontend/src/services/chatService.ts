@@ -2,6 +2,7 @@ import { WS_BASE_URL } from './apiConfig';
 import { ChatMessage, ChatMessageType, OutgoingChatMessage, RollMode, RollRequest } from '../types/chat';
 import { RoomCommand } from '../types/room';
 import { ChallengeChoice, ChallengeCommand, ChallengeMessageTarget } from '../types/challenge';
+import { CombatCommand } from '../types/combat';
 
 const AUTH_PROTOCOL = 'arcana.jwt';
 
@@ -168,6 +169,26 @@ class ChatService {
     });
   }
 
+  startCombat(playerIds: number[]): void {
+    this.sendCombatCommand('COMBATE_INICIAR', { jogadores: playerIds });
+  }
+
+  rollInitiative(mode: RollMode, addProficiency: boolean): void {
+    this.sendCombatCommand('COMBATE_ROLAR', { modo: mode, somarProficiencia: addProficiency });
+  }
+
+  allowInitiativeReroll(playerIds: number[]): void {
+    this.sendCombatCommand('COMBATE_LIBERAR_REROLL', { jogadores: playerIds });
+  }
+
+  passTurn(): void {
+    this.sendCombatCommand('COMBATE_PASSAR_TURNO', {});
+  }
+
+  endCombat(): void {
+    this.sendCombatCommand('COMBATE_ENCERRAR', {});
+  }
+
   saveNote(text: string): void {
     this.send({ type: 'NOTA_SALVAR', content: text });
   }
@@ -194,6 +215,10 @@ class ChatService {
 
   private sendRoomCommand(type: ChatMessageType, command: RoomCommand): void {
     this.send({ type, content: '', comandoSala: command });
+  }
+
+  private sendCombatCommand(type: ChatMessageType, command: CombatCommand): void {
+    this.send({ type, content: '', comandoCombate: command });
   }
 
   private sendChallengeCommand(type: ChatMessageType, command: ChallengeCommand): void {

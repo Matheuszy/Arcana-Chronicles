@@ -1,0 +1,100 @@
+.combat-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  background: var(--ink-800);
+  border: 1px solid var(--ember);
+  border-radius: var(--radius-lg);
+}
+
+.combat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.combat-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.combat-turn-banner {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  font-weight: 700;
+  color: var(--ink-900);
+  background: var(--ember-bright);
+  border-radius: var(--radius-lg);
+}
+
+.combat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.combat-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--ink-900);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-lg);
+}
+
+.combat-entry--current {
+  border-color: var(--ember-bright);
+  box-shadow: 0 0 0 1px var(--ember-bright);
+}
+
+.combat-position {
+  min-width: 1.4rem;
+  font-family: var(--font-mono);
+  color: var(--parchment-dim);
+  text-align: center;
+}
+
+.combat-entry-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.combat-total {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  color: var(--ember-bright);
+}
+
+.combat-reroll {
+  font-size: 0.75rem;
+}
+
+.combat-roll,
+.combat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.combat-proficiency {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.msg--sistema .content {
+  white-space: pre-line;
+}
