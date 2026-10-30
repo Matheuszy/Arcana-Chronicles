@@ -6,6 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  overflow-y: auto;
   background: radial-gradient(ellipse at center, rgba(16, 14, 23, 0.82) 0%, rgba(16, 14, 23, 0.96) 100%);
   animation: overlay-fade 0.25s ease-out;
 }
@@ -122,6 +123,16 @@
 }
 .roll-stage-hint { margin: 0; font-size: 0.78rem; color: var(--parchment-dim); }
 
+@media (max-width: 480px) {
+  .roll-stage { padding: 1.5rem 1rem 1.25rem; }
+  .roll-stage-dice { flex-wrap: wrap; gap: 0.75rem; }
+  .roll-die,
+  .roll-die[data-sides='20'] { min-width: 5rem; height: 5rem; font-size: 1.9rem; }
+  .roll-stage-verdict { font-size: 1.4rem; letter-spacing: 0.12em; overflow-wrap: anywhere; }
+  .challenge-picker { padding: 1rem; }
+  .challenge-picker .roll-panel-actions { bottom: -1rem; margin: 0 -1rem -1rem; padding: 0.75rem 1rem; }
+}
+
 .roll-stage-verdict {
   margin: 0.3rem 0 0;
   font-family: var(--font-display);
@@ -167,7 +178,9 @@
 .challenge-picker {
   width: min(560px, 100%);
   max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;

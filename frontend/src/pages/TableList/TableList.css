@@ -65,8 +65,15 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 1.25rem;
+}
+
+.table-search { width: 100%; }
+
+@media (max-width: 640px) {
+  .page { padding-top: 1.25rem; }
+  .page-head .btn { width: 100%; }
 }
 
 .table-card {
