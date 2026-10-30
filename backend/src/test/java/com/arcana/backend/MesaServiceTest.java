@@ -1,6 +1,8 @@
 package com.arcana.backend;
 
+import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Atributos;
+import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
@@ -172,6 +174,39 @@ class MesaServiceTest {
 
         assertThrows(RecursoNaoEncontradoException.class, () -> service.buscarFichaDeParticipante(1L, 100L, 1L));
         verify(personagemRepository, never()).findById(any());
+    }
+
+    @Test
+    void deveMontarFichaDoJogadorComBonusIndividuaisSemHerancaEntreAtributoEPericia() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        Personagem personagem = personagemDoJogador(2L, TipoJogador.PLAYER);
+        personagem.setAttributes(new Atributos(16, 14, 10, 10, 10, 9));
+        personagem.getSalvaguardas().put(Atributo.FORCA, 3);
+        personagem.getSkills().put("furtividade", 6);
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(personagemRepository.findById(100L)).thenReturn(Optional.of(personagem));
+
+        var ficha = service.buscarFichaDoJogadorNaMesa(1L, 2L);
+
+        assertEquals("joao", ficha.nomeJogador());
+        assertEquals("Thorn", ficha.nomePersonagem());
+        assertEquals(6, ficha.modificadorDeAtributo(Atributo.FORCA));
+        assertEquals(3, ficha.modificadorDePericia(Pericia.ATLETISMO));
+        assertEquals(8, ficha.modificadorDePericia(Pericia.FURTIVIDADE));
+        assertEquals(-1, ficha.modificadorDeAtributo(Atributo.CARISMA));
+    }
+
+    @Test
+    void deveRecusarFichaDeQuemNaoEJogadorDaMesaOuNaoTemPersonagem() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(1L, "gandalf", "MESTRE", null));
+        mesa.getParticipants().add(new Participante(3L, "maria", "JOGADOR", null));
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.buscarFichaDoJogadorNaMesa(1L, 1L));
+        assertThrows(RegraDeNegocioException.class, () -> service.buscarFichaDoJogadorNaMesa(1L, 3L));
+        assertThrows(RegraDeNegocioException.class, () -> service.buscarFichaDoJogadorNaMesa(1L, 99L));
     }
 
     private Mesa mesaAbertaDoMestre(Long masterId) {

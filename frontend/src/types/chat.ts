@@ -1,4 +1,25 @@
-export type ChatMessageType = 'TEXTO' | 'ROLAGEM' | 'IMAGEM' | 'NPC_RESPOSTA' | 'SISTEMA' | 'HISTORICO' | 'PRESENCA' | 'SESSAO_ENCERRADA' | 'STATUS_MESA' | 'PARTICIPANTES' | 'REMOVIDO_DA_MESA';
+import type { Challenge, ChallengeCommand } from './challenge';
+
+export type ChatMessageType =
+  | 'TEXTO'
+  | 'ROLAGEM'
+  | 'IMAGEM'
+  | 'NPC_RESPOSTA'
+  | 'SISTEMA'
+  | 'HISTORICO'
+  | 'PRESENCA'
+  | 'SESSAO_ENCERRADA'
+  | 'STATUS_MESA'
+  | 'PARTICIPANTES'
+  | 'REMOVIDO_DA_MESA'
+  | 'DESAFIO'
+  | 'DESAFIOS'
+  | 'DESAFIO_CRIAR'
+  | 'DESAFIO_ROLAR'
+  | 'DESAFIO_TENTATIVA_EXTRA'
+  | 'DESAFIO_ENCERRAR_FALHA'
+  | 'DESAFIO_CANCELAR'
+  | 'DESAFIO_MENSAGEM';
 
 export type Channel = 'CONVERSA' | 'ROLAGENS' | 'IMAGENS';
 
@@ -66,6 +87,12 @@ export interface ChatMessage {
   createdAt: string;
   historico?: Partial<Record<Channel, ChatMessage[]>> | null;
   presentes?: Presence[] | null;
+  desafio?: Challenge | null;
+  desafios?: Challenge[] | null;
+  comandoDesafio?: ChallengeCommand | null;
 }
 
-export type OutgoingChatMessage = Pick<ChatMessage, 'type' | 'canal' | 'content' | 'rollRequest' | 'image' | 'mentionedNpcId'>;
+export type OutgoingChatMessage = Pick<
+  ChatMessage,
+  'type' | 'canal' | 'content' | 'rollRequest' | 'image' | 'mentionedNpcId' | 'comandoDesafio'
+>;

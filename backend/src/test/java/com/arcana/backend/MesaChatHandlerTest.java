@@ -1,7 +1,11 @@
 package com.arcana.backend;
 
 import com.arcana.backend.chat.AutenticacaoHandshakeInterceptor;
+import com.arcana.backend.chat.DesafioChat;
 import com.arcana.backend.chat.MesaChatHandler;
+import com.arcana.backend.chat.desafio.DesafioService;
+import com.arcana.backend.config.JacksonConfig;
+import com.arcana.backend.table.service.MesaService;
 import com.arcana.backend.chat.dice.RolagemDadosService;
 import com.arcana.backend.chat.imagem.ValidadorImagem;
 import com.arcana.backend.chat.sessao.GerenciadorMesasAtivas;
@@ -41,7 +45,7 @@ import static org.mockito.Mockito.*;
 
 class MesaChatHandlerTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new JacksonConfig().objectMapper();
     private final GerenciadorMesasAtivas gerenciador = new GerenciadorMesasAtivas();
     private final TaskScheduler agendador = mock(TaskScheduler.class);
     private MesaChatHandler handler;
@@ -62,8 +66,12 @@ class MesaChatHandlerTest {
                 return 3;
             }
         };
-        handler = new MesaChatHandler(objectMapper, new RolagemDadosService(sempreQuatro), new ValidadorImagem(), gerenciador,
-                agendador, Clock.fixed(Instant.parse("2026-10-29T15:00:00Z"), ZoneOffset.UTC), Duration.ofSeconds(60));
+        Clock relogio = Clock.fixed(Instant.parse("2026-10-29T15:00:00Z"), ZoneOffset.UTC);
+        RolagemDadosService rolagens = new RolagemDadosService(sempreQuatro);
+        DesafioChat desafioChat = new DesafioChat(
+                new DesafioService(mock(MesaService.class), rolagens, relogio), objectMapper);
+        handler = new MesaChatHandler(objectMapper, rolagens, new ValidadorImagem(), desafioChat, gerenciador,
+                agendador, relogio, Duration.ofSeconds(60));
 
         remetente = sessaoAutenticada("a", new AcessoMesaDto(1L, 2L, "joao", "JOGADOR", StatusMesa.ABERTA));
         outroJogador = sessaoAutenticada("b", new AcessoMesaDto(1L, 3L, "maria", "JOGADOR", StatusMesa.ABERTA));

@@ -6,17 +6,23 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
 
 public enum Atributo {
-    FORCA("forca"),
-    DESTREZA("destreza"),
-    CONSTITUICAO("constituicao"),
-    INTELIGENCIA("inteligencia"),
-    SABEDORIA("sabedoria"),
-    CARISMA("carisma");
+    FORCA("forca", "Força"),
+    DESTREZA("destreza", "Destreza"),
+    CONSTITUICAO("constituicao", "Constituição"),
+    INTELIGENCIA("inteligencia", "Inteligência"),
+    SABEDORIA("sabedoria", "Sabedoria"),
+    CARISMA("carisma", "Carisma");
 
     private final String chave;
+    private final String nome;
 
-    Atributo(String chave) {
+    Atributo(String chave, String nome) {
         this.chave = chave;
+        this.nome = nome;
+    }
+
+    public String getNome() {
+        return nome;
     }
 
     @JsonValue
@@ -32,7 +38,7 @@ public enum Atributo {
                 .orElseThrow(() -> new IllegalArgumentException("Atributo desconhecido: " + chave));
     }
 
-    public int valorEm(Atributos atributos) {
+    public Integer valorEm(Atributos atributos) {
         return switch (this) {
             case FORCA -> atributos.getForca();
             case DESTREZA -> atributos.getDestreza();

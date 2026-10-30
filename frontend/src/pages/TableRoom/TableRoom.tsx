@@ -8,13 +8,19 @@ import { diceService, isRollCommand } from '../../services/diceService';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
+import { isActiveState } from '../../types/challenge';
+import ChallengeMasterPanel from './ChallengeMasterPanel';
+import ChallengePlayerPanel from './ChallengePlayerPanel';
+import ChallengeRollOverlay from './ChallengeRollOverlay';
 import DiceRoller from './DiceRoller';
 import DiceRollMessage from './DiceRollMessage';
+import { useChallenges } from './useChallenges';
 import ImageComposer from './ImageComposer';
 import JoinRequestsPanel from './JoinRequestsPanel';
 import ParticipantsPanel from './ParticipantsPanel';
 import PrivateSheetsPanel from './PrivateSheetsPanel';
 import './TableRoom.css';
+import './Challenge.css';
 
 const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
   'forca',
@@ -82,6 +88,21 @@ export default function TableRoom() {
   const isPaused = table?.status === 'PAUSADA';
   const activeCharacterId = me?.characterId ? String(me.characterId) : '';
   const activeCharacter = characters.find((c) => String(c.id) === activeCharacterId);
+  const viewerId = userId !== null ? String(userId) : null;
+  const {
+    challenges,
+    reveal,
+    incomingMessage,
+    handleMessage: handleChallengeMessage,
+    reset: resetChallenges,
+    dismissReveal,
+    dismissMessage,
+  } = useChallenges(isMaster);
+  const rollBlockedByChallenge =
+    !isMaster &&
+    challenges.some((c) =>
+      c.jogadores.some((p) => String(p.jogadorId) === viewerId && isActiveState(p.estado)),
+    );
 
   const loadTable = useCallback(() => {
     if (!id) return;
@@ -121,6 +142,7 @@ export default function TableRoom() {
     setSessionEndedReason(null);
     chatService.connect(id, token);
     const offMessage = chatService.onMessage((msg) => {
+      if (handleChallengeMessage(msg)) return;
       if (msg.type === 'HISTORICO') {
         const restored: MessagesByChannel = {
           CONVERSA: msg.historico?.CONVERSA ?? [],
@@ -138,10 +160,12 @@ export default function TableRoom() {
       } else if (msg.type === 'SESSAO_ENCERRADA') {
         setSessionEndedReason(msg.content);
         setOnlineUsers([]);
+        resetChallenges();
         loadTable();
       } else if (msg.type === 'REMOVIDO_DA_MESA') {
         setRemovedReason(msg.content);
         setOnlineUsers([]);
+        resetChallenges();
         loadTable();
       } else if (msg.type === 'STATUS_MESA' || msg.type === 'PARTICIPANTES') {
         loadTable();
@@ -160,7 +184,7 @@ export default function TableRoom() {
       offStatus();
       chatService.disconnect();
     };
-  }, [id, isParticipant, token, isClosed, connectionAttempt, loadTable]);
+  }, [id, isParticipant, token, isClosed, connectionAttempt, loadTable, handleChallengeMessage, resetChallenges]);
 
   const changeStatus = async (newStatus: TableStatus) => {
     if (!id) return;
@@ -232,6 +256,10 @@ export default function TableRoom() {
     if (!id || !text) return;
 
     if (isRollCommand(text)) {
+      if (rollBlockedByChallenge) {
+        setComposerError('Você tem um desafio em andamento. A única rolagem permitida é a do desafio.');
+        return;
+      }
       try {
         sendRoll(diceService.parseCommand(text));
       } catch (e) {
@@ -353,6 +381,33 @@ export default function TableRoom() {
 
         {isMaster && id && <JoinRequestsPanel tableId={id} onAccepted={loadTable} />}
 
+        {isMaster && (
+          <ChallengeMasterPanel
+            challenges={challenges}
+            participants={table.participants}
+            onlineUserIds={onlineUsers.map((u) => String(u.userId))}
+            canSend={canSend}
+            onCreate={chatService.createChallenge.bind(chatService)}
+            onAllowExtraAttempt={chatService.allowExtraAttempt.bind(chatService)}
+            onEndWithFailure={chatService.endChallengeWithFailure.bind(chatService)}
+            onCancel={chatService.cancelChallenge.bind(chatService)}
+            onSendMessage={chatService.sendChallengeMessage.bind(chatService)}
+          />
+        )}
+
+        {!isMaster && (
+          <ChallengePlayerPanel
+            challenges={challenges}
+            userId={viewerId}
+            character={activeCharacter}
+            paused={Boolean(isPaused)}
+            canSend={connected}
+            incomingMessage={incomingMessage}
+            onRoll={chatService.rollChallenge.bind(chatService)}
+            onDismissMessage={dismissMessage}
+          />
+        )}
+
         {id && (
           <ParticipantsPanel
             tableId={id}
@@ -376,7 +431,10 @@ export default function TableRoom() {
         />
 
         <h3 className="section-title">Rolar dados</h3>
-        <DiceRoller disabled={!canSend} onRoll={sendRoll} />
+        <DiceRoller disabled={!canSend || rollBlockedByChallenge} onRoll={sendRoll} />
+        {rollBlockedByChallenge && (
+          <p className="roll-error">Você tem um desafio em andamento. A única rolagem permitida é a do desafio.</p>
+        )}
         <p className="muted roll-hint">
           Ou digite no chat: <code>/r 1d20+2</code>, <code>/r 1d20 vantagem</code>
         </p>
@@ -390,7 +448,7 @@ export default function TableRoom() {
                   key={key}
                   className="btn btn-ghost"
                   onClick={() => rollAttribute(key)}
-                  disabled={!canSend}
+                  disabled={!canSend || rollBlockedByChallenge}
                 >
                   {key.slice(0, 3).toUpperCase()}
                 </button>
@@ -518,6 +576,8 @@ export default function TableRoom() {
           <ImageComposer disabled={!canSend} onSend={(dataUrl) => chatService.sendImage(dataUrl)} />
         )}
       </div>
+
+      {reveal && <ChallengeRollOverlay key={reveal.key} reveal={reveal} viewerId={viewerId} onClose={dismissReveal} />}
 
       {expandedImage && (
         <div className="image-lightbox" role="dialog" aria-modal="true" onClick={() => setExpandedImage(null)}>
