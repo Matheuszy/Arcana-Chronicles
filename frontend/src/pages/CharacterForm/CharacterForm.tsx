@@ -1,41 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
+import { useSession } from '../../context/SessionContext';
 import LoadError from '../../components/LoadError';
 import {
   attributeModifier,
+  attributeRollModifier,
+  ATTRIBUTE_KEYS,
+  ATTRIBUTE_LABEL,
   Attributes,
   Character,
   CharacterKind,
+  DEFAULT_PROFICIENCY_BONUS,
   EMPTY_ATTRIBUTES,
   EMPTY_SPELL_SLOTS,
-  proficiencyBonus,
+  formatModifier,
+  KIND_LABEL,
+  KINDS_BY_ROLE,
+  MAX_CLASS_LENGTH,
+  MAX_ITEM_LENGTH,
+  MAX_ITEMS,
+  MAX_PROFICIENCY_BONUS,
   rollAttribute,
   SKILL_ATTRIBUTE,
   SKILL_LABEL,
+  skillRollModifier,
   SkillKey,
   Spell,
-  SpellSlots,
 } from '../../types/character';
 import './CharacterForm.css';
-
-const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
-  'forca',
-  'destreza',
-  'constituicao',
-  'inteligencia',
-  'sabedoria',
-  'carisma',
-];
-
-const ATTRIBUTE_LABEL: Record<keyof Attributes, string> = {
-  forca: 'Força',
-  destreza: 'Destreza',
-  constituicao: 'Constituição',
-  inteligencia: 'Inteligência',
-  sabedoria: 'Sabedoria',
-  carisma: 'Carisma',
-};
 
 const ALL_SKILLS = Object.keys(SKILL_LABEL) as SkillKey[];
 
@@ -53,17 +46,26 @@ const EMPTY_CHARACTER: Character = {
   attributes: { ...EMPTY_ATTRIBUTES },
   backstory: '',
   personalityPrompt: '',
-  skills: [],
+  skills: {},
   equipment: '',
   spells: [],
   spellSlots: { ...EMPTY_SPELL_SLOTS },
+  classe: '',
+  subclasse: '',
+  proficiencyBonus: DEFAULT_PROFICIENCY_BONUS,
+  savingThrows: {},
+  items: [],
 };
 
 export default function CharacterForm() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [form, setForm] = useState<Character>(EMPTY_CHARACTER);
-  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(EMPTY_CHARACTER));
+  const { role } = useSession();
+  const allowedKinds = KINDS_BY_ROLE[role === 'MESTRE' ? 'MESTRE' : 'JOGADOR'];
+  const initialCharacter: Character = { ...EMPTY_CHARACTER, kind: allowedKinds[0] };
+  const [form, setForm] = useState<Character>(initialCharacter);
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(initialCharacter));
+  const [newItem, setNewItem] = useState('');
   const [loading, setLoading] = useState(Boolean(id));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -80,6 +82,8 @@ export default function CharacterForm() {
         const loaded: Character = {
           ...EMPTY_CHARACTER,
           ...char,
+          classe: char.classe ?? '',
+          subclasse: char.subclasse ?? '',
           spellSlots: { ...EMPTY_SPELL_SLOTS, ...(char.spellSlots ?? {}) },
         };
         setForm(loaded);
@@ -106,6 +110,11 @@ export default function CharacterForm() {
   };
 
   const isNpcOrMonster = form.kind !== 'PLAYER';
+  const legacyKind = !allowedKinds.includes(form.kind);
+  const kindOptions = legacyKind ? [form.kind, ...allowedKinds] : allowedKinds;
+  const items = form.items ?? [];
+  const trimmedNewItem = newItem.trim();
+  const canAddItem = trimmedNewItem.length > 0 && items.length < MAX_ITEMS;
 
   const setField = <K extends keyof Character>(key: K, value: Character[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -113,10 +122,30 @@ export default function CharacterForm() {
   const setAttribute = (key: keyof Attributes, value: number) =>
     setForm((prev) => ({ ...prev, attributes: { ...prev.attributes, [key]: value } }));
 
-  const modifierFor = (key: keyof Attributes) => {
-    const mod = attributeModifier(form.attributes[key]);
-    return mod >= 0 ? `+${mod}` : `${mod}`;
+  const modifierFor = (key: keyof Attributes) => formatModifier(attributeModifier(form.attributes[key]));
+
+  const defaultBonus = form.proficiencyBonus ?? DEFAULT_PROFICIENCY_BONUS;
+
+  const toggleBonus = <K extends string>(bonuses: Partial<Record<K, number>>, key: K) => {
+    const { [key]: removed, ...rest } = bonuses;
+    return (removed === undefined ? { ...bonuses, [key]: defaultBonus } : rest) as Partial<Record<K, number>>;
   };
+
+  const clampBonus = (value: number) => Math.min(MAX_PROFICIENCY_BONUS, Math.max(0, Math.trunc(value) || 0));
+
+  const toggleSavingThrow = (key: keyof Attributes) =>
+    setField('savingThrows', toggleBonus(form.savingThrows ?? {}, key));
+
+  const setSavingThrowBonus = (key: keyof Attributes, value: number) =>
+    setField('savingThrows', { ...(form.savingThrows ?? {}), [key]: clampBonus(value) });
+
+  const addItem = () => {
+    if (!canAddItem) return;
+    setField('items', [...items, trimmedNewItem]);
+    setNewItem('');
+  };
+
+  const removeItem = (index: number) => setField('items', items.filter((_, i) => i !== index));
 
   // Rola todos os atributos de uma vez
   const rollAllAttributes = () => {
@@ -137,21 +166,12 @@ export default function CharacterForm() {
   };
 
   // Perícias
-  const toggleSkill = (skill: SkillKey) => {
-    const current = form.skills ?? [];
-    const updated = current.includes(skill)
-      ? current.filter((s) => s !== skill)
-      : [...current, skill];
-    setField('skills', updated);
-  };
+  const toggleSkill = (skill: SkillKey) => setField('skills', toggleBonus(form.skills ?? {}, skill));
 
-  const skillModifier = (skill: SkillKey): string => {
-    const attrKey = SKILL_ATTRIBUTE[skill];
-    const attrMod = attributeModifier(form.attributes[attrKey]);
-    const hasProficiency = (form.skills ?? []).includes(skill);
-    const total = hasProficiency ? attrMod + proficiencyBonus(form.level) : attrMod;
-    return total >= 0 ? `+${total}` : `${total}`;
-  };
+  const setSkillBonus = (skill: SkillKey, value: number) =>
+    setField('skills', { ...(form.skills ?? {}), [skill]: clampBonus(value) });
+
+  const skillModifier = (skill: SkillKey): string => formatModifier(skillRollModifier(form, skill));
 
   // Spell slots
   const setSlot = (circle: string, value: number) => {
@@ -244,12 +264,52 @@ export default function CharacterForm() {
               id="kind"
               value={form.kind}
               onChange={(e) => setField('kind', e.target.value as CharacterKind)}
+              disabled={kindOptions.length === 1}
             >
-              <option value="PLAYER">Jogador</option>
-              <option value="NPC_FRIENDLY">NPC Aliado</option>
-              <option value="MONSTER">Monstro</option>
-              <option value="BOSS">Chefe de Fase</option>
+              {kindOptions.map((kind) => (
+                <option key={kind} value={kind} disabled={!allowedKinds.includes(kind)}>
+                  {KIND_LABEL[kind]}
+                </option>
+              ))}
             </select>
+          </div>
+        </div>
+
+        <div className="row">
+          <div className="field grow">
+            <label htmlFor="classe">Classe</label>
+            <input
+              id="classe"
+              type="text"
+              maxLength={MAX_CLASS_LENGTH}
+              value={form.classe ?? ''}
+              onChange={(e) => setField('classe', e.target.value)}
+              placeholder="ex: Guerreiro"
+            />
+          </div>
+          <div className="field grow">
+            <label htmlFor="subclasse">Subclasse</label>
+            <input
+              id="subclasse"
+              type="text"
+              maxLength={MAX_CLASS_LENGTH}
+              value={form.subclasse ?? ''}
+              onChange={(e) => setField('subclasse', e.target.value)}
+              placeholder="ex: Campeão"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="proficiencyBonus" title="Valor sugerido ao marcar um atributo ou perícia">
+              Bônus padrão
+            </label>
+            <input
+              id="proficiencyBonus"
+              type="number"
+              min={0}
+              max={10}
+              value={form.proficiencyBonus ?? DEFAULT_PROFICIENCY_BONUS}
+              onChange={(e) => setField('proficiencyBonus', Number(e.target.value))}
+            />
           </div>
         </div>
 
@@ -334,6 +394,27 @@ export default function CharacterForm() {
                 </button>
               </div>
               <span className="modifier">{modifierFor(key)}</span>
+              <label className={`saving-throw ${form.savingThrows?.[key] !== undefined ? 'proficient' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={form.savingThrows?.[key] !== undefined}
+                  onChange={() => toggleSavingThrow(key)}
+                />
+                Proficiente ({formatModifier(attributeRollModifier(form, key))})
+              </label>
+              {form.savingThrows?.[key] !== undefined && (
+                <div className="bonus-input">
+                  <label htmlFor={`bonus-${key}`}>Bônus</label>
+                  <input
+                    id={`bonus-${key}`}
+                    type="number"
+                    min={0}
+                    max={MAX_PROFICIENCY_BONUS}
+                    value={form.savingThrows[key]}
+                    onChange={(e) => setSavingThrowBonus(key, Number(e.target.value))}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -341,22 +422,35 @@ export default function CharacterForm() {
         {/* ── Perícias ── */}
         <h3 className="section-title">Perícias</h3>
         <p className="muted-hint">
-          Marque as perícias com proficiência. O modificador já inclui o bônus de proficiência (nível {form.level} → +{proficiencyBonus(form.level)}).
+          Cada perícia usa o modificador do seu atributo. Marque as perícias com proficiência e ajuste o bônus de cada uma (por exemplo, dobrado para especialização). A proficiência no atributo não passa para as perícias.
         </p>
         <div className="skills-grid">
           {ALL_SKILLS.map((skill) => {
-            const active = (form.skills ?? []).includes(skill);
+            const bonus = form.skills?.[skill];
+            const active = bonus !== undefined;
             return (
-              <label key={skill} className={`skill-row ${active ? 'proficient' : ''}`}>
+              <div key={skill} className={`skill-row ${active ? 'proficient' : ''}`}>
                 <input
+                  id={`skill-${skill}`}
                   type="checkbox"
                   checked={active}
                   onChange={() => toggleSkill(skill)}
                 />
                 <span className="skill-mod">{skillModifier(skill)}</span>
-                <span className="skill-name">{SKILL_LABEL[skill]}</span>
+                <label htmlFor={`skill-${skill}`} className="skill-name">{SKILL_LABEL[skill]}</label>
                 <span className="skill-attr">({ATTRIBUTE_LABEL[SKILL_ATTRIBUTE[skill]].slice(0, 3)})</span>
-              </label>
+                {active && (
+                  <input
+                    className="skill-bonus"
+                    type="number"
+                    min={0}
+                    max={MAX_PROFICIENCY_BONUS}
+                    value={bonus}
+                    onChange={(e) => setSkillBonus(skill, Number(e.target.value))}
+                    aria-label={`Bônus de ${SKILL_LABEL[skill]}`}
+                  />
+                )}
+              </div>
             );
           })}
         </div>
@@ -364,14 +458,58 @@ export default function CharacterForm() {
         {/* ── Equipamentos ── */}
         <h3 className="section-title">Equipamentos</h3>
         <div className="field">
-          <label htmlFor="equipment">Lista de itens, armas e armaduras</label>
+          <label htmlFor="equipment">Armas e armaduras</label>
           <textarea
             id="equipment"
             rows={4}
             value={form.equipment ?? ''}
             onChange={(e) => setField('equipment', e.target.value)}
-            placeholder="ex: Espada longa +1, Escudo de madeira, Poção de cura ×3..."
+            placeholder="ex: Espada longa +1, Escudo de madeira..."
           />
+        </div>
+
+        <h3 className="section-title">Itens</h3>
+        {items.length > 0 ? (
+          <ul className="items-list">
+            {items.map((item, i) => (
+              <li key={`${item}-${i}`} className="item-row">
+                <span>{item}</span>
+                <button
+                  type="button"
+                  className="btn-remove"
+                  onClick={() => removeItem(i)}
+                  aria-label={`Remover ${item}`}
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted-hint">Nenhum item na ficha.</p>
+        )}
+        <div className="row add-item">
+          <div className="field grow">
+            <label htmlFor="new-item">Novo item ({items.length}/{MAX_ITEMS})</label>
+            <input
+              id="new-item"
+              type="text"
+              maxLength={MAX_ITEM_LENGTH}
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addItem();
+                }
+              }}
+              placeholder="ex: Poção de cura"
+              disabled={items.length >= MAX_ITEMS}
+            />
+          </div>
+          <button type="button" className="btn btn-ghost" onClick={addItem} disabled={!canAddItem}>
+            + Adicionar item
+          </button>
         </div>
 
         {/* ── Magias ── */}

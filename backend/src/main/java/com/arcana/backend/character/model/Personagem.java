@@ -7,7 +7,9 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Getter
@@ -38,14 +40,37 @@ public class Personagem {
     @Column(nullable = false)
     private Integer armorClass;
 
+    @Column(length = 60)
+    private String classe;
+
+    @Column(length = 60)
+    private String subclasse;
+
+    @Column(name = "bonus_proficiencia", nullable = false)
+    private Integer bonusProficiencia = 2;
+
     @Embedded
     private Atributos attributes;
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_salvaguardas", joinColumns = @JoinColumn(name = "personagem_id"))
+    @MapKeyEnumerated(EnumType.STRING)
+    @MapKeyColumn(name = "atributo")
+    @Column(name = "bonus", nullable = false)
+    private Map<Atributo, Integer> salvaguardas = new LinkedHashMap<>();
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_itens", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "item")
+    private List<String> itens = new ArrayList<>();
 
 
     @ElementCollection
     @CollectionTable(name = "personagem_pericias", joinColumns = @JoinColumn(name = "personagem_id"))
-    @Column(name = "pericia")
-    private List<String> skills = new ArrayList<>();
+    @MapKeyColumn(name = "pericia")
+    @Column(name = "bonus", nullable = false)
+    private Map<String, Integer> skills = new LinkedHashMap<>();
 
  
     @Column(columnDefinition = "TEXT")

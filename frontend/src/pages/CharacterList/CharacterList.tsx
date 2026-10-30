@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
-import { Character, CharacterKind, KIND_LABEL } from '../../types/character';
+import { useSession } from '../../context/SessionContext';
+import { Character, CharacterKind, KIND_LABEL, KINDS_BY_ROLE } from '../../types/character';
 import LoadError from '../../components/LoadError';
 import './CharacterList.css';
 
@@ -14,6 +15,7 @@ const FILTERS: { key: CharacterKind | 'TODOS'; label: string }[] = [
 ];
 
 export default function CharacterList() {
+  const { role } = useSession();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -33,6 +35,10 @@ export default function CharacterList() {
 
   useEffect(reload, []);
 
+  const allowedKinds = KINDS_BY_ROLE[role === 'MESTRE' ? 'MESTRE' : 'JOGADOR'];
+  const visibleFilters = FILTERS.filter(
+    (opt) => opt.key === 'TODOS' || allowedKinds.includes(opt.key) || characters.some((c) => c.kind === opt.key),
+  );
   const filtered = filter === 'TODOS' ? characters : characters.filter((c) => c.kind === filter);
 
   const remove = async (character: Character) => {
@@ -65,18 +71,20 @@ export default function CharacterList() {
         </Link>
       </header>
 
-      <div className="filters">
-        {FILTERS.map((opt) => (
-          <button
-            key={opt.key}
-            type="button"
-            className={`chip ${filter === opt.key ? 'active' : ''}`}
-            onClick={() => setFilter(opt.key)}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      {visibleFilters.length > 2 && (
+        <div className="filters">
+          {visibleFilters.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              className={`chip ${filter === opt.key ? 'active' : ''}`}
+              onClick={() => setFilter(opt.key)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <p className="muted">Consultando o grimório...</p>

@@ -203,6 +203,60 @@
 }
 .btn-remove:hover { color: #e05555; }
 
+.attr-field .saving-throw {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  text-transform: none;
+  color: var(--ink-400, #888);
+  cursor: pointer;
+}
+.attr-field .saving-throw.proficient { color: var(--ember-bright, #ff7a3d); }
+.saving-throw input[type="checkbox"] { accent-color: var(--ember, #c84b00); }
+
+.attr-field .bonus-input {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+.attr-field .bonus-input label { text-transform: none; }
+.attr-field .bonus-input input { width: 4.5rem; }
+
+.skill-row .skill-name { cursor: pointer; }
+.skill-row .skill-bonus {
+  width: 3.5rem;
+  margin-left: auto;
+  padding: 0.15rem 0.3rem;
+}
+
+.items-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--ink-600, #444);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.add-item { align-items: flex-end; }
+
 /* ── Adicionar magia ── */
 .add-spell {
   border: 1px dashed var(--ink-600, #444);

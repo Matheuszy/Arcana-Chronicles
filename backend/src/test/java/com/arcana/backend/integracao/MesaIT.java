@@ -114,7 +114,7 @@ class MesaIT extends IntegracaoTest {
         Conta jogador = registrar("JOGADOR");
         Conta outroJogador = registrar("JOGADOR");
         Long personagemAlheio = criarPersonagem(outroJogador, "PLAYER");
-        Long npcProprio = criarPersonagem(jogador, "MONSTER");
+        Long npcProprio = criarFichaAntigaForaDaRegra(jogador, false, "MONSTER");
 
         postComo(jogador.token(), mesa(mesaId) + "/solicitacoes", Map.of("characterId", personagemAlheio))
                 .andExpect(status().isForbidden());
@@ -129,7 +129,7 @@ class MesaIT extends IntegracaoTest {
         Long mesaId = criarMesa(mestre);
 
         postComo(outroMestre.token(), mesa(mesaId) + "/solicitacoes",
-                Map.of("characterId", criarPersonagem(outroMestre, "PLAYER")))
+                Map.of("characterId", criarFichaAntigaForaDaRegra(outroMestre, true, "PLAYER")))
                 .andExpect(status().isForbidden());
     }
 
@@ -247,7 +247,7 @@ class MesaIT extends IntegracaoTest {
         Long mesaId = criarMesa(mestre);
         JogadorNaMesa jogador = jogadorAceitoNaMesa(mestre, mesaId);
         Long npcAlheio = criarPersonagem(outroMestre, "MONSTER");
-        Long personagemDoMestre = criarPersonagem(mestre, "PLAYER");
+        Long personagemDoMestre = criarFichaAntigaForaDaRegra(mestre, true, "PLAYER");
         Long npcProprio = criarPersonagem(mestre, "NPC_FRIENDLY");
 
         postComo(mestre.token(), mesa(mesaId) + "/npcs/" + npcAlheio, null).andExpect(status().isForbidden());
