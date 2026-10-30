@@ -184,6 +184,10 @@ class ChatService {
     this.sendRoomCommand('ITEM_CRIAR', { nome: name, descricao: description });
   }
 
+  shareNote(text: string, recipientIds: number[]): void {
+    this.sendRoomCommand('NOTA_COMPARTILHAR', { texto: text, destinatarios: recipientIds });
+  }
+
   removeItem(itemId: string): void {
     this.sendRoomCommand('ITEM_REMOVER', { itemId });
   }

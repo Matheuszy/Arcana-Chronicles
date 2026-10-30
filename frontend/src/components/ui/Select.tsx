@@ -5,6 +5,7 @@ export interface SelectOption<T extends string> {
   label: string;
   icon?: ReactNode;
   disabled?: boolean;
+  group?: string;
 }
 
 interface SelectProps<T extends string> {
@@ -14,6 +15,8 @@ interface SelectProps<T extends string> {
   onChange: (value: T) => void;
   placeholder?: string;
   disabled?: boolean;
+  hideLabel?: boolean;
+  compact?: boolean;
 }
 
 export default function Select<T extends string>({
@@ -23,6 +26,8 @@ export default function Select<T extends string>({
   onChange,
   placeholder = 'Selecione...',
   disabled = false,
+  hideLabel = false,
+  compact = false,
 }: SelectProps<T>) {
   const baseId = useId();
   const labelId = `${baseId}-label`;
@@ -87,8 +92,8 @@ export default function Select<T extends string>({
   };
 
   return (
-    <div className="ui-select field" ref={rootRef}>
-      <span id={labelId} className="ui-select-label">
+    <div className={`ui-select field ${compact ? 'ui-select--compact' : ''}`} ref={rootRef}>
+      <span id={labelId} className={hideLabel ? 'ui-visually-hidden' : 'ui-select-label'}>
         {label}
       </span>
       <button
@@ -112,7 +117,12 @@ export default function Select<T extends string>({
       </button>
       {open && (
         <ul id={listId} className="ui-select-list" role="listbox" aria-labelledby={labelId}>
-          {options.map((option, index) => (
+          {options.map((option, index) => [
+            option.group && option.group !== options[index - 1]?.group ? (
+              <li key={`group-${option.group}`} role="presentation" className="ui-select-group">
+                {option.group}
+              </li>
+            ) : null,
             <li
               key={option.value}
               id={`${baseId}-option-${index}`}
@@ -127,8 +137,8 @@ export default function Select<T extends string>({
               {option.icon && <span aria-hidden="true">{option.icon}</span>}
               <span>{option.label}</span>
               {option.value === value && <span aria-hidden="true">✓</span>}
-            </li>
-          ))}
+            </li>,
+          ])}
         </ul>
       )}
     </div>

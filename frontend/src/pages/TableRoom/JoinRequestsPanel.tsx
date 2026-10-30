@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useConfirm } from '../../components/ui/Confirm';
 import { tableService } from '../../services/tableService';
 import { JoinRequest } from '../../types/table';
 
@@ -10,6 +11,7 @@ interface JoinRequestsPanelProps {
 }
 
 export default function JoinRequestsPanel({ tableId, onAccepted }: JoinRequestsPanelProps) {
+  const confirm = useConfirm();
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -35,7 +37,12 @@ export default function JoinRequestsPanel({ tableId, onAccepted }: JoinRequestsP
   const decide = async (request: JoinRequest, accept: boolean) => {
     if (
       !accept &&
-      !window.confirm(`Recusar a entrada de ${request.displayName}? Um novo pedido só será possível em 15 minutos.`)
+      !(await confirm({
+        title: 'Recusar entrada?',
+        message: `Recusar a entrada de ${request.displayName}? Um novo pedido só será possível em 15 minutos.`,
+        confirmLabel: 'Recusar',
+        danger: true,
+      }))
     ) {
       return;
     }

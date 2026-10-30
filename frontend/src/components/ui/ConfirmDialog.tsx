@@ -30,7 +30,7 @@ export default function ConfirmDialog({
       dismissible={!busy}
       footer={
         <>
-          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}>
+          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy} data-autofocus>
             {cancelLabel}
           </button>
           <button

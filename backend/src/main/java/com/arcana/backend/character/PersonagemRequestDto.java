@@ -50,6 +50,8 @@ public record PersonagemRequestDto(
         /** Slots de magia por círculo: {"1": 4, "2": 3, ...} */
         Map<String, Integer> spellSlots,
 
+        Map<String, Integer> spellSlotsCurrent,
+
         String backstory,
 
         String personalityPrompt,
@@ -72,7 +74,10 @@ public record PersonagemRequestDto(
 
         @Size(max = 50, message = "A ficha pode ter no máximo 50 itens")
         List<@NotBlank(message = "Item não pode ser vazio")
-             @Size(max = 100, message = "Item não pode ter mais de 100 caracteres") String> items
+             @Size(max = 100, message = "Item não pode ter mais de 100 caracteres") String> items,
+
+        @Size(max = 5000, message = "Habilidades não podem ter mais de 5000 caracteres")
+        String habilidades
 
 ) {
     public record AtributosDto(

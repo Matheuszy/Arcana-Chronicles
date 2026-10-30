@@ -8,6 +8,8 @@ import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.character.service.PersonagemService;
+import com.arcana.backend.config.exception.RegraDeNegocioException;
+import com.arcana.backend.table.SessoesAtivasDeMesa;
 import com.arcana.backend.user.model.PapelUsuario;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
@@ -37,10 +39,12 @@ class PersonagemServiceTest {
     private UsuarioRepositorie usuarioRepositorie;
 
     private PersonagemService service;
+    private SessoesAtivasDeMesa sessoesAtivas;
 
     @BeforeEach
     void setUp() {
-        service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper());
+        sessoesAtivas = mock(SessoesAtivasDeMesa.class);
+        service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper(), sessoesAtivas);
     }
 
     private Personagem personagemDeAlice() {
@@ -68,8 +72,8 @@ class PersonagemServiceTest {
         return new PersonagemRequestDto(
                 "Lyra", kind, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
-                null, null, null, null, null, null, null,
-                null, null, null, null, null
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null
         );
     }
 
@@ -88,6 +92,26 @@ class PersonagemServiceTest {
         var dto = service.criar(dtoDoTipo(TipoJogador.PLAYER), 1L);
 
         assertEquals(TipoJogador.PLAYER, dto.kind());
+    }
+
+    @Test
+    void deveNegarJogadorCriarFichaEnquantoEstaEmUmaMesa() {
+        contaComPapel(1L, PapelUsuario.JOGADOR);
+        when(sessoesAtivas.usuarioEmSessao(1L)).thenReturn(true);
+
+        assertThrows(RegraDeNegocioException.class, () -> service.criar(dtoDoTipo(TipoJogador.PLAYER), 1L));
+        verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void devePermitirMestreCriarFichaEnquantoEstaEmUmaMesa() {
+        contaComPapel(2L, PapelUsuario.MESTRE);
+        lenient().when(sessoesAtivas.usuarioEmSessao(2L)).thenReturn(true);
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var dto = service.criar(dtoDoTipo(TipoJogador.MONSTER), 2L);
+
+        assertEquals(TipoJogador.MONSTER, dto.kind());
     }
 
     @Test
@@ -145,9 +169,9 @@ class PersonagemServiceTest {
         PersonagemRequestDto dto = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 5, 30, 30, 15,
                 new PersonagemRequestDto.AtributosDto(16, 12, 14, 10, 10, 8),
-                Map.of("persuasao", 3, "atletismo", 6), null, null, null, null, null, null,
+                Map.of("persuasao", 3, "atletismo", 6), null, null, null, null, null, null, null,
                 " Guerreiro ", "Campeão", 3, Map.of("constituicao", 3, "forca", 6),
-                List.of(" Corda de 15 m ", "Tocha"));
+                List.of(" Corda de 15 m ", "Tocha"), "  Fúria: dobra o dano  ");
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -159,6 +183,7 @@ class PersonagemServiceTest {
         assertEquals(List.of(Map.entry("atletismo", 6), Map.entry("persuasao", 3)),
                 List.copyOf(resposta.skills().entrySet()));
         assertEquals(List.of("Corda de 15 m", "Tocha"), resposta.items());
+        assertEquals("Fúria: dobra o dano", resposta.habilidades());
         assertEquals(6, personagem.getSalvaguardas().get(Atributo.FORCA));
     }
 
@@ -169,16 +194,82 @@ class PersonagemServiceTest {
         PersonagemRequestDto comPericiaInvalida = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
-                Map.of("voar", 2), null, null, null, null, null, null,
-                null, null, null, null, null);
+                Map.of("voar", 2), null, null, null, null, null, null, null,
+                null, null, null, null, null, null);
         PersonagemRequestDto comAtributoInvalido = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
-                null, null, null, null, null, null, null,
-                null, null, null, Map.of("sorte", 2), null);
+                null, null, null, null, null, null, null, null,
+                null, null, null, Map.of("sorte", 2), null, null);
 
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comPericiaInvalida, 1L));
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comAtributoInvalido, 1L));
+        verify(personagemRepository, never()).save(any());
+    }
+
+    private PersonagemRequestDto dtoComMagias(List<PersonagemRequestDto.SpellDto> magias,
+                                              Map<String, Integer> espacos, Map<String, Integer> restantes) {
+        return new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, magias, espacos, restantes, null, null, null,
+                null, null, null, null, null, null);
+    }
+
+    @Test
+    void deveExigirEspacosDeMagiaParaCadaCirculoComMagiaAdicionada() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        var bolaDeFogo = List.of(new PersonagemRequestDto.SpellDto("Bola de Fogo", 3, null));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.atualizar(10L, dtoComMagias(bolaDeFogo, Map.of("1", 4), null), 1L));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.atualizar(10L, dtoComMagias(bolaDeFogo, Map.of("3", 0), null), 1L));
+        verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void devePermitirTruquesSemNivelNemEspacosDeMagia() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        var truque = List.of(new PersonagemRequestDto.SpellDto("Raio de Fogo", 0, null));
+
+        var resposta = service.atualizar(10L, dtoComMagias(truque, null, null), 1L);
+
+        assertEquals(1, resposta.spells().size());
+        assertEquals(0, resposta.spells().get(0).level());
+    }
+
+    @Test
+    void deveGravarEspacosRestantesEConsiderarTodosDisponiveisQuandoNaoInformados() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        var magia = List.of(new PersonagemRequestDto.SpellDto("Mísseis Mágicos", 1, null));
+
+        var gastando = service.atualizar(10L, dtoComMagias(magia, Map.of("1", 4), Map.of("1", 1)), 1L);
+        var descansada = service.atualizar(10L, dtoComMagias(magia, Map.of("1", 4), null), 1L);
+
+        assertEquals(1, gastando.spellSlotsCurrent().get("1"));
+        assertEquals(4, descansada.spellSlotsCurrent().get("1"));
+    }
+
+    @Test
+    void deveRecusarEspacosRestantesAcimaDoTotalOuForaDoLimite() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        var magia = List.of(new PersonagemRequestDto.SpellDto("Mísseis Mágicos", 1, null));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.atualizar(10L, dtoComMagias(magia, Map.of("1", 2), Map.of("1", 3)), 1L));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.atualizar(10L, dtoComMagias(magia, Map.of("1", 2), Map.of("1", -1)), 1L));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.atualizar(10L, dtoComMagias(magia, Map.of("1", 21), null), 1L));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.atualizar(10L, dtoComMagias(magia, Map.of("10", 2), null), 1L));
         verify(personagemRepository, never()).save(any());
     }
 

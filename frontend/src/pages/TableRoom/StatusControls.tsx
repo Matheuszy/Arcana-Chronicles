@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useConfirm } from '../../components/ui/Confirm';
+import Select from '../../components/ui/Select';
 import { Character, KIND_LABEL } from '../../types/character';
 import { StatusSnapshot, MAX_STATUS_LENGTH } from '../../types/room';
 import { TableParticipant } from '../../types/table';
@@ -25,6 +27,7 @@ export default function StatusControls({
   onSet,
   onRemove,
 }: StatusControlsProps) {
+  const confirm = useConfirm();
   const [targetId, setTargetId] = useState('');
   const [text, setText] = useState('');
 
@@ -45,26 +48,15 @@ export default function StatusControls({
   return (
     <div className="status-controls">
       <h3 className="section-title">Status das fichas</h3>
-      <div className="field">
-        <label htmlFor="statusTarget">Ficha</label>
-        <select id="statusTarget" value={targetId} onChange={(e) => setTargetId(e.target.value)}>
-          <option value="">Selecione...</option>
-          {playerTargets.length > 0 && (
-            <optgroup label="Jogadores">
-              {playerTargets.map((t) => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
-            </optgroup>
-          )}
-          {masterTargets.length > 0 && (
-            <optgroup label="Suas fichas (só você vê)">
-              {masterTargets.map((t) => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-      </div>
+      <Select
+        label="Ficha"
+        value={targetId}
+        onChange={setTargetId}
+        options={[
+          ...playerTargets.map((t) => ({ value: String(t.id), label: t.label, group: 'Jogadores' })),
+          ...masterTargets.map((t) => ({ value: String(t.id), label: t.label, group: 'Suas fichas (só você vê)' })),
+        ]}
+      />
       <div className="field">
         <label htmlFor="statusText">Status</label>
         <input
@@ -90,7 +82,15 @@ export default function StatusControls({
               </span>
               <button
                 className="btn btn-ghost"
-                onClick={() => window.confirm(`Remover o status de ${s.nome}?`) && onRemove(s.personagemId)}
+                onClick={async () => {
+                  const confirmed = await confirm({
+                    title: 'Remover status?',
+                    message: `Remover o status de ${s.nome}?`,
+                    confirmLabel: 'Remover',
+                    danger: true,
+                  });
+                  if (confirmed) onRemove(s.personagemId);
+                }}
                 disabled={!canSend}
               >
                 Remover

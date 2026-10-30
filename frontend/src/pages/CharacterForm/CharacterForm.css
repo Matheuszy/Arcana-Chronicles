@@ -282,3 +282,33 @@
 
 .save-error { margin-top: 1rem; }
 .back-to-list { margin-top: 1rem; }
+
+.slot-tracker { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
+.slot-tracker-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.slot-tracker-head h4 { margin: 0; }
+.slot-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ink-700, #3a2d22);
+  border-radius: 8px;
+}
+.slot-row--empty { opacity: 0.75; border-style: dashed; }
+.slot-circle { font-weight: 600; min-width: 5.5rem; }
+.slot-remaining { display: flex; align-items: center; gap: 0.5rem; }
+.slot-remaining strong { min-width: 3rem; text-align: center; }
+.slot-step {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--ember, #c84b00);
+  background: transparent;
+  color: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.slot-step:disabled { opacity: 0.35; cursor: not-allowed; }
+.slot-total { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
+.slot-total input { width: 4.5rem; }
