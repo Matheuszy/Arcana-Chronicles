@@ -37,7 +37,7 @@ function myEntry(challenge: Challenge, userId: string | null): ChallengePlayer |
 }
 
 function challengeTitle(challenge: Challenge): string {
-  return challenge.doCombate ? `Desafio de ${challengeAuthor(challenge)}` : 'Desafio do mestre';
+  return challenge.doMestre ? 'Desafio do mestre' : `Desafio de ${challengeAuthor(challenge)}`;
 }
 
 function RollPicker({

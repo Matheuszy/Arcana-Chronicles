@@ -1,7 +1,7 @@
 package com.arcana.backend.user.dto.request;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record AtualizarUsuarioRequestDto(
@@ -11,9 +11,16 @@ public record AtualizarUsuarioRequestDto(
         String username,
 
         @NotBlank(message = "Email não pode ser vazio")
-        @Email(message = "Email inválido")
+        @Size(max = 250, message = "Email não pode ter mais de 250 caracteres")
+        @Pattern(regexp = FormatoDeConta.EMAIL_VALIDO, message = FormatoDeConta.MENSAGEM_EMAIL_INVALIDO)
         String email,
 
         @Size(min = 6, max = 72, message = "Senha deve ter entre 6 e 72 caracteres")
         String password
-) {}
+) {
+
+    public AtualizarUsuarioRequestDto {
+        username = FormatoDeConta.normalizarUsername(username);
+        email = FormatoDeConta.normalizarEmail(email);
+    }
+}

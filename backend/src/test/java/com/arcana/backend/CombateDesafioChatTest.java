@@ -205,11 +205,14 @@ class CombateDesafioChatTest {
     }
 
     @Test
-    void deveNegarDesafioDeJogadorForaDoCombate() throws Exception {
+    void deveAceitarDesafioDeJogadorForaDoCombateSemPrenderAoCombate() throws Exception {
         desafiar(sessaoAria, "[{\"alvoId\":\"30\"}]");
 
-        assertEquals("Jogadores só podem desafiar durante o combate.", ultimoAviso(sessaoAria));
-        assertTrue(recebidas(sessaoBrom, "DESAFIO").isEmpty());
+        JsonNode desafio = ultimoDesafio(sessaoBrom);
+        assertFalse(desafio.get("doCombate").asBoolean());
+        assertFalse(desafio.get("doMestre").asBoolean());
+        assertEquals("JOGADOR", alvo(desafio, "30").get("tipo").asText());
+        assertTrue(recebidas(sessaoMestre, "DESAFIO").isEmpty());
     }
 
     @Test

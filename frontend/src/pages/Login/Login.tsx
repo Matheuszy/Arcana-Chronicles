@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AccountRole, authService } from '../../services/authService';
+import {
+  AccountRole,
+  INVALID_EMAIL_MESSAGE,
+  MAX_EMAIL_LENGTH,
+  authService,
+  isValidEmail,
+} from '../../services/authService';
 import { useSession } from '../../context/SessionContext';
 import Tabs from '../../components/ui/Tabs';
 import './Login.css';
@@ -27,6 +33,10 @@ export default function Login() {
     }
     if (mode === 'register' && !email.trim()) {
       setError('Informe um e-mail para o cadastro.');
+      return;
+    }
+    if (mode === 'register' && !isValidEmail(email)) {
+      setError(INVALID_EMAIL_MESSAGE);
       return;
     }
 
@@ -87,10 +97,15 @@ export default function Login() {
                 id="email"
                 type="email"
                 value={email}
+                maxLength={MAX_EMAIL_LENGTH}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ex: mago@arcana.com"
                 autoComplete="email"
+                aria-describedby="emailHint"
               />
+              <p id="emailHint" className="role-hint">
+                Cada e-mail pode ter uma conta de mestre e uma de jogador.
+              </p>
             </div>
           )}
 

@@ -1,5 +1,6 @@
 package com.arcana.backend.integracao;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -63,7 +64,7 @@ class AutenticacaoIT extends IntegracaoTest {
                 "username", "", "email", "nao-e-email", "password", "123", "papel", "JOGADOR"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Dados inválidos."))
-                .andExpect(jsonPath("$.details", hasItem("Email inválido")))
+                .andExpect(jsonPath("$.details", hasItem("Email inválido. Use o formato nome@dominio.com")))
                 .andExpect(jsonPath("$.details", hasItem("Senha deve ter entre 6 e 72 caracteres")));
     }
 
@@ -167,6 +168,44 @@ class AutenticacaoIT extends IntegracaoTest {
                 "password", "senha-secreta",
                 "papel", "JOGADOR"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void devePermitirUmaContaDeMestreEUmaDeJogadorPorEmailAteUmaSerExcluida() throws Exception {
+        String email = nomeUnico("dono") + "@arcana.test";
+        Map<String, String> jogador = Map.of("username", nomeUnico("jogador"), "email", email,
+                "password", "senha-secreta", "papel", "JOGADOR");
+
+        postComo(null, "/api/users/register", jogador).andExpect(status().isCreated());
+        postComo(null, "/api/users/register", Map.of("username", nomeUnico("mestre"), "email", email.toUpperCase(),
+                "password", "senha-secreta", "papel", "MESTRE"))
+                .andExpect(status().isCreated());
+        postComo(null, "/api/users/register", Map.of("username", nomeUnico("segundo"), "email", email,
+                "password", "senha-secreta", "papel", "JOGADOR"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(
+                        "Este email já tem uma conta de jogador. Cada email pode ter uma conta de mestre e uma de jogador."));
+
+        JsonNode login = corpo(postComo(null, "/api/users/login", Map.of(
+                "username", jogador.get("username"), "password", "senha-secreta")).andExpect(status().isOk()));
+        deleteComo(login.get("token").asText(), "/api/users/" + login.get("id").asLong())
+                .andExpect(status().isNoContent());
+
+        postComo(null, "/api/users/register", Map.of("username", nomeUnico("novo"), "email", email,
+                "password", "senha-secreta", "papel", "JOGADOR"))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void deveAvisarQueOUsuarioJaExisteMesmoComOutrasMaiusculas() throws Exception {
+        Conta conta = registrar("JOGADOR");
+
+        postComo(null, "/api/users/register", Map.of(
+                "username", conta.username().toUpperCase(), "email", nomeUnico("x") + "@arcana.test",
+                "password", "senha-secreta", "papel", "MESTRE"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(
+                        "O usuário \"" + conta.username().toUpperCase() + "\" já existe. Escolha outro nome."));
     }
 
     @Test

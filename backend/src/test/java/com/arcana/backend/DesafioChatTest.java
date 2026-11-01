@@ -163,16 +163,28 @@ class DesafioChatTest {
     }
 
     @Test
-    void deveNegarCriacaoDeDesafioPorJogadorSemNotificarNinguem() throws Exception {
+    void devePermitirJogadorDesafiarOutroForaDoCombateAvisandoSoOsDois() throws Exception {
         enviar(sessaoAria, """
                 {"type":"DESAFIO_CRIAR","comandoDesafio":{"cd":10,"jogadores":[{"jogadorId":30,"modo":"NORMAL"}]}}
                 """);
 
-        assertTrue(recebidas(sessaoBrom, "DESAFIO").isEmpty());
+        JsonNode visaoDoBrom = ultimoDesafio(sessaoBrom);
+        assertEquals(20L, visaoDoBrom.get("criadorId").asLong());
+        assertFalse(visaoDoBrom.get("doMestre").asBoolean());
+        assertEquals(1, recebidas(sessaoAria, "DESAFIO").size());
         assertTrue(recebidas(sessaoMestre, "DESAFIO").isEmpty());
-        List<JsonNode> erros = recebidas(sessaoAria, "SISTEMA");
-        assertEquals(1, erros.size());
-        assertEquals("Jogadores só podem desafiar durante o combate.", erros.get(0).get("content").asText());
+        assertTrue(recebidas(sessaoCael, "DESAFIO").isEmpty());
+        assertTrue(recebidas(sessaoAria, "SISTEMA").isEmpty());
+    }
+
+    @Test
+    void deveRecusarJogadorDesafiandoASiMesmo() throws Exception {
+        enviar(sessaoAria, """
+                {"type":"DESAFIO_CRIAR","comandoDesafio":{"cd":10,"jogadores":[{"jogadorId":20,"modo":"NORMAL"}]}}
+                """);
+
+        assertTrue(recebidas(sessaoAria, "DESAFIO").isEmpty());
+        assertEquals("Você não pode desafiar a si mesmo.", recebidas(sessaoAria, "SISTEMA").get(0).get("content").asText());
     }
 
     @Test

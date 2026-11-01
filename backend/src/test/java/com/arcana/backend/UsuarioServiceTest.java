@@ -82,13 +82,13 @@ class UsuarioServiceTest {
         UsuarioRequestDto dto = new UsuarioRequestDto("theron", "joao@gmail.com", "12334", PapelUsuario.JOGADOR);
         Usuario existsUser = new Usuario("theron", "joao@gmail.com", "12334");
 
-        when(repository.findByUsername(dto.username())).thenReturn(Optional.of(existsUser));
+        when(repository.findByUsernameIgnoreCase(dto.username())).thenReturn(Optional.of(existsUser));
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             service.criar(dto);
         });
 
-        assertEquals("Username já está em uso: " + dto.username(), exception.getMessage());
+        assertEquals("O usuário \"theron\" já existe. Escolha outro nome.", exception.getMessage());
         verify(repository, never()).save(any(Usuario.class));
     }
 
@@ -174,8 +174,8 @@ class UsuarioServiceTest {
         clearInvocations(passwordEncoder);
         Usuario usuario = usuarioComId(1L, "joao", "joao@arcana.com");
         when(repository.findById(1L)).thenReturn(Optional.of(usuario));
-        when(repository.findByUsername("joao2")).thenReturn(Optional.empty());
-        when(repository.findByEmail("novo@arcana.com")).thenReturn(Optional.empty());
+        when(repository.findByUsernameIgnoreCase("joao2")).thenReturn(Optional.empty());
+        when(repository.findByEmailIgnoreCaseAndPapel("novo@arcana.com", PapelUsuario.JOGADOR)).thenReturn(Optional.empty());
         when(repository.save(usuario)).thenReturn(usuario);
 
         when(tokenService.gerarToken(usuario)).thenReturn("token-novo");
@@ -195,8 +195,8 @@ class UsuarioServiceTest {
     void deveTrocarASenhaQuandoUmaNovaForInformada() {
         Usuario usuario = usuarioComId(1L, "joao", "joao@arcana.com");
         when(repository.findById(1L)).thenReturn(Optional.of(usuario));
-        when(repository.findByUsername("joao")).thenReturn(Optional.of(usuario));
-        when(repository.findByEmail("joao@arcana.com")).thenReturn(Optional.of(usuario));
+        when(repository.findByUsernameIgnoreCase("joao")).thenReturn(Optional.of(usuario));
+        when(repository.findByEmailIgnoreCaseAndPapel("joao@arcana.com", PapelUsuario.JOGADOR)).thenReturn(Optional.of(usuario));
         when(passwordEncoder.encode("segredo1")).thenReturn("hash-novo");
         when(repository.save(usuario)).thenReturn(usuario);
 
@@ -210,9 +210,9 @@ class UsuarioServiceTest {
         Usuario usuario = usuarioComId(1L, "joao", "joao@arcana.com");
         Usuario outro = usuarioComId(2L, "maria", "maria@arcana.com");
         when(repository.findById(1L)).thenReturn(Optional.of(usuario));
-        when(repository.findByUsername("maria")).thenReturn(Optional.of(outro));
-        when(repository.findByUsername("joao")).thenReturn(Optional.of(usuario));
-        when(repository.findByEmail("maria@arcana.com")).thenReturn(Optional.of(outro));
+        when(repository.findByUsernameIgnoreCase("maria")).thenReturn(Optional.of(outro));
+        when(repository.findByUsernameIgnoreCase("joao")).thenReturn(Optional.of(usuario));
+        when(repository.findByEmailIgnoreCaseAndPapel("maria@arcana.com", PapelUsuario.JOGADOR)).thenReturn(Optional.of(outro));
 
         assertThrows(RegraDeNegocioException.class, () -> service.atualizar(1L,
                 new AtualizarUsuarioRequestDto("maria", "joao@arcana.com", null), 1L));
@@ -222,9 +222,49 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void devePermitirOMesmoEmailEmUmaContaDeMestreEOutraDeJogador() {
+        when(repository.findByUsernameIgnoreCase("joao_mestre")).thenReturn(Optional.empty());
+        when(repository.findByEmailIgnoreCaseAndPapel("joao@arcana.com", PapelUsuario.MESTRE)).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("123456")).thenReturn("hash");
+        when(repository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UsuarioResponseDto criado = service.criar(
+                new UsuarioRequestDto("joao_mestre", "joao@arcana.com", "123456", PapelUsuario.MESTRE));
+
+        assertEquals("joao@arcana.com", criado.email());
+        assertEquals(PapelUsuario.MESTRE, criado.papel());
+    }
+
+    @Test
+    void deveRecusarSegundaContaDoMesmoPapelNoEmailExplicandoOLimite() {
+        when(repository.findByUsernameIgnoreCase("gandalf2")).thenReturn(Optional.empty());
+        when(repository.findByEmailIgnoreCaseAndPapel("gandalf@arcana.com", PapelUsuario.MESTRE))
+                .thenReturn(Optional.of(usuarioComId(1L, "gandalf", "gandalf@arcana.com")));
+
+        RegraDeNegocioException erro = assertThrows(RegraDeNegocioException.class, () -> service.criar(
+                new UsuarioRequestDto("gandalf2", "Gandalf@Arcana.com", "123456", PapelUsuario.MESTRE)));
+
+        assertEquals("Este email já tem uma conta de mestre. Cada email pode ter uma conta de mestre e uma de jogador.",
+                erro.getMessage());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void deveRecusarUsernameRepetidoMesmoComOutrasMaiusculas() {
+        when(repository.findByUsernameIgnoreCase("Theron"))
+                .thenReturn(Optional.of(usuarioComId(1L, "theron", "theron@arcana.com")));
+
+        RegraDeNegocioException erro = assertThrows(RegraDeNegocioException.class, () -> service.criar(
+                new UsuarioRequestDto("Theron", "outro@arcana.com", "123456", PapelUsuario.JOGADOR)));
+
+        assertEquals("O usuário \"Theron\" já existe. Escolha outro nome.", erro.getMessage());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void deveRecusarCadastroComEmailJaUsado() {
-        when(repository.findByUsername("novo")).thenReturn(Optional.empty());
-        when(repository.findByEmail("joao@arcana.com"))
+        when(repository.findByUsernameIgnoreCase("novo")).thenReturn(Optional.empty());
+        when(repository.findByEmailIgnoreCaseAndPapel("joao@arcana.com", PapelUsuario.JOGADOR))
                 .thenReturn(Optional.of(usuarioComId(1L, "joao", "joao@arcana.com")));
 
         assertThrows(RegraDeNegocioException.class, () -> service.criar(
