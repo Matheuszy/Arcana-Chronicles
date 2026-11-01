@@ -92,9 +92,10 @@ public class Personagem {
     @Column(name = "bonus", nullable = false)
     private Map<String, Integer> skills = new LinkedHashMap<>();
 
- 
-    @Column(columnDefinition = "TEXT")
-    private String equipment;
+    @ElementCollection
+    @CollectionTable(name = "personagem_equipamentos", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    private List<Equipamento> equipamentos = new ArrayList<>();
 
   
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)

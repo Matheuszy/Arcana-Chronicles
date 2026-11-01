@@ -1,6 +1,7 @@
 package com.arcana.backend;
 
 import com.arcana.backend.character.PersonagemRequestDto;
+import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
@@ -56,6 +57,24 @@ class MensagensDeValidacaoTest {
                 "Elfo", "Neutro e Bom", null, null, null);
 
         assertEquals(List.of(), mensagens(validador.validate(ficha)));
+    }
+
+    @Test
+    void deveExplicarEmPortuguesOsErrosDaArmaOuArmadura() {
+        var equipamento = new PersonagemRequestDto.EquipamentoDto(null, " ", "1d7", null, 31, null);
+
+        assertEquals(List.of("A CA da armadura não pode passar de 30",
+                "Escolha se o equipamento é arma ou armadura", "O dado de dano deve ser como 1d8 ou 2d6",
+                "Toda arma ou armadura precisa de um nome"), mensagens(validador.validate(equipamento)));
+    }
+
+    @Test
+    void deveAceitarArmaComDadoDeDanoValido() {
+        var arma = new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMA, "Machado grande", "1d12", "forca", null, null);
+        var espadas = new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMA, "Montante", "20d6", null, null, null);
+
+        assertEquals(List.of(), mensagens(validador.validate(arma)));
+        assertEquals(List.of(), mensagens(validador.validate(espadas)));
     }
 
     @Test

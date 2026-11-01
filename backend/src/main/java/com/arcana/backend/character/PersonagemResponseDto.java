@@ -3,6 +3,7 @@ package com.arcana.backend.character;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
+import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +26,7 @@ public record PersonagemResponseDto(
         Integer armorClass,
         AtributosDto attributes,
         Map<String, Integer> skills,
-        String equipment,
+        List<EquipamentoDto> equipamentos,
         List<SpellDto> spells,
         Map<String, Integer> spellSlots,
         Map<String, Integer> spellSlotsCurrent,
@@ -50,6 +51,15 @@ public record PersonagemResponseDto(
             String classe,
             String subclasse,
             Integer nivel
+    ) {}
+
+    public record EquipamentoDto(
+            TipoEquipamento tipo,
+            String nome,
+            String dano,
+            String atributo,
+            Integer classeArmadura,
+            String propriedades
     ) {}
 
     public record AtributosDto(
@@ -105,7 +115,11 @@ public record PersonagemResponseDto(
                 p.getArmorClass(),
                 attrs,
                 periciasEmOrdem(p),
-                p.getEquipment(),
+                p.getEquipamentos().stream()
+                        .map(e -> new EquipamentoDto(e.getTipo(), e.getNome(), e.getDano(),
+                                e.getAtributo() != null ? e.getAtributo().getChave() : null,
+                                e.getClasseArmadura(), e.getPropriedades()))
+                        .toList(),
                 spellDtos,
                 slots,
                 slotsAtuais,

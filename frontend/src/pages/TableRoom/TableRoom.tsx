@@ -363,6 +363,13 @@ export default function TableRoom() {
   const canSend = connected && !isPaused;
   const reconnecting = connection.state === 'RECONECTANDO' && !sessionEndedReason;
   const connectionLost = connection.state === 'DESCONECTADO' && !sessionEndedReason && !removedReason;
+  const sheetRollBlockedReason = !connected
+    ? 'Aguardando conexão com a mesa para rolar.'
+    : isPaused
+      ? 'A mesa está pausada pelo mestre. As rolagens voltam quando ela for retomada.'
+      : rollBlocked
+        ? rollBlockedReason
+        : null;
 
   const selectChannel = (tab: RoomTab) => {
     activeChannelRef.current = tab;
@@ -605,6 +612,8 @@ export default function TableRoom() {
           }
           onEdit={(character) => setEditingSheet({ id: String(character.id) })}
           onCreate={isMaster ? () => setEditingSheet({}) : undefined}
+          onRoll={sendRoll}
+          rollDisabledReason={sheetRollBlockedReason}
         />
 
         {isMaster && (

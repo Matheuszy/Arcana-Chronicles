@@ -1,17 +1,12 @@
 import { useState } from 'react';
 import { DICE_SIDES, RollMode, RollRequest } from '../../types/chat';
 import { MAX_DICE_QUANTITY, MAX_MODIFIER, validateRollRequest } from '../../services/diceService';
+import RollModePicker from './RollModePicker';
 
 interface DiceRollerProps {
   disabled: boolean;
   onRoll: (request: RollRequest) => void;
 }
-
-const MODE_OPTIONS: { value: RollMode; label: string }[] = [
-  { value: 'NORMAL', label: 'Normal' },
-  { value: 'VANTAGEM', label: 'Vantagem' },
-  { value: 'DESVANTAGEM', label: 'Desvantagem' },
-];
 
 export default function DiceRoller({ disabled, onRoll }: DiceRollerProps) {
   const [sides, setSides] = useState<number | null>(null);
@@ -104,21 +99,7 @@ export default function DiceRoller({ disabled, onRoll }: DiceRollerProps) {
             </div>
           </div>
 
-          {advantageAvailable && (
-            <div className="roll-modes" role="radiogroup" aria-label="Modo da rolagem">
-              {MODE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  role="radio"
-                  aria-checked={mode === option.value}
-                  className={`btn btn-ghost roll-mode ${mode === option.value ? 'roll-mode--active' : ''}`}
-                  onClick={() => setMode(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {advantageAvailable && <RollModePicker value={mode} onChange={setMode} />}
 
           {error && <p className="roll-error">{error}</p>}
 

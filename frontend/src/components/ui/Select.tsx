@@ -39,6 +39,8 @@ export default function Select<T extends string>({
   const [highlighted, setHighlighted] = useState(0);
 
   const selected = options.find((option) => option.value === value);
+  const widestLabel = Math.max(placeholder.length, ...options.map((option) => option.label.length));
+  const compactWidth = compact ? { minWidth: `calc(${widestLabel}ch + 3rem)`, maxWidth: '100%' } : undefined;
 
   useEffect(() => {
     if (!open) return;
@@ -94,7 +96,7 @@ export default function Select<T extends string>({
   };
 
   return (
-    <div className={`ui-select field ${compact ? 'ui-select--compact' : ''}`} ref={rootRef}>
+    <div className={`ui-select field ${compact ? 'ui-select--compact' : ''}`} ref={rootRef} style={compactWidth}>
       <span
         id={labelId}
         className={`${hideLabel ? 'ui-visually-hidden' : 'ui-select-label'} ${required ? 'required-mark' : ''}`}

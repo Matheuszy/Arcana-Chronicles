@@ -66,8 +66,12 @@ public class ChatMessage {
         private Integer kept;
         private boolean critical;
         private boolean fumble;
+        private String label;
 
         public DiceRollResult() {}
+
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = label; }
 
         public Integer getSides() { return sides; }
         public void setSides(Integer sides) { this.sides = sides; }
