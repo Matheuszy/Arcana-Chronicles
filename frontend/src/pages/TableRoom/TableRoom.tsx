@@ -324,6 +324,20 @@ export default function TableRoom() {
     if (confirmed) changeStatus('ENCERRADA');
   };
 
+  const leaveSession = async () => {
+    if (isMaster) {
+      const confirmed = await confirm({
+        title: 'Deixar a sessão?',
+        message:
+          'A sessão termina para todos e o chat desta sessão é apagado. A mesa continua sua: os jogadores seguem vinculados e você pode abrir uma nova sessão quando quiser.',
+        confirmLabel: 'Deixar a sessão',
+      });
+      if (!confirmed) return;
+      chatService.endSession();
+    }
+    navigate('/mesas');
+  };
+
   const leaveTable = async () => {
     if (!id) return;
     const confirmed = await confirm({
@@ -555,9 +569,14 @@ export default function TableRoom() {
               options={characters.flatMap((c) => (c.id ? [{ value: String(c.id), label: c.name }] : []))}
             />
             {characterError && <p className="roll-error">{characterError}</p>}
+            <button className="btn btn-ghost leave-table" onClick={leaveSession}>
+              Deixar a sessão
+            </button>
+            <p className="muted leave-hint">Você sai agora e pode voltar quando quiser, sem pedir para entrar.</p>
             <button className="btn btn-danger leave-table" onClick={leaveTable} disabled={leaving}>
               {leaving ? 'Saindo...' : 'Sair da mesa'}
             </button>
+            <p className="muted leave-hint">Deixa de participar. Para voltar, precisa pedir ao mestre de novo.</p>
             {leaveError && <p className="roll-error">{leaveError}</p>}
           </div>
         )}
@@ -570,9 +589,14 @@ export default function TableRoom() {
               onChange={changeStatus}
               options={MASTER_STATUS_OPTIONS.map((option) => ({ value: option, label: TABLE_STATUS_LABEL[option] }))}
             />
+            <button className="btn btn-ghost" onClick={leaveSession}>
+              Deixar a sessão
+            </button>
+            <p className="muted leave-hint">Encerra a sessão para todos. A mesa e os jogadores continuam.</p>
             <button className="btn btn-danger" onClick={closeTable}>
               Encerrar mesa
             </button>
+            <p className="muted leave-hint">Fecha a mesa de vez. Ela não pode ser reaberta.</p>
             {statusError && <p className="roll-error">{statusError}</p>}
           </div>
         )}

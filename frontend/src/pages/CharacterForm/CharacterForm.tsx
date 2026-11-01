@@ -627,7 +627,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         </div>
 
         {/* ── Stats base ── */}
-        <div className="row">
+        <div className="row row--aligned">
           <div className="field">
             <label htmlFor="level" title="Soma dos níveis das classes">
               Nível (soma das classes)

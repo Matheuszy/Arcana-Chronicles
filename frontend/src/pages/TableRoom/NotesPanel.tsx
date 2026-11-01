@@ -12,6 +12,8 @@ interface NotesPanelProps {
   onShare: (text: string, recipientIds: number[]) => void;
 }
 
+const AUTOSAVE_DELAY_MS = 800;
+
 function exportFileName(tableName: string): string {
   const slug = tableName
     .normalize('NFD')
@@ -39,8 +41,22 @@ export default function NotesPanel({ tableName, savedNote, canSave, recipients, 
   const [excerpt, setExcerpt] = useState('');
   const [sharing, setSharing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastSentRef = useRef<string | null>(null);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
 
-  useEffect(() => setDraft(savedNote), [savedNote]);
+  useEffect(() => {
+    if (savedNote !== lastSentRef.current) setDraft(savedNote);
+  }, [savedNote]);
+
+  useEffect(() => {
+    if (!canSave || draft === savedNote) return;
+    const timer = window.setTimeout(() => {
+      lastSentRef.current = draft;
+      onSaveRef.current(draft);
+    }, AUTOSAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [draft, savedNote, canSave]);
 
   const dirty = draft !== savedNote;
 
@@ -56,8 +72,8 @@ export default function NotesPanel({ tableName, savedNote, canSave, recipients, 
     <div className="notes-panel notes-panel--notebook">
       <h3 className="notes-title">Caderno privado</h3>
       <p className="muted private-sheets-hint">
-        Só você vê. As anotações somem quando todos saem da mesa e não ficam salvas no servidor. Use "Exportar .txt"
-        para guardar uma cópia no seu computador.
+        Só você vê. O texto é guardado sozinho enquanto a sessão dura e some quando todos saem da mesa. Nada fica
+        salvo no banco: use "Exportar .txt" para guardar uma cópia no seu computador.
       </p>
       <textarea
         ref={textareaRef}
@@ -75,7 +91,7 @@ export default function NotesPanel({ tableName, savedNote, canSave, recipients, 
       <div className="notes-footer">
         <span className="muted">
           {draft.length}/{MAX_NOTE_LENGTH}
-          {!dirty && draft.length > 0 && ' · salvo'}
+          {dirty && canSave && ' · guardando...'}
         </span>
         <div className="notes-actions">
           <button
@@ -93,9 +109,6 @@ export default function NotesPanel({ tableName, savedNote, canSave, recipients, 
             title="Selecione um trecho da anotação para compartilhar"
           >
             Compartilhar seleção
-          </button>
-          <button className="btn btn-ghost" onClick={() => onSave(draft)} disabled={!canSave || !dirty}>
-            Salvar
           </button>
         </div>
       </div>

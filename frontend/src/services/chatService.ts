@@ -104,6 +104,10 @@ class ChatService {
   }
 
   /** Envia texto puro; o backend detecta @menção e aciona a IA do NPC quando aplicável */
+  endSession(): void {
+    this.send({ type: 'SESSAO_ENCERRAR', content: '' });
+  }
+
   sendText(content: string): void {
     const mention = content.match(NPC_MENTION_REGEX);
     this.send({

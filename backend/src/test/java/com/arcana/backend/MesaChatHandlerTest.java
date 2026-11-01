@@ -531,6 +531,34 @@ class MesaChatHandlerTest {
     }
 
     @Test
+    void deveEncerrarASessaoParaTodosQuandoOMestreDeixaASessaoSemEncerrarAMesa() throws Exception {
+        WebSocketSession mestre = conectarMestre("m");
+        clearInvocations(remetente, outroJogador);
+
+        handler.handleMessage(mestre, new TextMessage("{\"type\":\"SESSAO_ENCERRAR\"}"));
+
+        JsonNode evento = mensagensRecebidas(outroJogador).get(0);
+        assertEquals("SESSAO_ENCERRADA", evento.get("type").asText());
+        assertEquals("O mestre deixou a sessão. A sessão foi encerrada para todos.", evento.get("content").asText());
+        verify(remetente).close(any(CloseStatus.class));
+        verify(mestre).close(any(CloseStatus.class));
+        assertTrue(gerenciador.buscar(1L).isEmpty());
+        verify(jogadorDeOutraMesa, never()).close(any(CloseStatus.class));
+        verify(agendador, never()).schedule(any(Runnable.class), any(Instant.class));
+    }
+
+    @Test
+    void deveNegarAoJogadorEncerrarASessaoDaMesa() throws Exception {
+        handler.handleMessage(remetente, new TextMessage("{\"type\":\"SESSAO_ENCERRAR\"}"));
+
+        assertEquals("Apenas o mestre pode encerrar a sessão da mesa.",
+                mensagensRecebidas(remetente).get(0).get("content").asText());
+        assertTrue(mensagensRecebidas(outroJogador).isEmpty());
+        verify(outroJogador, never()).close(any(CloseStatus.class));
+        assertTrue(gerenciador.buscar(1L).isPresent());
+    }
+
+    @Test
     void deveAtualizarOStatusDaMesaSemAvisoNoChatQuandoOMestrePausa() throws Exception {
         handler.aoAlterarStatusDaMesa(new MesaStatusAlteradoEvent(1L, StatusMesa.PAUSADA));
 

@@ -292,6 +292,11 @@ public class MesaChatHandler extends TextWebSocketHandler {
         message.setItens(null);
         message.setCombate(null);
 
+        if (message.getType() == ChatMessage.Type.SESSAO_ENCERRAR) {
+            encerrarSessaoPeloMestre(session, acesso);
+            return;
+        }
+
         if (message.getType() != null && DesafioChat.COMANDOS.contains(message.getType())) {
             executarComandoDeDesafio(session, acesso, mesa, message);
             return;
@@ -373,6 +378,16 @@ public class MesaChatHandler extends TextWebSocketHandler {
 
         mesa.registrar(message);
         broadcast(mesa, message, null);
+    }
+
+    private void encerrarSessaoPeloMestre(WebSocketSession session, AcessoMesaDto acesso) {
+        if (!ehMestre(acesso)) {
+            enviarParaSessao(session, systemMessage(String.valueOf(acesso.mesaId()),
+                    "Apenas o mestre pode encerrar a sessão da mesa."));
+            return;
+        }
+        gerenciadorMesas.encerrar(acesso.mesaId()).ifPresent(mesa ->
+                finalizarSessao(mesa, "O mestre deixou a sessão. A sessão foi encerrada para todos."));
     }
 
     private void executarComandoDeDesafio(WebSocketSession session, AcessoMesaDto acesso, MesaAtiva mesa,

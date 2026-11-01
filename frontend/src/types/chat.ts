@@ -11,6 +11,7 @@ export type ChatMessageType =
   | 'HISTORICO'
   | 'PRESENCA'
   | 'SESSAO_ENCERRADA'
+  | 'SESSAO_ENCERRAR'
   | 'STATUS_MESA'
   | 'PARTICIPANTES'
   | 'REMOVIDO_DA_MESA'

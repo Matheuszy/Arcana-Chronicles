@@ -44,6 +44,7 @@
 }
 .row .field { flex: 1; min-width: 110px; }
 .row .grow { flex: 2; min-width: 220px; }
+.row--aligned .field { justify-content: flex-end; }
 
 /* ── Section headers ── */
 .section-header {
