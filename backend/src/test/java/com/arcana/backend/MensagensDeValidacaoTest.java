@@ -93,4 +93,23 @@ class MensagensDeValidacaoTest {
         assertEquals(List.of("Nome da mesa não pode ter mais de 255 caracteres"), mensagens(validador.validate(mesa)));
         assertEquals(List.of("Username não pode ter mais de 100 caracteres"), mensagens(validador.validate(usuario)));
     }
+
+    @Test
+    void deveRecusarEmailSemDominioCompleto() {
+        for (String email : List.of("a@b", "joao@gmail", "joao.gmail.com", "joao@.com", "joao@gmail.c", "jo ao@gmail.com")) {
+            var usuario = new UsuarioRequestDto("joao", email, "123456", PapelUsuario.JOGADOR);
+
+            assertEquals(List.of("Email inválido. Use o formato nome@dominio.com"),
+                    mensagens(validador.validate(usuario)), email);
+        }
+    }
+
+    @Test
+    void deveAceitarEmailValidoNormalizandoEspacosEMaiusculas() {
+        var usuario = new UsuarioRequestDto("  joao ", "  Joao.Silva+rpg@Mail.Arcana.com.br ", "123456", PapelUsuario.JOGADOR);
+
+        assertEquals(List.of(), mensagens(validador.validate(usuario)));
+        assertEquals("joao", usuario.username());
+        assertEquals("joao.silva+rpg@mail.arcana.com.br", usuario.email());
+    }
 }
