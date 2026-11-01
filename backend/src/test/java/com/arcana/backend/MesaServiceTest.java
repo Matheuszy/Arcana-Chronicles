@@ -339,6 +339,34 @@ class MesaServiceTest {
     }
 
     @Test
+    void deveCriarMesaJaComOsNpcsDoMestreVinculados() {
+        MesaRequestDto dto = new MesaRequestDto("Mesa dos Bravos", null, List.of(100L, 101L, 100L));
+        when(personagemRepository.findById(100L))
+                .thenReturn(Optional.of(personagemDoJogador(1L, TipoJogador.NPC_FRIENDLY)));
+        when(personagemRepository.findById(101L))
+                .thenReturn(Optional.of(personagemDoJogador(1L, TipoJogador.MONSTER)));
+        when(mesaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resultado = service.criar(dto, 1L, "gandalf", PapelUsuario.MESTRE);
+
+        assertEquals(List.of(100L, 101L), resultado.npcIds());
+    }
+
+    @Test
+    void deveNegarCriacaoDeMesaComNpcDeOutroUsuarioOuFichaDeJogador() {
+        when(personagemRepository.findById(100L))
+                .thenReturn(Optional.of(personagemDoJogador(99L, TipoJogador.NPC_FRIENDLY)));
+        when(personagemRepository.findById(200L))
+                .thenReturn(Optional.of(personagemDoJogador(1L, TipoJogador.PLAYER)));
+
+        assertThrows(AccessDeniedException.class, () -> service.criar(
+                new MesaRequestDto("Mesa", null, List.of(100L)), 1L, "gandalf", PapelUsuario.MESTRE));
+        assertThrows(IllegalArgumentException.class, () -> service.criar(
+                new MesaRequestDto("Mesa", null, List.of(200L)), 1L, "gandalf", PapelUsuario.MESTRE));
+        verify(mesaRepository, never()).save(any());
+    }
+
+    @Test
     void deveNegarCriacaoDeMesaPorContaDeJogador() {
         MesaRequestDto dto = new MesaRequestDto("Mesa dos Bravos", "Uma aventura épica");
 

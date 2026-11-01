@@ -105,6 +105,16 @@
   color: var(--parchment-dim);
 }
 .participant-role.master { color: var(--ember-bright); }
+.sheet-linked {
+  margin-left: 0.4rem;
+  padding: 0 0.45em;
+  border: 1px solid var(--ok);
+  border-radius: var(--radius-sm);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--positive-text);
+}
 
 .sheet-view {
   margin-top: 0.75rem;

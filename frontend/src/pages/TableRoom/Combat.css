@@ -118,3 +118,4 @@
 .msg--sistema .content {
   white-space: pre-line;
 }
+.combat-link-hint .btn { margin-top: 0.35rem; padding: 0.3em 0.65em; font-size: 0.8rem; }

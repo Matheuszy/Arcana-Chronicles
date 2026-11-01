@@ -15,7 +15,6 @@ import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
 import Tabs, { panelId, tabId } from '../../components/ui/Tabs';
 import { useToast } from '../../components/ui/Toast';
-import NpcLinksPanel from './NpcLinksPanel';
 import ChallengeMasterPanel from './ChallengeMasterPanel';
 import ChallengePlayerPanel from './ChallengePlayerPanel';
 import ChallengeMonsterRolls from './ChallengeMonsterRolls';
@@ -589,16 +588,6 @@ export default function TableRoom() {
           />
         )}
 
-        {isMaster && (
-          <NpcLinksPanel
-            characters={characters}
-            linkedIds={table.npcIds.map(String)}
-            canChange={connected}
-            onLink={linkNpc}
-            onUnlink={unlinkNpc}
-          />
-        )}
-
         </div>
         <div className="side-section" hidden={sideTab !== 'FICHAS'}>
         <PrivateSheetsPanel
@@ -615,6 +604,11 @@ export default function TableRoom() {
           onCreate={isMaster ? () => setEditingSheet({}) : undefined}
           onRoll={sendRoll}
           rollDisabledReason={sheetRollBlockedReason}
+          npcLinks={
+            isMaster
+              ? { linkedIds: table.npcIds.map(String), canChange: connected, onLink: linkNpc, onUnlink: unlinkNpc }
+              : undefined
+          }
         />
 
         {isMaster && (
@@ -690,11 +684,12 @@ export default function TableRoom() {
           <div className="side-section" hidden={sideTab !== 'COMBATE'}>
             <CombatStartPanel
               participants={table.participants}
-              npcs={characters.filter((c) => c.kind !== 'PLAYER' && table.npcIds.includes(String(c.id)))}
+              npcs={characters.filter((c) => c.kind !== 'PLAYER' && table.npcIds.map(String).includes(String(c.id)))}
               onlineUserIds={onlineUsers.map((u) => String(u.userId))}
               combatActive={combat !== null}
               canSend={canSend}
               onStart={chatService.startCombat.bind(chatService)}
+              onManageLinks={() => setSideTab('FICHAS')}
             />
           </div>
         )}

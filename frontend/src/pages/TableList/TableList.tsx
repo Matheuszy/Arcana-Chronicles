@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tableService } from '../../services/tableService';
+import { characterService } from '../../services/characterService';
 import { useSession } from '../../context/SessionContext';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
+import { Character, KIND_LABEL } from '../../types/character';
 import Badge, { BadgeTone } from '../../components/ui/Badge';
+import CheckList from '../../components/ui/CheckList';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
 import { useToast } from '../../components/ui/Toast';
@@ -44,6 +47,10 @@ export default function TableList() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newNpcIds, setNewNpcIds] = useState<string[]>([]);
+  const [npcs, setNpcs] = useState<Character[]>([]);
+  const [npcsLoading, setNpcsLoading] = useState(false);
+  const [npcsError, setNpcsError] = useState<string | null>(null);
   const [tableToDelete, setTableToDelete] = useState<GameTable | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState('');
@@ -69,6 +76,17 @@ export default function TableList() {
 
   useEffect(reload, []);
 
+  useEffect(() => {
+    if (!creating || role !== 'MESTRE') return;
+    setNpcsLoading(true);
+    setNpcsError(null);
+    characterService
+      .list()
+      .then((characters) => setNpcs(characters.filter((c) => c.kind !== 'PLAYER' && c.id)))
+      .catch((e: unknown) => setNpcsError(errorMessage(e, 'Erro ao carregar suas fichas de NPC.')))
+      .finally(() => setNpcsLoading(false));
+  }, [creating, role]);
+
   const toggleCreating = () => {
     setCreating((v) => !v);
     setCreateError(null);
@@ -83,10 +101,12 @@ export default function TableList() {
         name: newName.trim(),
         description: newDescription.trim(),
         status: 'ABERTA',
+        npcIds: newNpcIds,
       });
       setCreating(false);
       setNewName('');
       setNewDescription('');
+      setNewNpcIds([]);
       if (table.id) navigate(`/mesas/${table.id}`);
       else reload();
     } catch (e: unknown) {
@@ -278,6 +298,16 @@ export default function TableList() {
               placeholder="Um gancho rápido para os jogadores..."
             />
           </div>
+          <CheckList
+            legend="NPCs, monstros e chefes da mesa (opcional)"
+            hint="As fichas marcadas já entram vinculadas e ficam prontas para o combate. Dá para mudar depois na aba Fichas da mesa."
+            items={npcs.map((npc) => ({ id: String(npc.id), label: npc.name, detail: KIND_LABEL[npc.kind] }))}
+            selected={newNpcIds}
+            emptyText='Você ainda não tem fichas de NPC. Crie em "Fichas" e vincule depois.'
+            loading={npcsLoading}
+            error={npcsError}
+            onChange={setNewNpcIds}
+          />
           {createError && (
             <p className="form-error" role="alert">
               {createError}
