@@ -122,9 +122,40 @@ class DesafioServiceTest {
     }
 
     @Test
-    void deveNegarCriacaoDeDesafioPorJogador() {
+    void devePermitirJogadorDesafiarOutroJogadorForaDoCombate() {
+        DesafioDto desafio = service.criar(mesa, ARIA, new NovoDesafio(12, "Queda de braço",
+                List.of(convocar(BROM, ModoRolagem.VANTAGEM))));
+
+        assertFalse(desafio.doMestre());
+        assertFalse(desafio.doCombate());
+        assertEquals(ARIA.userId(), desafio.criadorId());
+        assertEquals("Thorn", participacao(desafio, BROM).nomePersonagem());
+        assertEquals(ModoRolagem.VANTAGEM, participacao(desafio, BROM).modo());
+        assertTrue(service.jogadorBloqueado(mesa, BROM.userId()));
+        assertFalse(service.jogadorBloqueado(mesa, ARIA.userId()));
+        assertThrows(AccessDeniedException.class, () -> service.finalizar(mesa, MESTRE, desafio.id()));
+
+        proximasFaces(3, 2);
+        service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
         assertThrows(AccessDeniedException.class, () ->
-                service.criar(mesa, ARIA, new NovoDesafio(15, null, List.of(convocar(BROM, ModoRolagem.NORMAL)))));
+                service.encerrarComFalha(mesa, MESTRE, desafio.id(), String.valueOf(BROM.userId())));
+        service.encerrarComFalha(mesa, ARIA, desafio.id(), String.valueOf(BROM.userId()));
+        assertFalse(service.jogadorBloqueado(mesa, BROM.userId()));
+    }
+
+    @Test
+    void deveRecusarJogadorDesafiandoASiMesmoForaDoCombate() {
+        assertThrows(IllegalArgumentException.class, () ->
+                service.criar(mesa, ARIA, new NovoDesafio(12, null, List.of(convocar(ARIA, ModoRolagem.NORMAL)))));
+        assertTrue(service.visiveisPara(mesa, ARIA.userId()).isEmpty());
+    }
+
+    @Test
+    void deveMarcarODesafioDoMestreComoDoMestre() {
+        DesafioDto desafio = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL));
+
+        assertTrue(desafio.doMestre());
+        assertFalse(desafio.doCombate());
     }
 
     @Test

@@ -509,12 +509,12 @@ export default function TableRoom() {
       detail: entry.tipo === 'JOGADOR' ? `(${entry.nomeJogador})` : '(monstro do mestre)',
     }));
   const myCreatedChallenges = challenges.filter((c) => String(c.criadorId) === viewerId);
-  const playerChallengeHint =
+  const playerChallengeTargets =
     combat === null
-      ? 'Desafiar outros jogadores ou monstros só é possível durante o combate.'
-      : !isMyTurn(combat, viewerId)
-        ? 'Você só pode desafiar no seu turno.'
-        : undefined;
+      ? masterChallengeTargets.filter((target) => target.id !== viewerId)
+      : combatChallengeTargets;
+  const playerChallengeHint =
+    combat !== null && !isMyTurn(combat, viewerId) ? 'Durante o combate, você só pode desafiar no seu turno.' : undefined;
 
   return (
     <section className="room">
@@ -650,12 +650,12 @@ export default function TableRoom() {
           </>
         )}
 
-        {!isMaster && (combat !== null || myCreatedChallenges.length > 0) && (
+        {!isMaster && (
           <ChallengeMasterPanel
             challenges={myCreatedChallenges}
-            targets={combatChallengeTargets}
+            targets={playerChallengeTargets}
             viewerId={viewerId}
-            title="Meus desafios de combate"
+            title={combat !== null ? 'Meus desafios de combate' : 'Meus desafios'}
             createHint={playerChallengeHint}
             canSend={canSend}
             connected={connected}

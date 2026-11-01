@@ -49,7 +49,8 @@ public class DesafioService {
         }
         boolean ehMestre = "MESTRE".equals(criador.role());
         CombateDto combate = mesa.combate().estado().orElse(null);
-        if (!ehMestre) {
+        boolean doCombate = !ehMestre && combate != null;
+        if (doCombate) {
             exigirJogadorNoTurnoDoCombate(combate, criador);
         }
         exigirMesaEmAndamento(mesa);
@@ -61,11 +62,14 @@ public class DesafioService {
         List<NovoDesafio.Convocacao> convocacoes = validarConvocacoes(pedido.jogadores());
 
         Desafio desafio = new Desafio(UUID.randomUUID().toString(), criador.userId(), criador.displayName(),
-                !ehMestre, cd, descricao, clock.instant());
-        if (ehMestre) {
-            convocarJogadoresDaMesa(desafio, mesa, convocacoes);
-        } else {
+                ehMestre, doCombate, cd, descricao, clock.instant());
+        if (doCombate) {
             convocarParticipantesDoCombate(desafio, combate, criador, convocacoes);
+        } else {
+            if (!ehMestre) {
+                recusarDesafioASiMesmo(criador, convocacoes);
+            }
+            convocarJogadoresDaMesa(desafio, mesa, convocacoes);
         }
         return mesa.desafios().adicionar(desafio);
     }
@@ -206,14 +210,18 @@ public class DesafioService {
         }
     }
 
+    private void recusarDesafioASiMesmo(AcessoMesaDto criador, List<NovoDesafio.Convocacao> convocacoes) {
+        String proprioId = Desafio.idDoJogador(criador.userId());
+        if (convocacoes.stream().anyMatch(convocacao -> proprioId.equals(convocacao.alvo()))) {
+            throw new IllegalArgumentException("Você não pode desafiar a si mesmo.");
+        }
+    }
+
     private void convocarParticipantesDoCombate(Desafio desafio, CombateDto combate, AcessoMesaDto criador,
                                                 List<NovoDesafio.Convocacao> convocacoes) {
-        String proprioId = Desafio.idDoJogador(criador.userId());
+        recusarDesafioASiMesmo(criador, convocacoes);
         for (NovoDesafio.Convocacao convocacao : convocacoes) {
             String alvoId = convocacao.alvo();
-            if (proprioId.equals(alvoId)) {
-                throw new IllegalArgumentException("Você não pode desafiar a si mesmo.");
-            }
             CombateDto.EntradaDto alvo = combate.participantes().stream()
                     .filter(entrada -> entrada.id().equals(alvoId))
                     .findFirst()
@@ -229,9 +237,6 @@ public class DesafioService {
     }
 
     private void exigirJogadorNoTurnoDoCombate(CombateDto combate, AcessoMesaDto jogador) {
-        if (combate == null) {
-            throw new AccessDeniedException("Jogadores só podem desafiar durante o combate.");
-        }
         if (combate.fase() != Combate.Fase.EM_ANDAMENTO) {
             throw new IllegalStateException("O combate só começa depois que todos rolarem a iniciativa.");
         }
@@ -299,9 +304,9 @@ public class DesafioService {
             throw new AccessDeniedException("Apenas quem criou o desafio pode alterá-lo.");
         }
         if (!desafio.getCriadorId().equals(acesso.userId())) {
-            throw new AccessDeniedException(desafio.isDoCombate()
-                    ? "Apenas quem criou o desafio pode alterá-lo."
-                    : "Apenas o mestre pode administrar desafios.");
+            throw new AccessDeniedException(desafio.isDoMestre()
+                    ? "Apenas o mestre pode administrar desafios."
+                    : "Apenas quem criou o desafio pode alterá-lo.");
         }
     }
 

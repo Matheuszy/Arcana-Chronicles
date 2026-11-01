@@ -79,6 +79,7 @@ export interface Challenge {
   id: string;
   criadorId: number;
   criadorNome: string;
+  doMestre: boolean;
   doCombate: boolean;
   cd: number;
   descricao: string | null;
@@ -117,7 +118,7 @@ export interface IncomingChallengeMessage {
 }
 
 export function challengeAuthor(challenge: Challenge): string {
-  return challenge.doCombate ? challenge.criadorNome : 'Mestre';
+  return challenge.doMestre ? 'Mestre' : challenge.criadorNome;
 }
 
 export function isPendingRoll(state: ChallengeState): boolean {
