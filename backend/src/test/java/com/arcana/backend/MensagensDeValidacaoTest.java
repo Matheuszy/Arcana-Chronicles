@@ -1,6 +1,7 @@
 package com.arcana.backend;
 
 import com.arcana.backend.character.PersonagemRequestDto;
+import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.model.PapelUsuario;
@@ -30,6 +31,31 @@ class MensagensDeValidacaoTest {
 
         assertEquals(List.of("Constituição é obrigatória", "Destreza deve ser no máximo 20",
                 "Força deve ser no mínimo 8"), mensagens);
+    }
+
+    @Test
+    void deveExigirOsCamposObrigatoriosDaFichaERecusarVidaTemporariaNegativa() {
+        var ficha = new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                List.of(), null, null, null, null, " ", null, null, null, -1);
+
+        assertEquals(List.of("A ficha precisa de ao menos uma classe", "Alinhamento é obrigatório",
+                "Bônus de proficiência é obrigatório", "Raça é obrigatória",
+                "Vida temporária não pode ser negativa"), mensagens(validador.validate(ficha)));
+    }
+
+    @Test
+    void deveAceitarFichaSemOsCamposOpcionais() {
+        var ficha = new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
+                "Elfo", "Neutro e Bom", null, null, null);
+
+        assertEquals(List.of(), mensagens(validador.validate(ficha)));
     }
 
     @Test

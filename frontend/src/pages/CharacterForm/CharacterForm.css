@@ -15,6 +15,28 @@
 
 .form { margin-top: 1.5rem; }
 
+.required-legend {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  color: var(--parchment-dim);
+}
+
+.character-sheet-form input:required,
+.character-sheet-form textarea:required {
+  border-color: rgba(201, 150, 47, 0.6);
+  box-shadow: var(--required-glow);
+}
+
+.computed-value {
+  display: block;
+  padding: 0.6em 0.8em;
+  border: 1px dashed var(--ink-700);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: var(--ember-bright);
+}
+
 .row {
   display: flex;
   gap: 1rem;

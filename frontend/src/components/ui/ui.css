@@ -217,6 +217,7 @@
   text-align: left;
 }
 .ui-select-trigger:disabled { opacity: 0.5; cursor: not-allowed; }
+.ui-select-trigger--required { border-color: rgba(201, 150, 47, 0.6); box-shadow: var(--required-glow); }
 .ui-select-placeholder { color: var(--parchment-dim); }
 .ui-select-list {
   position: absolute;

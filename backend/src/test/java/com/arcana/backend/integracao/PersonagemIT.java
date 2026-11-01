@@ -27,11 +27,13 @@ class PersonagemIT extends IntegracaoTest {
 
         Map<String, Object> editada = new HashMap<>(fichaDoTipo("PLAYER"));
         editada.put("name", "Thorn Reforjado");
-        editada.put("level", 5);
+        editada.put("classes", List.of(Map.of("classe", "Guerreiro", "nivel", 5)));
+        editada.put("vidaTemporaria", 7);
         putComo(dono.token(), "/api/characters/" + id, editada)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Thorn Reforjado"))
-                .andExpect(jsonPath("$.level").value(5));
+                .andExpect(jsonPath("$.level").value(5))
+                .andExpect(jsonPath("$.vidaTemporaria").value(7));
 
         deleteComo(dono.token(), "/api/characters/" + id).andExpect(status().isNoContent());
         getComo(dono.token(), "/api/characters/" + id).andExpect(status().isNotFound());
@@ -206,6 +208,18 @@ class PersonagemIT extends IntegracaoTest {
 
         postComo(dono.token(), "/api/characters", semNome).andExpect(status().isBadRequest());
         postComo(dono.token(), "/api/characters", nivelZero).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deveRecusarFichaSemOsCamposObrigatorios() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Map<String, Object> semClasse = new HashMap<>(fichaDoTipo("PLAYER"));
+        semClasse.put("classes", List.of());
+        Map<String, Object> semRaca = new HashMap<>(fichaDoTipo("PLAYER"));
+        semRaca.remove("raca");
+
+        postComo(dono.token(), "/api/characters", semClasse).andExpect(status().isBadRequest());
+        postComo(dono.token(), "/api/characters", semRaca).andExpect(status().isBadRequest());
     }
 
     @Test

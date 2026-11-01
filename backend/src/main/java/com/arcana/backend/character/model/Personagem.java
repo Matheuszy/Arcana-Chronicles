@@ -43,6 +43,9 @@ public class Personagem {
     @Column(nullable = false)
     private Integer armorClass;
 
+    @Column(name = "vida_temporaria")
+    private Integer vidaTemporaria;
+
     @ElementCollection
     @CollectionTable(name = "personagem_classes", joinColumns = @JoinColumn(name = "personagem_id"))
     @OrderColumn(name = "posicao")
