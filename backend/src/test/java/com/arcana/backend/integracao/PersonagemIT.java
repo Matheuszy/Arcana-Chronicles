@@ -29,11 +29,13 @@ class PersonagemIT extends IntegracaoTest {
         editada.put("name", "Thorn Reforjado");
         editada.put("classes", List.of(Map.of("classe", "Guerreiro", "nivel", 5)));
         editada.put("vidaTemporaria", 7);
+        editada.put("deslocamento", 12);
         putComo(dono.token(), "/api/characters/" + id, editada)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Thorn Reforjado"))
                 .andExpect(jsonPath("$.level").value(5))
-                .andExpect(jsonPath("$.vidaTemporaria").value(7));
+                .andExpect(jsonPath("$.vidaTemporaria").value(7))
+                .andExpect(jsonPath("$.deslocamento").value(12));
 
         deleteComo(dono.token(), "/api/characters/" + id).andExpect(status().isNoContent());
         getComo(dono.token(), "/api/characters/" + id).andExpect(status().isNotFound());
@@ -242,9 +244,12 @@ class PersonagemIT extends IntegracaoTest {
         semClasse.put("classes", List.of());
         Map<String, Object> semRaca = new HashMap<>(fichaDoTipo("PLAYER"));
         semRaca.remove("raca");
+        Map<String, Object> semDeslocamento = new HashMap<>(fichaDoTipo("PLAYER"));
+        semDeslocamento.remove("deslocamento");
 
         postComo(dono.token(), "/api/characters", semClasse).andExpect(status().isBadRequest());
         postComo(dono.token(), "/api/characters", semRaca).andExpect(status().isBadRequest());
+        postComo(dono.token(), "/api/characters", semDeslocamento).andExpect(status().isBadRequest());
     }
 
     @Test

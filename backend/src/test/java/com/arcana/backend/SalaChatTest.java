@@ -198,14 +198,12 @@ class SalaChatTest {
     }
 
     @Test
-    void deveAnunciarStatusDeJogadorNoChatEAtualizarOCanalDeTodos() throws Exception {
-        enviar(sessaoMestre, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Envenenado\"}}");
+    void devePermitirAoJogadorDefinirOStatusDaPropriaFichaSemEscreverNoChat() throws Exception {
+        enviar(sessaoAria, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Voando\"}}");
 
         for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom)) {
-            List<JsonNode> avisos = recebidas(sessao, "SISTEMA");
-            assertEquals(1, avisos.size());
-            assertEquals("Status de Thorn: Envenenado.", avisos.get(0).get("content").asText());
-            assertEquals("Envenenado", ultima(sessao, "STATUS").get("status").get("atuais").get(0).get("texto").asText());
+            assertTrue(recebidas(sessao, "SISTEMA").isEmpty());
+            assertEquals("Voando", ultima(sessao, "STATUS").get("status").get("atuais").get(0).get("texto").asText());
         }
     }
 
@@ -223,31 +221,42 @@ class SalaChatTest {
     }
 
     @Test
-    void deveRecusarStatusDeJogadorEDeFichaForaDaMesa() throws Exception {
-        enviar(sessaoAria, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Herói\"}}");
+    void deveRecusarStatusEmFichaDeOutraPessoaEEmFichaForaDaMesa() throws Exception {
+        enviar(sessaoBrom, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Caído\"}}");
+        enviar(sessaoMestre, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Caído\"}}");
+        enviar(sessaoAria, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":200,\"texto\":\"Furioso\"}}");
         enviar(sessaoMestre, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":300,\"texto\":\"Algo\"}}");
 
+        assertEquals("Você só pode alterar o status das suas próprias fichas.",
+                ultima(sessaoBrom, "SISTEMA").get("content").asText());
+        assertEquals("Você só pode alterar o status das suas próprias fichas.",
+                recebidas(sessaoMestre, "SISTEMA").get(0).get("content").asText());
+        assertEquals(2, recebidas(sessaoMestre, "SISTEMA").size());
         assertEquals(1, recebidas(sessaoAria, "SISTEMA").size());
-        assertEquals(1, recebidas(sessaoMestre, "SISTEMA").size());
-        assertTrue(recebidas(sessaoBrom, "SISTEMA").isEmpty());
         assertTrue(recebidas(sessaoBrom, "STATUS").isEmpty());
     }
 
     @Test
-    void deveAnunciarRemocaoDeStatusEManterHistoricoNoCanal() throws Exception {
-        enviar(sessaoMestre, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Envenenado\"}}");
+    void deveDeixarSoODonoRemoverOStatusEManterHistoricoNoCanal() throws Exception {
+        enviar(sessaoAria, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Envenenado\"}}");
         enviar(sessaoMestre, "{\"type\":\"STATUS_REMOVER\",\"comandoSala\":{\"personagemId\":100}}");
+
+        assertEquals("Você só pode alterar o status das suas próprias fichas.",
+                ultima(sessaoMestre, "SISTEMA").get("content").asText());
+        assertEquals(1, ultima(sessaoBrom, "STATUS").get("status").get("atuais").size());
+
+        enviar(sessaoAria, "{\"type\":\"STATUS_REMOVER\",\"comandoSala\":{\"personagemId\":100}}");
 
         JsonNode status = ultima(sessaoBrom, "STATUS").get("status");
         assertEquals(0, status.get("atuais").size());
         assertEquals(2, status.get("historico").size());
         assertEquals("REMOVIDO", status.get("historico").get(1).get("acao").asText());
-        assertEquals("Status de Thorn removido (Envenenado).", ultima(sessaoBrom, "SISTEMA").get("content").asText());
+        assertTrue(recebidas(sessaoBrom, "SISTEMA").isEmpty());
     }
 
     @Test
     void deveLimparOStatusDoJogadorRemovidoDaMesa() throws Exception {
-        enviar(sessaoMestre, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Envenenado\"}}");
+        enviar(sessaoAria, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Envenenado\"}}");
 
         handler.aoRemoverParticipante(new ParticipanteRemovidoEvent(1L, ARIA.userId(), "Aria", true));
 
@@ -256,7 +265,7 @@ class SalaChatTest {
 
     @Test
     void deveSincronizarStatusParaQuemConectaDepois() throws Exception {
-        enviar(sessaoMestre, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Envenenado\"}}");
+        enviar(sessaoAria, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":100,\"texto\":\"Envenenado\"}}");
         enviar(sessaoMestre, "{\"type\":\"STATUS_DEFINIR\",\"comandoSala\":{\"personagemId\":200,\"texto\":\"Furioso\"}}");
 
         JsonNode doMestre = ultima(novaConexao("m2", MESTRE), "STATUS").get("status");

@@ -131,11 +131,9 @@ public class MesaChatHandler extends TextWebSocketHandler {
         MesaAtiva mesa = entrada.mesa();
         boolean mestreVoltou = ehMestre(acesso) && mesa.cancelarEncerramento();
 
-        if (entrada.primeiraConexaoDoUsuario()) {
-            String texto = mestreVoltou
-                    ? "O mestre " + acesso.displayName() + " voltou. A sessão continua."
-                    : acesso.displayName() + " entrou na mesa.";
-            ChatMessage aviso = systemMessage(tableId, texto);
+        if (entrada.primeiraConexaoDoUsuario() && mestreVoltou) {
+            ChatMessage aviso = systemMessage(tableId,
+                    "O mestre " + acesso.displayName() + " voltou. A sessão continua.");
             mesa.registrar(aviso);
             broadcast(mesa, aviso, sessaoSegura);
         }
@@ -167,18 +165,14 @@ public class MesaChatHandler extends TextWebSocketHandler {
                 .ifPresent(saida -> {
                     MesaAtiva mesa = saida.mesa();
                     String tableId = String.valueOf(acesso.mesaId());
-                    if (!saida.usuarioAindaConectado()) {
-                        boolean mestreSaiu = ehMestre(acesso) && !mesa.mestreConectado();
-                        String texto = mestreSaiu
-                                ? "O mestre " + acesso.displayName() + " desconectou. A sessão será encerrada em "
-                                        + toleranciaMestre.toSeconds() + " segundos se o mestre não voltar."
-                                : acesso.displayName() + " saiu da mesa.";
-                        ChatMessage aviso = systemMessage(tableId, texto);
+                    boolean mestreSaiu = !saida.usuarioAindaConectado() && ehMestre(acesso) && !mesa.mestreConectado();
+                    if (mestreSaiu) {
+                        ChatMessage aviso = systemMessage(tableId, "O mestre " + acesso.displayName()
+                                + " desconectou. A sessão será encerrada em " + toleranciaMestre.toSeconds()
+                                + " segundos se o mestre não voltar.");
                         mesa.registrar(aviso);
                         broadcast(mesa, aviso, null);
-                        if (mestreSaiu) {
-                            agendarEncerramentoPorAusenciaDoMestre(mesa);
-                        }
+                        agendarEncerramentoPorAusenciaDoMestre(mesa);
                     }
                     broadcast(mesa, presenca(mesa, tableId), null);
                 });
@@ -197,10 +191,6 @@ public class MesaChatHandler extends TextWebSocketHandler {
             if (anterior == evento.status()) return;
 
             String tableId = String.valueOf(evento.mesaId());
-            ChatMessage aviso = systemMessage(tableId, avisoDeStatus(anterior, evento.status()));
-            mesa.registrar(aviso);
-            broadcast(mesa, aviso, null);
-
             ChatMessage alteracao = eventoDaMesa(tableId, ChatMessage.Type.STATUS_MESA);
             alteracao.setContent(evento.status().name());
             broadcast(mesa, alteracao, null);
@@ -231,26 +221,9 @@ public class MesaChatHandler extends TextWebSocketHandler {
             salaChat.aoJogadorSair(mesa, evento.userId());
             combateChat.aoJogadorSair(mesa, evento.userId());
             cancelarDesafiosSeCombateAcabou(mesa);
-            ChatMessage aviso = systemMessage(tableId, evento.removidoPeloMestre()
-                    ? "O mestre removeu " + evento.displayName() + " da mesa."
-                    : evento.displayName() + " deixou a mesa.");
-            mesa.registrar(aviso);
-            broadcast(mesa, aviso, null);
             broadcast(mesa, eventoDaMesa(tableId, ChatMessage.Type.PARTICIPANTES), null);
             broadcast(mesa, presenca(mesa, tableId), null);
         });
-    }
-
-    private String avisoDeStatus(StatusMesa anterior, StatusMesa novo) {
-        if (novo == StatusMesa.PAUSADA) {
-            return "O mestre pausou a mesa. Mensagens e rolagens estão bloqueadas.";
-        }
-        if (anterior == StatusMesa.PAUSADA) {
-            return "O mestre retomou a mesa.";
-        }
-        return novo == StatusMesa.ABERTA
-                ? "A mesa está aberta para novos jogadores."
-                : "A mesa está em andamento e não aceita novos jogadores.";
     }
 
     private void agendarEncerramentoPorAusenciaDoMestre(MesaAtiva mesa) {
@@ -318,6 +291,11 @@ public class MesaChatHandler extends TextWebSocketHandler {
         message.setStatus(null);
         message.setItens(null);
         message.setCombate(null);
+
+        if (message.getType() == ChatMessage.Type.SESSAO_ENCERRAR) {
+            encerrarSessaoPeloMestre(session, acesso);
+            return;
+        }
 
         if (message.getType() != null && DesafioChat.COMANDOS.contains(message.getType())) {
             executarComandoDeDesafio(session, acesso, mesa, message);
@@ -400,6 +378,16 @@ public class MesaChatHandler extends TextWebSocketHandler {
 
         mesa.registrar(message);
         broadcast(mesa, message, null);
+    }
+
+    private void encerrarSessaoPeloMestre(WebSocketSession session, AcessoMesaDto acesso) {
+        if (!ehMestre(acesso)) {
+            enviarParaSessao(session, systemMessage(String.valueOf(acesso.mesaId()),
+                    "Apenas o mestre pode encerrar a sessão da mesa."));
+            return;
+        }
+        gerenciadorMesas.encerrar(acesso.mesaId()).ifPresent(mesa ->
+                finalizarSessao(mesa, "O mestre deixou a sessão. A sessão foi encerrada para todos."));
     }
 
     private void executarComandoDeDesafio(WebSocketSession session, AcessoMesaDto acesso, MesaAtiva mesa,

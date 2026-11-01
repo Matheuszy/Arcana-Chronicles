@@ -23,6 +23,27 @@ class ValidadorImagemTest {
                 "data:" + mimeDeclarado + ";base64," + Base64.getEncoder().encodeToString(conteudo), null, null);
     }
 
+    static ImagemAnexada comDescricao(String descricao) {
+        return new ImagemAnexada("data:image/png;base64," + Base64.getEncoder().encodeToString(PNG), null, null,
+                descricao);
+    }
+
+    @Test
+    void deveGuardarADescricaoOpcionalSemEspacosNasPontas() {
+        assertEquals("Mapa da cripta", validador.validar(comDescricao("  Mapa da cripta  ")).descricao());
+        assertNull(validador.validar(comDescricao("   ")).descricao());
+        assertNull(validador.validar(comoDataUrl("image/png", PNG)).descricao());
+    }
+
+    @Test
+    void deveAceitarDescricaoNoLimiteERecusarAcimaDele() {
+        assertEquals(250, validador.validar(comDescricao("a".repeat(250))).descricao().length());
+
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> validador.validar(comDescricao("a".repeat(251))));
+        assertEquals("A descrição da imagem passa do limite de 250 caracteres.", erro.getMessage());
+    }
+
     @Test
     void deveAceitarOsFormatosPermitidosDetectandoOTipoPeloConteudo() {
         assertEquals("image/png", validador.validar(comoDataUrl("image/png", PNG)).mimeType());

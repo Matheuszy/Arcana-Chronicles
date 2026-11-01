@@ -1,10 +1,8 @@
 package com.arcana.backend.chat;
 
-import com.arcana.backend.chat.combate.Combate;
 import com.arcana.backend.chat.combate.ComandoCombate;
 import com.arcana.backend.chat.combate.CombateDto;
 import com.arcana.backend.chat.combate.CombateService;
-import com.arcana.backend.chat.model.Canal;
 import com.arcana.backend.chat.model.ChatMessage;
 import com.arcana.backend.chat.sessao.MesaAtiva;
 import com.arcana.backend.table.AcessoMesaDto;
@@ -15,14 +13,10 @@ import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 @Component
 public class CombateChat {
@@ -89,78 +83,6 @@ public class CombateChat {
 
         ChatMessage evento = eventoDoCombate(mesa, depois);
         mesa.sessoes().forEach(sessao -> enviar(sessao, evento));
-        anuncios(antes, depois).forEach(texto -> anunciar(mesa, texto));
-    }
-
-    private List<String> anuncios(CombateDto antes, CombateDto depois) {
-        if (depois == null) {
-            return List.of("O combate terminou. Os chats voltam a ser livres.");
-        }
-
-        List<String> textos = new ArrayList<>();
-        if (antes == null) {
-            textos.add("O mestre iniciou o combate. Quem foi escolhido deve rolar a iniciativa.");
-        }
-        textos.addAll(rerolagensLiberadas(antes, depois));
-
-        boolean passouParaAndamento = depois.fase() == Combate.Fase.EM_ANDAMENTO
-                && (antes == null || antes.fase() != Combate.Fase.EM_ANDAMENTO);
-        boolean ordemMudou = depois.fase() == Combate.Fase.EM_ANDAMENTO
-                && antes != null && antes.fase() == Combate.Fase.EM_ANDAMENTO
-                && !ordemDe(antes).equals(ordemDe(depois));
-        if (passouParaAndamento || ordemMudou) {
-            textos.add(listaDeIniciativa(depois));
-        }
-
-        boolean turnoMudou = depois.fase() == Combate.Fase.EM_ANDAMENTO
-                && (passouParaAndamento || antes.rodada() != depois.rodada()
-                || !Objects.equals(antes.turnoDe(), depois.turnoDe()));
-        if (turnoMudou) {
-            textos.add("Rodada " + depois.rodada() + ": turno de " + nomeDoTurno(depois) + ".");
-        }
-        return textos;
-    }
-
-    private List<String> rerolagensLiberadas(CombateDto antes, CombateDto depois) {
-        if (antes == null) return List.of();
-        return depois.participantes().stream()
-                .filter(CombateDto.EntradaDto::rerolagemLiberada)
-                .filter(entrada -> antes.participantes().stream()
-                        .noneMatch(anterior -> anterior.id().equals(entrada.id())
-                                && anterior.rerolagemLiberada()))
-                .map(entrada -> "O mestre liberou uma nova rolagem de iniciativa para "
-                        + entrada.nomePersonagem() + ".")
-                .toList();
-    }
-
-    private List<String> ordemDe(CombateDto combate) {
-        return combate.participantes().stream().map(CombateDto.EntradaDto::id).toList();
-    }
-
-    private String listaDeIniciativa(CombateDto combate) {
-        List<CombateDto.EntradaDto> participantes = combate.participantes();
-        String linhas = IntStream.range(0, participantes.size())
-                .mapToObj(i -> (i + 1) + ". " + participantes.get(i).nomePersonagem()
-                        + " (" + participantes.get(i).nomeJogador() + "): "
-                        + participantes.get(i).iniciativa().total())
-                .collect(Collectors.joining("\n"));
-        return "Ordem de iniciativa:\n" + linhas;
-    }
-
-    private String nomeDoTurno(CombateDto combate) {
-        return combate.participantes().stream()
-                .filter(entrada -> entrada.id().equals(combate.turnoDe()))
-                .map(entrada -> entrada.nomePersonagem() + " (" + entrada.nomeJogador() + ")")
-                .findFirst()
-                .orElse("-");
-    }
-
-    private void anunciar(MesaAtiva mesa, String texto) {
-        ChatMessage aviso = novoEvento(mesa, ChatMessage.Type.SISTEMA);
-        aviso.setCanal(Canal.CONVERSA);
-        aviso.setContent(texto);
-        mesa.registrar(aviso);
-        mesa.sessoes().forEach(sessao -> enviar(sessao, aviso));
     }
 
     private ChatMessage eventoDoCombate(MesaAtiva mesa, CombateDto combate) {

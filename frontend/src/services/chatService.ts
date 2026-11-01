@@ -104,6 +104,10 @@ class ChatService {
   }
 
   /** Envia texto puro; o backend detecta @menção e aciona a IA do NPC quando aplicável */
+  endSession(): void {
+    this.send({ type: 'SESSAO_ENCERRAR', content: '' });
+  }
+
   sendText(content: string): void {
     const mention = content.match(NPC_MENTION_REGEX);
     this.send({
@@ -123,12 +127,13 @@ class ChatService {
     });
   }
 
-  sendImage(dataUrl: string): void {
+  sendImage(dataUrl: string, description: string): void {
+    const descricao = description.trim();
     this.send({
       type: 'IMAGEM',
       canal: 'IMAGENS',
       content: '',
-      image: { dataUrl },
+      image: { dataUrl, descricao: descricao || null },
     });
   }
 

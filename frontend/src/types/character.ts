@@ -77,6 +77,7 @@ export interface Character {
   hpCurrent: number;
   armorClass: number;
   vidaTemporaria?: number;
+  deslocamento?: number;
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */

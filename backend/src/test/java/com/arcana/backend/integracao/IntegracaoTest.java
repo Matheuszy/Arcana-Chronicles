@@ -132,6 +132,7 @@ abstract class IntegracaoTest {
                 Map.entry("hpMax", 10),
                 Map.entry("hpCurrent", 10),
                 Map.entry("armorClass", 12),
+                Map.entry("deslocamento", 9),
                 Map.entry("attributes", Map.of(
                         "forca", 10, "destreza", 12, "constituicao", 10,
                         "inteligencia", 10, "sabedoria", 10, "carisma", 10)),

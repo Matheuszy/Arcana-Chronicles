@@ -194,7 +194,7 @@ class CombateChatTest {
     }
 
     @Test
-    void deveIniciarCombateAvisandoTodosEAguardandoIniciativaDosEscolhidos() throws Exception {
+    void deveIniciarCombateMostrandoOPainelATodosSemAvisoNoChat() throws Exception {
         iniciarCombateComAriaEBrom();
 
         for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom, sessaoCael)) {
@@ -202,9 +202,8 @@ class CombateChatTest {
             assertEquals("INICIATIVA", combate.get("fase").asText());
             assertEquals(2, combate.get("participantes").size());
             assertTrue(combate.get("participantes").get(0).get("aguardandoRolagem").asBoolean());
+            assertTrue(recebidas(sessao, "SISTEMA").isEmpty());
         }
-        assertEquals("O mestre iniciou o combate. Quem foi escolhido deve rolar a iniciativa.",
-                ultimoAviso(sessaoCael));
     }
 
     @Test
@@ -254,8 +253,6 @@ class CombateChatTest {
         rolarIniciativa(sessaoAria, "NORMAL", true);
 
         assertEquals("INICIATIVA", ultimoCombate(sessaoBrom).get("fase").asText());
-        assertEquals("O mestre iniciou o combate. Quem foi escolhido deve rolar a iniciativa.",
-                ultimoAviso(sessaoBrom));
 
         faces.add(12);
         rolarIniciativa(sessaoBrom, "NORMAL", false);
@@ -265,10 +262,7 @@ class CombateChatTest {
         assertEquals(30L, combate.get("turnoDe").asLong());
         assertEquals("Thorn", combate.get("participantes").get(0).get("nomePersonagem").asText());
         assertEquals("Lyra", combate.get("participantes").get(1).get("nomePersonagem").asText());
-        List<JsonNode> avisos = recebidas(sessaoCael, "SISTEMA");
-        assertEquals("Ordem de iniciativa:\n1. Thorn (Brom): 15\n2. Lyra (Aria): 15",
-                avisos.get(avisos.size() - 2).get("content").asText());
-        assertEquals("Rodada 1: turno de Thorn (Brom).", avisos.get(avisos.size() - 1).get("content").asText());
+        assertTrue(recebidas(sessaoCael, "SISTEMA").isEmpty());
     }
 
     @Test
@@ -290,7 +284,7 @@ class CombateChatTest {
                 """);
 
         assertTrue(ultimoCombate(sessaoAria).get("participantes").get(1).get("rerolagemLiberada").asBoolean());
-        assertEquals("O mestre liberou uma nova rolagem de iniciativa para Lyra.", ultimoAviso(sessaoAria));
+        assertTrue(recebidas(sessaoAria, "SISTEMA").isEmpty());
 
         faces.add(20);
         rolarIniciativa(sessaoAria, "NORMAL", true);
@@ -333,7 +327,7 @@ class CombateChatTest {
         enviar(sessaoMestre, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
         assertEquals(30L, ultimoCombate(sessaoAria).get("turnoDe").asLong());
         assertEquals(2, ultimoCombate(sessaoAria).get("rodada").asInt());
-        assertEquals("Rodada 2: turno de Thorn (Brom).", ultimoAviso(sessaoAria));
+        assertEquals(1, recebidas(sessaoAria, "SISTEMA").size());
     }
 
     @Test
@@ -387,7 +381,7 @@ class CombateChatTest {
         enviar(sessaoMestre, "{\"type\":\"COMBATE_ENCERRAR\"}");
 
         assertTrue(ultimoCombate(sessaoAria).isNull());
-        assertEquals("O combate terminou. Os chats voltam a ser livres.", ultimoAviso(sessaoAria));
+        assertTrue(recebidas(sessaoAria, "SISTEMA").isEmpty());
 
         faces.add(7);
         enviar(sessaoAria, ROLAGEM_LIVRE);
@@ -510,10 +504,7 @@ class CombateChatTest {
         assertEquals(13, participante(combate, "monstro-3").get("iniciativa").get("total").asInt());
         assertEquals("monstro-2", combate.get("turnoDe").asText());
         assertEquals(10L, combate.get("controladorDoTurno").asLong());
-        List<JsonNode> avisos = recebidas(sessaoCael, "SISTEMA");
-        assertEquals("Ordem de iniciativa:\n1. Goblin 2 (Mestre): 20\n2. Goblin 3 (Mestre): 13\n3. Lyra (Aria): 12\n4. Goblin 1 (Mestre): 5",
-                avisos.get(avisos.size() - 2).get("content").asText());
-        assertEquals("Rodada 1: turno de Goblin 2 (Mestre).", avisos.get(avisos.size() - 1).get("content").asText());
+        assertTrue(recebidas(sessaoCael, "SISTEMA").isEmpty());
     }
 
     @Test

@@ -129,6 +129,7 @@ public class PersonagemService {
         personagem.setHpCurrent(dto.hpCurrent());
         personagem.setArmorClass(dto.armorClass());
         personagem.setVidaTemporaria(dto.vidaTemporaria());
+        personagem.setDeslocamento(dto.deslocamento());
         personagem.setBackstory(dto.backstory());
         personagem.setPersonalityPrompt(dto.personalityPrompt());
         personagem.setAvatarUrl(dto.avatarUrl());

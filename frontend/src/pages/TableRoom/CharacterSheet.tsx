@@ -108,6 +108,10 @@ export default function CharacterSheet({
             <strong>{character.armorClass}</strong>
           </div>
           <div className="paper-vital">
+            <span className="paper-vital-label">Deslocamento</span>
+            <strong>{character.deslocamento != null ? `${character.deslocamento} m` : '—'}</strong>
+          </div>
+          <div className="paper-vital">
             <span className="paper-vital-label">Proficiência</span>
             <strong>{formatModifier(character.proficiencyBonus ?? 0)}</strong>
           </div>
@@ -212,6 +216,21 @@ export default function CharacterSheet({
           </section>
         </div>
 
+        <h3 className="paper-title">Truques</h3>
+        <p className="paper-text paper-hint">Uso livre: não gastam espaços de magia.</p>
+        {cantrips.length > 0 ? (
+          <ul className="paper-spells">
+            {cantrips.map((spell, index) => (
+              <li key={`${spell.name}-${index}`}>
+                <strong>{spell.name}</strong>
+                {spell.description && <span> — {spell.description}</span>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="paper-text paper-empty">Nenhum truque na ficha.</p>
+        )}
+
         <h3 className="paper-title">Magias</h3>
         {slots.length > 0 && (
           <div className="paper-slots">
@@ -225,20 +244,7 @@ export default function CharacterSheet({
             ))}
           </div>
         )}
-        {cantrips.length > 0 && (
-          <div className="paper-spell-group">
-            <h4>Truques (uso livre)</h4>
-            <ul className="paper-spells">
-              {cantrips.map((spell, index) => (
-                <li key={`${spell.name}-${index}`}>
-                  <strong>{spell.name}</strong>
-                  {spell.description && <span> — {spell.description}</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {spellsByCircle.length === 0 && cantrips.length === 0 ? (
+        {spellsByCircle.length === 0 ? (
           <p className="paper-text paper-empty">Nenhuma magia na ficha.</p>
         ) : (
           spellsByCircle.map((group) => (

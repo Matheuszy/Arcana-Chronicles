@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import NumberInput from '../../components/ui/NumberInput';
 import { Character, KIND_LABEL } from '../../types/character';
 import { MAX_MONSTER_NAME_LENGTH, MAX_MONSTERS_PER_GROUP, MonsterGroup } from '../../types/combat';
 import { TableParticipant } from '../../types/table';
@@ -136,14 +137,14 @@ export default function CombatStartPanel({
                         value={names[characterId] ?? ''}
                         onChange={(e) => setNames((prev) => ({ ...prev, [characterId]: e.target.value }))}
                       />
-                      <input
+                      <NumberInput
                         id={`combat-qty-${characterId}`}
                         className="combat-quantity"
-                        type="number"
                         min={0}
                         max={MAX_MONSTERS_PER_GROUP}
                         value={quantities[characterId] ?? 0}
-                        onChange={(e) => changeQuantity(characterId, Number(e.target.value))}
+                        onChange={(next) => changeQuantity(characterId, next)}
+                        onClear={() => changeQuantity(characterId, 0)}
                       />
                     </li>
                   );

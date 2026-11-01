@@ -100,6 +100,7 @@
 
 .paper-text { margin: 0 0 0.6rem; line-height: 1.6; white-space: pre-wrap; }
 .paper-empty { color: #5a4632; font-style: italic; }
+.paper-hint { color: #5a4632; font-size: 0.9em; }
 .paper-items { margin: 0; padding-left: 1.25rem; columns: 2 220px; }
 .paper-slots { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
 .paper-slot {
@@ -188,8 +189,9 @@
 .weapon-roll-controls .btn { flex: 1 1 11rem; padding: 0.45em 0.9em; font-size: 0.85rem; }
 .weapon-roll-bonus { font-size: 0.78rem; color: #5a4632; }
 .weapon-roll-bonus-input {
-  width: 4.5rem;
-  padding: 0.35em 0.5em;
+  width: 5.5rem;
+  flex: none;
+  padding: 0.35em 1.8rem 0.35em 0.5em;
   border: 1px solid var(--leather);
   border-radius: var(--radius-sm);
   background: #fffaf0;

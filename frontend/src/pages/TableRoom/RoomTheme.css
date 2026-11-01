@@ -155,7 +155,8 @@
 
 .room-side-body .participant-actions { justify-content: flex-start; }
 .room-chat .composer input,
-.room-chat .image-composer input { font-family: var(--font-body); font-size: 0.95rem; padding: 0.6em 0.8em; border-radius: var(--radius-sm); }
+.room-chat .image-composer input,
+.room-chat .image-draft textarea { font-family: var(--font-body); font-size: 0.95rem; padding: 0.6em 0.8em; border-radius: var(--radius-sm); }
 .room-chat .composer input:focus-visible { outline-offset: 0; }
 
 .challenge-picker .roll-panel-actions {
