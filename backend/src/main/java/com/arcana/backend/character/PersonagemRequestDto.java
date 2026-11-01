@@ -58,9 +58,11 @@ public record PersonagemRequestDto(
 
         String avatarUrl,
 
+        @NotEmpty(message = "A ficha precisa de ao menos uma classe")
         @Size(max = 10, message = "A ficha pode ter no máximo 10 classes")
         List<@Valid ClasseDto> classes,
 
+        @NotNull(message = "Bônus de proficiência é obrigatório")
         @Min(value = 0, message = "Bônus de proficiência não pode ser negativo")
         @Max(value = 10, message = "Bônus de proficiência não pode passar de 10")
         Integer proficiencyBonus,
@@ -76,9 +78,11 @@ public record PersonagemRequestDto(
         @Size(max = 5000, message = "Habilidades não podem ter mais de 5000 caracteres")
         String habilidades,
 
+        @NotBlank(message = "Raça é obrigatória")
         @Size(max = 60, message = "Raça não pode ter mais de 60 caracteres")
         String raca,
 
+        @NotBlank(message = "Alinhamento é obrigatório")
         @Size(max = 60, message = "Alinhamento não pode ter mais de 60 caracteres")
         String alinhamento,
 
@@ -86,7 +90,10 @@ public record PersonagemRequestDto(
         String habilidadesRaca,
 
         @Size(max = 5000, message = "Talentos não podem ter mais de 5000 caracteres")
-        String talentos
+        String talentos,
+
+        @Min(value = 0, message = "Vida temporária não pode ser negativa")
+        Integer vidaTemporaria
 
 ) {
     public record ClasseDto(

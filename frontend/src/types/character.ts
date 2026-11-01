@@ -60,6 +60,7 @@ export interface Character {
   hpMax: number;
   hpCurrent: number;
   armorClass: number;
+  vidaTemporaria?: number;
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */
@@ -104,6 +105,8 @@ export const MAX_RACE_LENGTH = 60;
 export const MAX_ALIGNMENT_LENGTH = 60;
 export const MAX_ABILITIES_LENGTH = 5000;
 export const DEFAULT_PROFICIENCY_BONUS = 2;
+export const PASSIVE_PERCEPTION_BASE = 8;
+export const PASSIVE_PERCEPTION_FIXED_BONUS = 2;
 
 export const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
   'forca',
@@ -214,6 +217,10 @@ export function remainingSpellSlots(character: Character, circle: string): numbe
 /** Modificador padrão D&D: (atributo - 10) / 2, arredondado para baixo */
 export function attributeModifier(score: number): number {
   return Math.floor((score - 10) / 2);
+}
+
+export function passivePerception(character: Character): number {
+  return PASSIVE_PERCEPTION_BASE + PASSIVE_PERCEPTION_FIXED_BONUS + attributeModifier(character.attributes.sabedoria);
 }
 
 export function attributeRollModifier(character: Character, attribute: keyof Attributes): number {

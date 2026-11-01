@@ -17,6 +17,7 @@ interface SelectProps<T extends string> {
   disabled?: boolean;
   hideLabel?: boolean;
   compact?: boolean;
+  required?: boolean;
 }
 
 export default function Select<T extends string>({
@@ -28,6 +29,7 @@ export default function Select<T extends string>({
   disabled = false,
   hideLabel = false,
   compact = false,
+  required = false,
 }: SelectProps<T>) {
   const baseId = useId();
   const labelId = `${baseId}-label`;
@@ -93,13 +95,17 @@ export default function Select<T extends string>({
 
   return (
     <div className={`ui-select field ${compact ? 'ui-select--compact' : ''}`} ref={rootRef}>
-      <span id={labelId} className={hideLabel ? 'ui-visually-hidden' : 'ui-select-label'}>
+      <span
+        id={labelId}
+        className={`${hideLabel ? 'ui-visually-hidden' : 'ui-select-label'} ${required ? 'required-mark' : ''}`}
+      >
         {label}
       </span>
       <button
         type="button"
-        className="ui-select-trigger"
+        className={`ui-select-trigger ${required ? 'ui-select-trigger--required' : ''}`}
         role="combobox"
+        aria-required={required || undefined}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}

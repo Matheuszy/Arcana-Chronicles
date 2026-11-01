@@ -35,6 +35,7 @@
   --surface-raised: #2a1d13;
   --focus-ring: #f0c969;
   --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.65);
+  --required-glow: 0 0 0 1px rgba(230, 184, 89, 0.35), 0 0 10px rgba(201, 150, 47, 0.3);
   --touch-target: 2.5rem;
 
   --font-display: 'Cinzel', serif;
@@ -199,6 +200,13 @@ button { font-family: var(--font-body); cursor: pointer; }
   color: var(--danger-text);
   font-size: 0.85rem;
   margin: 0;
+}
+
+.required-mark::after {
+  content: ' *';
+  color: var(--ember-bright);
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(230, 184, 89, 0.85);
 }
 
 html { -webkit-text-size-adjust: 100%; overflow-x: clip; }

@@ -11,6 +11,7 @@ import {
   attributeRollModifier,
   formatClasses,
   formatModifier,
+  passivePerception,
   remainingSpellSlots,
   skillRollModifier,
   SPELL_CIRCLES,
@@ -81,6 +82,12 @@ export default function CharacterSheet({ character, origin, onEdit, onClose }: C
               {character.hpCurrent}/{character.hpMax}
             </strong>
           </div>
+          {character.vidaTemporaria != null && (
+            <div className="paper-vital">
+              <span className="paper-vital-label">Vida temporária</span>
+              <strong>{character.vidaTemporaria}</strong>
+            </div>
+          )}
           <div className="paper-vital">
             <span className="paper-vital-label">Defesa</span>
             <strong>{character.armorClass}</strong>
@@ -88,6 +95,10 @@ export default function CharacterSheet({ character, origin, onEdit, onClose }: C
           <div className="paper-vital">
             <span className="paper-vital-label">Proficiência</span>
             <strong>{formatModifier(character.proficiencyBonus ?? 0)}</strong>
+          </div>
+          <div className="paper-vital">
+            <span className="paper-vital-label">Percepção passiva</span>
+            <strong>{passivePerception(character)}</strong>
           </div>
         </div>
 

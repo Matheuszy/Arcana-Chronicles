@@ -42,7 +42,8 @@ public record PersonagemResponseDto(
         String raca,
         String alinhamento,
         String habilidadesRaca,
-        String talentos
+        String talentos,
+        Integer vidaTemporaria
 
 ) {
     public record ClasseDto(
@@ -123,7 +124,8 @@ public record PersonagemResponseDto(
                 p.getRaca(),
                 p.getAlinhamento(),
                 p.getHabilidadesRaca(),
-                p.getTalentos()
+                p.getTalentos(),
+                p.getVidaTemporaria()
         );
     }
 

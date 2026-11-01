@@ -20,6 +20,7 @@ import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.net.http.WebSocketHandshakeException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletionStage;
@@ -124,16 +125,20 @@ abstract class IntegracaoTest {
     }
 
     protected Map<String, Object> fichaDoTipo(String kind) {
-        return Map.of(
-                "name", nomeUnico("heroi"),
-                "kind", kind,
-                "level", 1,
-                "hpMax", 10,
-                "hpCurrent", 10,
-                "armorClass", 12,
-                "attributes", Map.of(
+        return Map.ofEntries(
+                Map.entry("name", nomeUnico("heroi")),
+                Map.entry("kind", kind),
+                Map.entry("level", 1),
+                Map.entry("hpMax", 10),
+                Map.entry("hpCurrent", 10),
+                Map.entry("armorClass", 12),
+                Map.entry("attributes", Map.of(
                         "forca", 10, "destreza", 12, "constituicao", 10,
-                        "inteligencia", 10, "sabedoria", 10, "carisma", 10));
+                        "inteligencia", 10, "sabedoria", 10, "carisma", 10)),
+                Map.entry("classes", List.of(Map.of("classe", "Guerreiro", "nivel", 1))),
+                Map.entry("proficiencyBonus", 2),
+                Map.entry("raca", "Humano"),
+                Map.entry("alinhamento", "Neutro"));
     }
 
     protected Long criarPersonagem(Conta dono, String kind) throws Exception {
