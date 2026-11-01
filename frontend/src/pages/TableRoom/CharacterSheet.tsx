@@ -17,6 +17,8 @@ import {
   SPELL_CIRCLES,
   totalSpellSlots,
 } from '../../types/character';
+import { RollRequest } from '../../types/chat';
+import SheetWeapon from './SheetWeapon';
 import './CharacterSheet.css';
 
 const SKILL_KEYS = Object.keys(SKILL_LABEL) as SkillKey[];
@@ -26,15 +28,27 @@ interface CharacterSheetProps {
   origin?: string;
   onEdit?: () => void;
   onClose: () => void;
+  onRoll?: (request: RollRequest) => void;
+  rollDisabledReason?: string | null;
 }
 
-export default function CharacterSheet({ character, origin, onEdit, onClose }: CharacterSheetProps) {
+export default function CharacterSheet({
+  character,
+  origin,
+  onEdit,
+  onClose,
+  onRoll,
+  rollDisabledReason = null,
+}: CharacterSheetProps) {
   const classLine = [character.raca, formatClasses(character.classes ?? []), character.alinhamento]
     .filter(Boolean)
     .join(' · ');
   const savingThrows = character.savingThrows ?? {};
   const skills = character.skills ?? {};
   const items = character.items ?? [];
+  const equipment = character.equipamentos ?? [];
+  const weapons = equipment.filter((entry) => entry.tipo === 'ARMA');
+  const armors = equipment.filter((entry) => entry.tipo === 'ARMADURA');
   const spells = character.spells ?? [];
   const slots = SPELL_CIRCLES.filter((circle) => totalSpellSlots(character, circle) > 0);
   const cantrips = spells.filter((spell) => spell.level === 0);
@@ -46,6 +60,7 @@ export default function CharacterSheet({ character, origin, onEdit, onClose }: C
     <Modal
       title={character.name}
       size="lg"
+      placement={onRoll ? 'side' : 'center'}
       onClose={onClose}
       footer={
         <>
@@ -141,18 +156,61 @@ export default function CharacterSheet({ character, origin, onEdit, onClose }: C
         </ul>
 
         <h3 className="paper-title">Inventário</h3>
-        <p className="paper-text">
-          <strong>Armas e armaduras:</strong> {character.equipment || 'Nada registrado.'}
-        </p>
-        {items.length > 0 ? (
-          <ul className="paper-items">
-            {items.map((item, index) => (
-              <li key={`${item}-${index}`}>{item}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="paper-text paper-empty">Nenhum item na ficha.</p>
-        )}
+        <div className="paper-inventory">
+          <section className="paper-inventory-block" aria-labelledby="sheet-weapons">
+            <h4 id="sheet-weapons">Armas</h4>
+            {onRoll && rollDisabledReason && weapons.length > 0 && (
+              <p className="paper-roll-blocked">{rollDisabledReason}</p>
+            )}
+            {weapons.length > 0 ? (
+              <ul className="paper-equipment-list">
+                {weapons.map((weapon, index) => (
+                  <SheetWeapon
+                    key={`${weapon.nome}-${index}`}
+                    weapon={weapon}
+                    character={character}
+                    onRoll={onRoll}
+                    rollDisabled={Boolean(rollDisabledReason)}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <p className="paper-text paper-empty">Nenhuma arma na ficha.</p>
+            )}
+          </section>
+
+          <section className="paper-inventory-block" aria-labelledby="sheet-armors">
+            <h4 id="sheet-armors">Armaduras</h4>
+            {armors.length > 0 ? (
+              <ul className="paper-equipment-list">
+                {armors.map((armor, index) => (
+                  <li key={`${armor.nome}-${index}`} className="paper-equipment">
+                    <div className="paper-equipment-head">
+                      <strong>{armor.nome}</strong>
+                      {armor.classeArmadura != null && <span className="paper-tag">CA {armor.classeArmadura}</span>}
+                    </div>
+                    {armor.propriedades && <p className="paper-equipment-props">{armor.propriedades}</p>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="paper-text paper-empty">Nenhuma armadura na ficha.</p>
+            )}
+          </section>
+
+          <section className="paper-inventory-block" aria-labelledby="sheet-items">
+            <h4 id="sheet-items">Itens</h4>
+            {items.length > 0 ? (
+              <ul className="paper-items">
+                {items.map((item, index) => (
+                  <li key={`${item}-${index}`}>{item}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="paper-text paper-empty">Nenhum item na ficha.</p>
+            )}
+          </section>
+        </div>
 
         <h3 className="paper-title">Magias</h3>
         {slots.length > 0 && (

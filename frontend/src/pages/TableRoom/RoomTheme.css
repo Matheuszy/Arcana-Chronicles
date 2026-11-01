@@ -170,6 +170,36 @@
 html { background: var(--wood-950); }
 .room-chat .composer { min-width: 0; }
 .room-chat .composer input { min-width: 0; }
+@media (min-width: 861px) and (min-height: 560px) {
+  .room {
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    padding: 0.75rem clamp(0.75rem, 1.2vw, 1.25rem);
+    gap: clamp(0.75rem, 1vw, 1.25rem);
+    grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr) minmax(16rem, 22rem);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .room-side,
+  .room-chat,
+  .room-notes {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    align-self: stretch;
+  }
+}
+@media (min-width: 861px) and (max-width: 1280px) and (min-height: 560px) {
+  .room {
+    grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(9rem, 30%);
+  }
+  .room-side { grid-column: 1; grid-row: 1 / span 2; }
+  .room-chat { grid-column: 2; grid-row: 1; }
+  .room-notes { grid-column: 2; grid-row: 2; }
+}
+
 @media (max-width: 520px) {
   .room-chat .composer { padding: 0.75rem; gap: 0.4rem; }
   .room-chat .composer .btn { padding-left: 0.8em; padding-right: 0.8em; }

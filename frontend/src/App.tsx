@@ -20,7 +20,7 @@ function Shell() {
   const canCreateSheets = !inRoom || role === 'MESTRE';
 
   return (
-    <div className="shell">
+    <div className={`shell ${inRoom ? 'shell--room' : ''}`}>
       <header className="topbar">
         <NavLink to="/" className="brand">
           <span className="brand-glyph">✦</span>

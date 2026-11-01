@@ -52,6 +52,21 @@
 .ui-modal--md { max-width: 38rem; }
 .ui-modal--lg { max-width: 60rem; }
 
+.ui-modal-backdrop--side {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
+  background: rgba(10, 7, 4, 0.35);
+}
+.ui-modal--side {
+  max-width: min(44rem, 100%);
+  height: 100%;
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+  animation: ui-slide-from-side 0.18s ease-out;
+}
+@keyframes ui-slide-from-side { from { transform: translateX(2rem); opacity: 0; } to { transform: none; opacity: 1; } }
+
 .ui-modal-header {
   flex-shrink: 0;
   display: flex;
@@ -274,7 +289,8 @@
   border: 0;
 }
 .ui-select--compact { margin-bottom: 0; }
-.ui-select--compact .ui-select-trigger { min-height: 2.25rem; padding: 0.35em 0.6em; font-size: 0.85rem; }
+.ui-select--compact .ui-select-trigger { width: 100%; min-height: 2.25rem; padding: 0.35em 0.6em; font-size: 0.85rem; white-space: nowrap; }
+.ui-select--compact .ui-select-option { white-space: nowrap; }
 .ui-select-group {
   padding: 0.4rem 0.6rem 0.15rem;
   font-size: 0.7rem;

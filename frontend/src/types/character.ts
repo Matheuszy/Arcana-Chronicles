@@ -51,6 +51,22 @@ export interface ClassEntry {
   nivel: number;
 }
 
+export type EquipmentType = 'ARMA' | 'ARMADURA';
+
+export interface Equipment {
+  tipo: EquipmentType;
+  nome: string;
+  dano?: string | null;
+  atributo?: keyof Attributes | null;
+  classeArmadura?: number | null;
+  propriedades?: string | null;
+}
+
+export const EQUIPMENT_TYPE_LABEL: Record<EquipmentType, string> = {
+  ARMA: 'Arma',
+  ARMADURA: 'Armadura',
+};
+
 export interface Character {
   id?: string;
   ownerId?: string;
@@ -71,8 +87,7 @@ export interface Character {
   /** Perícias com proficiência marcada */
   skills?: SkillBonuses;
 
-  /** Equipamentos em texto livre */
-  equipment?: string;
+  equipamentos?: Equipment[];
 
   /** Lista de magias do personagem */
   spells?: Spell[];
@@ -104,6 +119,11 @@ export const MAX_CLASS_LEVEL = 20;
 export const MAX_RACE_LENGTH = 60;
 export const MAX_ALIGNMENT_LENGTH = 60;
 export const MAX_ABILITIES_LENGTH = 5000;
+export const MAX_EQUIPMENT = 30;
+export const MAX_EQUIPMENT_NAME_LENGTH = 100;
+export const MAX_EQUIPMENT_PROPERTIES_LENGTH = 200;
+export const MAX_EQUIPMENT_ARMOR_CLASS = 30;
+export const DAMAGE_DICE_PATTERN = /^([1-9]|1[0-9]|20)d(4|6|8|10|12|20|100)$/;
 export const DEFAULT_PROFICIENCY_BONUS = 2;
 export const PASSIVE_PERCEPTION_BASE = 8;
 export const PASSIVE_PERCEPTION_FIXED_BONUS = 2;
@@ -217,6 +237,20 @@ export function remainingSpellSlots(character: Character, circle: string): numbe
 /** Modificador padrão D&D: (atributo - 10) / 2, arredondado para baixo */
 export function attributeModifier(score: number): number {
   return Math.floor((score - 10) / 2);
+}
+
+export function equipmentDetails(equipment: Equipment): string[] {
+  return [
+    equipment.dano ? `Dano ${equipment.dano}` : null,
+    equipment.atributo ? `Base: ${ATTRIBUTE_LABEL[equipment.atributo]}` : null,
+    equipment.classeArmadura != null ? `CA ${equipment.classeArmadura}` : null,
+    equipment.propriedades || null,
+  ].filter((detail): detail is string => detail !== null);
+}
+
+export function parseDamageDice(dano: string | null | undefined): { quantidade: number; lados: number } | null {
+  const match = dano?.trim().toLowerCase().match(DAMAGE_DICE_PATTERN);
+  return match ? { quantidade: Number(match[1]), lados: Number(match[2]) } : null;
 }
 
 export function passivePerception(character: Character): number {

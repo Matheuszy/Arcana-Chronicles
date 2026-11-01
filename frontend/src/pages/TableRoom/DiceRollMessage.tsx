@@ -64,6 +64,7 @@ export default function DiceRollMessage({ result, animate }: DiceRollMessageProp
 
   return (
     <div className={`dice-roll ${rolling ? 'dice-roll--rolando' : 'dice-roll--revelado'} ${outcomeClass}`}>
+      {result.label && <p className="roll-label">{result.label}</p>}
       <div className="dice-roll-head">
         <span className="roll-expr">{result.expression}</span>
         {MODE_LABEL[result.mode] && <span className="roll-mode-tag">{MODE_LABEL[result.mode]}</span>}

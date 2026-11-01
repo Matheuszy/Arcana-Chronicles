@@ -113,6 +113,96 @@
 
 .paper-slot--empty { opacity: 0.55; text-decoration: line-through; }
 
+.paper-inventory {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.paper-inventory-block {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #b89c6a;
+  border-radius: var(--radius-md);
+  background: rgba(255, 250, 240, 0.45);
+}
+.paper-inventory-block:first-child { grid-column: 1 / -1; }
+.paper-inventory-block h4 {
+  margin: 0 0 0.6rem;
+  color: #5a3a1f;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.paper-inventory-block .paper-items { columns: 1; }
+.paper-inventory-block .paper-text { margin: 0; }
+
+.paper-equipment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
+  gap: 0.6rem;
+}
+.paper-equipment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--leather);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 250, 240, 0.7);
+}
+.paper-equipment-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.5rem; }
+.paper-equipment-head strong { margin-right: auto; font-family: var(--font-display); }
+.paper-tag {
+  padding: 0.05em 0.6em;
+  border: 1px solid var(--leather);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #5a3a1f;
+  white-space: nowrap;
+}
+.paper-equipment-props { margin: 0; font-size: 0.85rem; color: #4f3d2a; font-style: italic; }
+.paper-roll-blocked { margin: 0 0 0.6rem; font-size: 0.82rem; color: #8c2a22; }
+
+.weapon-rolls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #b89c6a;
+}
+.weapon-roll { display: flex; flex-direction: column; gap: 0.4rem; }
+.weapon-roll-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5a4632;
+  font-weight: 600;
+}
+.weapon-roll-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; }
+.weapon-roll-controls .btn { flex: 1 1 11rem; padding: 0.45em 0.9em; font-size: 0.85rem; }
+.weapon-roll-bonus { font-size: 0.78rem; color: #5a4632; }
+.weapon-roll-bonus-input {
+  width: 4.5rem;
+  padding: 0.35em 0.5em;
+  border: 1px solid var(--leather);
+  border-radius: var(--radius-sm);
+  background: #fffaf0;
+  color: var(--paper-ink);
+  font-family: var(--font-mono);
+}
+.weapon-roll-check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--paper-ink); }
+.weapon-roll-check input { accent-color: #7a5200; }
+.weapon-roll-sent { margin: 0; font-size: 0.8rem; color: #2f6b3b; }
+.paper-sheet .roll-error { color: #8c2a22; }
+.paper-sheet .roll-modes .roll-mode { color: var(--paper-ink); border-color: var(--leather); background: transparent; }
+.paper-sheet .roll-modes .roll-mode--active { color: #3f3380; border-color: #5b4b9e; background: rgba(91, 75, 158, 0.14); }
+
 .paper-abilities { white-space: pre-wrap; overflow-wrap: anywhere; }
 .paper-sheet { overflow-wrap: anywhere; }
 .paper-skill-name { min-width: 0; }

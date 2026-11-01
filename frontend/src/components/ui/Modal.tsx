@@ -6,6 +6,7 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg';
+  placement?: 'center' | 'side';
   footer?: ReactNode;
   dismissible?: boolean;
 }
@@ -13,7 +14,15 @@ interface ModalProps {
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export default function Modal({ title, onClose, children, size = 'md', footer, dismissible = true }: ModalProps) {
+export default function Modal({
+  title,
+  onClose,
+  children,
+  size = 'md',
+  placement = 'center',
+  footer,
+  dismissible = true,
+}: ModalProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -63,14 +72,14 @@ export default function Modal({ title, onClose, children, size = 'md', footer, d
 
   return createPortal(
     <div
-      className="ui-modal-backdrop"
+      className={`ui-modal-backdrop ui-modal-backdrop--${placement}`}
       onMouseDown={(event) => {
         if (dismissible && event.target === event.currentTarget) onClose();
       }}
     >
       <div
         ref={dialogRef}
-        className={`ui-modal ui-modal--${size}`}
+        className={`ui-modal ui-modal--${size} ui-modal--${placement}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

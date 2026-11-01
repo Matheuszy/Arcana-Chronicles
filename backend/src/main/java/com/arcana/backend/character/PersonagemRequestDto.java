@@ -1,5 +1,6 @@
 package com.arcana.backend.character;
 
+import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -41,8 +42,8 @@ public record PersonagemRequestDto(
                     @Min(value = 0, message = "Bônus da perícia não pode ser negativo")
                     @Max(value = 20, message = "Bônus da perícia não pode passar de 20") Integer> skills,
 
-        /** Equipamentos em texto livre */
-        String equipment,
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 armas e armaduras")
+        List<@Valid EquipamentoDto> equipamentos,
 
         /** Magias do personagem */
         List<SpellDto> spells,
@@ -108,6 +109,28 @@ public record PersonagemRequestDto(
             @Min(value = 1, message = "O nível da classe deve ser de 1 a 20")
             @Max(value = 20, message = "O nível da classe deve ser de 1 a 20")
             Integer nivel
+    ) {}
+
+    public record EquipamentoDto(
+            @NotNull(message = "Escolha se o equipamento é arma ou armadura")
+            TipoEquipamento tipo,
+
+            @NotBlank(message = "Toda arma ou armadura precisa de um nome")
+            @Size(max = 100, message = "O nome da arma ou armadura não pode ter mais de 100 caracteres")
+            String nome,
+
+            @Pattern(regexp = "([1-9]|1[0-9]|20)d(4|6|8|10|12|20|100)",
+                    message = "O dado de dano deve ser como 1d8 ou 2d6")
+            String dano,
+
+            String atributo,
+
+            @Min(value = 0, message = "A CA da armadura não pode ser negativa")
+            @Max(value = 30, message = "A CA da armadura não pode passar de 30")
+            Integer classeArmadura,
+
+            @Size(max = 200, message = "As propriedades não podem ter mais de 200 caracteres")
+            String propriedades
     ) {}
 
     public record AtributosDto(
