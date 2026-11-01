@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Character } from '../../types/character';
+import { RollRequest } from '../../types/chat';
 import CharacterSheet from './CharacterSheet';
 
 interface PrivateSheetsPanelProps {
@@ -10,9 +11,21 @@ interface PrivateSheetsPanelProps {
   emptyText: string;
   onEdit?: (character: Character) => void;
   onCreate?: () => void;
+  onRoll?: (request: RollRequest) => void;
+  rollDisabledReason?: string | null;
 }
 
-export default function PrivateSheetsPanel({ title, characters, loading, error, emptyText, onEdit, onCreate }: PrivateSheetsPanelProps) {
+export default function PrivateSheetsPanel({
+  title,
+  characters,
+  loading,
+  error,
+  emptyText,
+  onEdit,
+  onCreate,
+  onRoll,
+  rollDisabledReason,
+}: PrivateSheetsPanelProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const openCharacter = characters.find((c) => String(c.id) === openId);
 
@@ -62,6 +75,8 @@ export default function PrivateSheetsPanel({ title, characters, loading, error, 
               : undefined
           }
           onClose={() => setOpenId(null)}
+          onRoll={onRoll}
+          rollDisabledReason={rollDisabledReason}
         />}
     </div>
   );

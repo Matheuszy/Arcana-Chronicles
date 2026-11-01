@@ -121,6 +121,24 @@ class RolagemDadosServiceTest {
     }
 
     @Test
+    void deveIdentificarARolagemComADescricaoInformada() {
+        RolagemDadosService service = serviceComFaces(12);
+
+        DiceRollResult resultado = service.rolar(
+                new PedidoRolagem(20, 1, 5, ModoRolagem.NORMAL, "  Ataque · Espada longa  "));
+
+        assertEquals("Ataque · Espada longa", resultado.getLabel());
+        assertEquals("rolou 1d20+5 (Ataque · Espada longa)", service.descrever(resultado));
+    }
+
+    @Test
+    void deveIgnorarDescricaoEmBrancoERecusarDescricaoLonga() {
+        assertNull(serviceComFaces(3).rolar(new PedidoRolagem(6, 1, 0, ModoRolagem.NORMAL, "  ")).getLabel());
+        assertThrows(IllegalArgumentException.class,
+                () -> serviceComFaces(3).rolar(new PedidoRolagem(6, 1, 0, ModoRolagem.NORMAL, "x".repeat(121))));
+    }
+
+    @Test
     void deveRejeitarPedidoAusente() {
         assertThrows(IllegalArgumentException.class, () -> serviceComFaces().rolar(null));
     }

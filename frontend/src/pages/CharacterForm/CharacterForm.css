@@ -279,6 +279,31 @@
 
 .add-item { align-items: flex-end; }
 
+.equipment-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.6rem;
+  min-width: 0;
+}
+.equipment-type {
+  padding: 0.05rem 0.5rem;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--ink-700, #2a2a2a);
+}
+.equipment-type--arma { color: var(--ember-bright); }
+.equipment-type--armadura { color: var(--info-text); }
+.equipment-details { font-size: 0.8rem; color: var(--parchment-dim); }
+
+.add-equipment { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.75rem; }
+.add-equipment .btn { align-self: flex-start; }
+.choice-toggle { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
+.choice-toggle-option { padding: 0.35em 1em; font-size: 0.85rem; }
+.choice-toggle-option--active { border-color: var(--ember); color: var(--ember-bright); background: rgba(201, 150, 47, 0.12); }
+
 /* ── Adicionar magia ── */
 .add-spell {
   border: 1px dashed var(--ink-600, #444);

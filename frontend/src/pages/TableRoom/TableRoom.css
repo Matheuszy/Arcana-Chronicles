@@ -365,6 +365,12 @@
   min-width: 220px;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
+.roll-label {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
 .dice-roll-head {
   display: flex;
   gap: 0.5rem;

@@ -5,9 +5,11 @@ import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.ClassePersonagem;
+import com.arcana.backend.character.model.Equipamento;
 import com.arcana.backend.character.model.Magia;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
+import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
@@ -130,7 +132,7 @@ public class PersonagemService {
         personagem.setBackstory(dto.backstory());
         personagem.setPersonalityPrompt(dto.personalityPrompt());
         personagem.setAvatarUrl(dto.avatarUrl());
-        personagem.setEquipment(dto.equipment());
+        mapearEquipamentos(dto, personagem);
         mapearClasses(dto, personagem);
         personagem.setHabilidades(textoOuNulo(dto.habilidades()));
         personagem.setTalentos(textoOuNulo(dto.talentos()));
@@ -180,6 +182,26 @@ public class PersonagemService {
         validarEspacosDeMagia(dto);
         personagem.setSpellSlots(serializeSlots(dto.spellSlots()));
         personagem.setSpellSlotsCurrent(serializeSlots(dto.spellSlotsCurrent()));
+    }
+
+    private void mapearEquipamentos(PersonagemRequestDto dto, Personagem personagem) {
+        personagem.getEquipamentos().clear();
+        if (dto.equipamentos() == null) return;
+        dto.equipamentos().stream()
+                .map(this::paraEquipamento)
+                .forEach(personagem.getEquipamentos()::add);
+    }
+
+    private Equipamento paraEquipamento(PersonagemRequestDto.EquipamentoDto dto) {
+        boolean arma = dto.tipo() == TipoEquipamento.ARMA;
+        String atributo = textoOuNulo(dto.atributo());
+        return new Equipamento(
+                dto.tipo(),
+                dto.nome().trim(),
+                arma ? textoOuNulo(dto.dano()) : null,
+                arma && atributo != null ? Atributo.daChave(atributo) : null,
+                arma ? null : dto.classeArmadura(),
+                textoOuNulo(dto.propriedades()));
     }
 
     private void mapearClasses(PersonagemRequestDto dto, Personagem personagem) {

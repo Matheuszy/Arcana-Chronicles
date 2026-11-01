@@ -211,6 +211,31 @@ class PersonagemIT extends IntegracaoTest {
     }
 
     @Test
+    void deveGravarArmasEArmadurasDaFicha() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Map<String, Object> ficha = new HashMap<>(fichaDoTipo("PLAYER"));
+        ficha.put("equipamentos", List.of(
+                Map.of("tipo", "ARMA", "nome", "Espada longa", "dano", "1d8", "atributo", "forca",
+                        "propriedades", "Versátil"),
+                Map.of("tipo", "ARMADURA", "nome", "Cota de malha", "classeArmadura", 16)));
+
+        Long id = corpo(postComo(dono.token(), "/api/characters", ficha).andExpect(status().isCreated()))
+                .get("id").asLong();
+
+        getComo(dono.token(), "/api/characters/" + id)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.equipamentos", hasSize(2)))
+                .andExpect(jsonPath("$.equipamentos[0].tipo").value("ARMA"))
+                .andExpect(jsonPath("$.equipamentos[0].dano").value("1d8"))
+                .andExpect(jsonPath("$.equipamentos[0].atributo").value("forca"))
+                .andExpect(jsonPath("$.equipamentos[1].tipo").value("ARMADURA"))
+                .andExpect(jsonPath("$.equipamentos[1].classeArmadura").value(16));
+
+        ficha.put("equipamentos", List.of(Map.of("tipo", "ARMA", "nome", "Arco", "dano", "1d7")));
+        putComo(dono.token(), "/api/characters/" + id, ficha).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void deveRecusarFichaSemOsCamposObrigatorios() throws Exception {
         Conta dono = registrar("JOGADOR");
         Map<String, Object> semClasse = new HashMap<>(fichaDoTipo("PLAYER"));

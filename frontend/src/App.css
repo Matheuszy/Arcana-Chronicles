@@ -77,3 +77,13 @@
   display: flex;
   flex-direction: column;
 }
+
+@media (min-width: 861px) and (min-height: 560px) {
+  .shell--room {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .shell--room .stage { min-height: 0; }
+}

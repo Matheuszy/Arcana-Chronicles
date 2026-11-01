@@ -12,6 +12,7 @@ const MODE_ALIASES: Record<string, RollMode> = {
 
 export const MAX_DICE_QUANTITY = 20;
 export const MAX_MODIFIER = 20;
+export const MAX_ROLL_LABEL_LENGTH = 120;
 
 export function isRollCommand(text: string): boolean {
   return /^\/r(olar)?(\s|$)/i.test(text.trim());

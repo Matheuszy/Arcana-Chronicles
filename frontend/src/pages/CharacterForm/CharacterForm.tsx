@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
 import { useSession } from '../../context/SessionContext';
@@ -15,9 +15,14 @@ import {
   Character,
   CharacterKind,
   ClassEntry,
+  DAMAGE_DICE_PATTERN,
   DEFAULT_PROFICIENCY_BONUS,
   EMPTY_ATTRIBUTES,
   EMPTY_SPELL_SLOTS,
+  Equipment,
+  equipmentDetails,
+  EQUIPMENT_TYPE_LABEL,
+  EquipmentType,
   formatModifier,
   KIND_LABEL,
   KINDS_BY_ROLE,
@@ -26,6 +31,10 @@ import {
   MAX_CLASS_LENGTH,
   MAX_CLASS_LEVEL,
   MAX_CLASSES,
+  MAX_EQUIPMENT,
+  MAX_EQUIPMENT_ARMOR_CLASS,
+  MAX_EQUIPMENT_NAME_LENGTH,
+  MAX_EQUIPMENT_PROPERTIES_LENGTH,
   MAX_ITEM_LENGTH,
   MAX_ITEMS,
   MAX_PROFICIENCY_BONUS,
@@ -52,6 +61,17 @@ const NEW_CANTRIP = { name: '', description: '' };
 
 const newClassEntry = (nivel = 1): ClassEntry => ({ classe: '', subclasse: '', nivel });
 
+const EQUIPMENT_TYPES: EquipmentType[] = ['ARMA', 'ARMADURA'];
+
+const NEW_EQUIPMENT: Equipment = {
+  tipo: 'ARMA',
+  nome: '',
+  dano: '',
+  atributo: null,
+  classeArmadura: null,
+  propriedades: '',
+};
+
 const EMPTY_CHARACTER: Character = {
   name: '',
   kind: 'PLAYER',
@@ -63,7 +83,7 @@ const EMPTY_CHARACTER: Character = {
   backstory: '',
   personalityPrompt: '',
   skills: {},
-  equipment: '',
+  equipamentos: [],
   spells: [],
   spellSlots: { ...EMPTY_SPELL_SLOTS },
   classes: [newClassEntry()],
@@ -98,6 +118,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
   const [saveError, setSaveError] = useState<string | null>(null);
   const [newSpell, setNewSpell] = useState({ ...NEW_SPELL });
   const [newCantrip, setNewCantrip] = useState({ ...NEW_CANTRIP });
+  const [newEquipment, setNewEquipment] = useState<Equipment>({ ...NEW_EQUIPMENT });
 
   const loadCharacter = useCallback(() => {
     if (!id) return;
@@ -111,6 +132,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           ...EMPTY_CHARACTER,
           ...char,
           vidaTemporaria: char.vidaTemporaria ?? undefined,
+          equipamentos: char.equipamentos ?? [],
           classes: loadedClasses.length > 0 ? loadedClasses : [newClassEntry(Math.min(MAX_CLASS_LEVEL, char.level))],
           habilidades: char.habilidades ?? '',
           talentos: char.talentos ?? '',
@@ -212,6 +234,40 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
   };
 
   const removeItem = (index: number) => setField('items', items.filter((_, i) => i !== index));
+
+  const equipamentos = form.equipamentos ?? [];
+  const newEquipmentIsWeapon = newEquipment.tipo === 'ARMA';
+  const newEquipmentDamage = (newEquipment.dano ?? '').trim().toLowerCase();
+  const newEquipmentDamageInvalid =
+    newEquipmentIsWeapon && newEquipmentDamage !== '' && !DAMAGE_DICE_PATTERN.test(newEquipmentDamage);
+  const canAddEquipment =
+    newEquipment.nome.trim().length > 0 && !newEquipmentDamageInvalid && equipamentos.length < MAX_EQUIPMENT;
+
+  const changeNewEquipment = (changes: Partial<Equipment>) =>
+    setNewEquipment((current) => ({ ...current, ...changes }));
+
+  const addEquipment = () => {
+    if (!canAddEquipment) return;
+    const entry: Equipment = {
+      tipo: newEquipment.tipo,
+      nome: newEquipment.nome.trim(),
+      dano: newEquipmentIsWeapon && newEquipmentDamage ? newEquipmentDamage : null,
+      atributo: newEquipmentIsWeapon ? newEquipment.atributo ?? null : null,
+      classeArmadura: newEquipmentIsWeapon ? null : newEquipment.classeArmadura ?? null,
+      propriedades: newEquipment.propriedades?.trim() || null,
+    };
+    setField('equipamentos', [...equipamentos, entry]);
+    setNewEquipment({ ...NEW_EQUIPMENT, tipo: newEquipment.tipo });
+  };
+
+  const removeEquipment = (index: number) =>
+    setField('equipamentos', equipamentos.filter((_, i) => i !== index));
+
+  const addEquipmentOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    addEquipment();
+  };
 
   // Rola todos os atributos de uma vez
   const rollAllAttributes = () => {
@@ -685,15 +741,127 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         <summary>
           <h3 className="section-title">Inventário</h3>
         </summary>
-        <div className="field">
-          <label htmlFor="equipment">Armas e armaduras</label>
-          <textarea
-            id="equipment"
-            rows={4}
-            value={form.equipment ?? ''}
-            onChange={(e) => setField('equipment', e.target.value)}
-            placeholder="ex: Espada longa +1, Escudo de madeira..."
-          />
+        <h4 className="sheet-subtitle">Armas e armaduras</h4>
+        {equipamentos.length > 0 ? (
+          <ul className="items-list">
+            {equipamentos.map((equipment, i) => {
+              const details = equipmentDetails(equipment);
+              return (
+                <li key={`${equipment.nome}-${i}`} className="item-row equipment-row">
+                  <span className="equipment-summary">
+                    <span className={`equipment-type equipment-type--${equipment.tipo.toLowerCase()}`}>
+                      {EQUIPMENT_TYPE_LABEL[equipment.tipo]}
+                    </span>
+                    <strong>{equipment.nome}</strong>
+                    {details.length > 0 && <span className="equipment-details">{details.join(' · ')}</span>}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-remove"
+                    onClick={() => removeEquipment(i)}
+                    aria-label={`Remover ${equipment.nome}`}
+                  >
+                    ✕
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="muted-hint">Nenhuma arma ou armadura na ficha.</p>
+        )}
+
+        <div className="add-spell card-inner add-equipment">
+          <h4>
+            Adicionar arma ou armadura ({equipamentos.length}/{MAX_EQUIPMENT})
+          </h4>
+          <div className="choice-toggle" role="radiogroup" aria-label="Tipo do equipamento">
+            {EQUIPMENT_TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                role="radio"
+                aria-checked={newEquipment.tipo === type}
+                className={`btn btn-ghost choice-toggle-option ${newEquipment.tipo === type ? 'choice-toggle-option--active' : ''}`}
+                onClick={() => changeNewEquipment({ tipo: type })}
+              >
+                {EQUIPMENT_TYPE_LABEL[type]}
+              </button>
+            ))}
+          </div>
+          <div className="field">
+            <label htmlFor="equipment-name">Nome</label>
+            <input
+              id="equipment-name"
+              type="text"
+              maxLength={MAX_EQUIPMENT_NAME_LENGTH}
+              value={newEquipment.nome}
+              onChange={(e) => changeNewEquipment({ nome: e.target.value })}
+              onKeyDown={addEquipmentOnEnter}
+              placeholder={newEquipmentIsWeapon ? 'ex: Espada longa' : 'ex: Cota de malha'}
+              disabled={equipamentos.length >= MAX_EQUIPMENT}
+            />
+          </div>
+          {newEquipmentIsWeapon ? (
+            <div className="row">
+              <div className="field">
+                <label htmlFor="equipment-damage">Dado de dano</label>
+                <input
+                  id="equipment-damage"
+                  type="text"
+                  maxLength={6}
+                  value={newEquipment.dano ?? ''}
+                  onChange={(e) => changeNewEquipment({ dano: e.target.value })}
+                  onKeyDown={addEquipmentOnEnter}
+                  aria-invalid={newEquipmentDamageInvalid}
+                  aria-describedby={newEquipmentDamageInvalid ? 'equipment-damage-error' : undefined}
+                  placeholder="ex: 1d8"
+                />
+              </div>
+              <Select
+                label="Atributo base"
+                value={newEquipment.atributo ?? ''}
+                onChange={(atributo) => changeNewEquipment({ atributo: atributo === '' ? null : atributo })}
+                options={[
+                  { value: '', label: 'Nenhum' },
+                  ...ATTRIBUTE_KEYS.map((key) => ({ value: key, label: ATTRIBUTE_LABEL[key] })),
+                ]}
+              />
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="equipment-armor-class">CA</label>
+              <NumberInput
+                id="equipment-armor-class"
+                min={0}
+                max={MAX_EQUIPMENT_ARMOR_CLASS}
+                value={newEquipment.classeArmadura ?? undefined}
+                onChange={(classeArmadura) => changeNewEquipment({ classeArmadura })}
+                onClear={() => changeNewEquipment({ classeArmadura: null })}
+                onKeyDown={addEquipmentOnEnter}
+              />
+            </div>
+          )}
+          <div className="field">
+            <label htmlFor="equipment-properties">Propriedades</label>
+            <input
+              id="equipment-properties"
+              type="text"
+              maxLength={MAX_EQUIPMENT_PROPERTIES_LENGTH}
+              value={newEquipment.propriedades ?? ''}
+              onChange={(e) => changeNewEquipment({ propriedades: e.target.value })}
+              onKeyDown={addEquipmentOnEnter}
+              placeholder={newEquipmentIsWeapon ? 'ex: Versátil, acuidade' : 'ex: Pesada, desvantagem em Furtividade'}
+            />
+          </div>
+          {newEquipmentDamageInvalid && (
+            <p id="equipment-damage-error" className="form-error">
+              Use um dado como 1d8 ou 2d6.
+            </p>
+          )}
+          <button type="button" className="btn btn-ghost" onClick={addEquipment} disabled={!canAddEquipment}>
+            + Adicionar {newEquipmentIsWeapon ? 'arma' : 'armadura'}
+          </button>
         </div>
 
         <h4 className="sheet-subtitle">Itens</h4>

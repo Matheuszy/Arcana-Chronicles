@@ -66,6 +66,7 @@ export interface RollRequest {
   quantidade: number;
   modificador: number;
   modo: RollMode;
+  descricao?: string;
 }
 
 export interface DiceRollResult {
@@ -80,6 +81,7 @@ export interface DiceRollResult {
   kept: number;
   critical: boolean;
   fumble: boolean;
+  label?: string | null;
 }
 
 export const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];

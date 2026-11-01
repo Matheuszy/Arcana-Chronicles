@@ -7,6 +7,7 @@ import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.ClassePersonagem;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
+import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.character.service.PersonagemService;
@@ -227,6 +228,57 @@ class PersonagemServiceTest {
         assertEquals("Visão no escuro até 18 m", resposta.habilidadesRaca());
         assertEquals(5, resposta.vidaTemporaria());
         assertEquals(6, personagem.getSalvaguardas().get(Atributo.FORCA));
+    }
+
+    private PersonagemRequestDto dtoComEquipamentos(List<PersonagemRequestDto.EquipamentoDto> equipamentos) {
+        return new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, equipamentos, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    void deveGravarArmasEArmadurasDescartandoOsCamposDoOutroTipo() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        var dto = dtoComEquipamentos(List.of(
+                new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMA, " Espada longa ", "1d8", "forca", 15, " Versátil "),
+                new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMADURA, "Cota de malha", "2d6", "destreza", 16, "  ")));
+
+        var resposta = service.atualizar(10L, dto, 1L);
+
+        assertEquals(List.of(
+                new PersonagemResponseDto.EquipamentoDto(TipoEquipamento.ARMA, "Espada longa", "1d8", "forca", null, "Versátil"),
+                new PersonagemResponseDto.EquipamentoDto(TipoEquipamento.ARMADURA, "Cota de malha", null, null, 16, null)),
+                resposta.equipamentos());
+        assertEquals(Atributo.FORCA, personagem.getEquipamentos().get(0).getAtributo());
+    }
+
+    @Test
+    void devePermitirArmaSemDadoNemAtributo() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        var dto = dtoComEquipamentos(List.of(
+                new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMA, "Adaga", " ", "", null, null)));
+
+        var resposta = service.atualizar(10L, dto, 1L);
+
+        assertEquals(List.of(new PersonagemResponseDto.EquipamentoDto(TipoEquipamento.ARMA, "Adaga", null, null, null, null)),
+                resposta.equipamentos());
+    }
+
+    @Test
+    void deveRecusarArmaComAtributoDesconhecido() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        var dto = dtoComEquipamentos(List.of(
+                new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMA, "Arco", "1d6", "sorte", null, null)));
+
+        assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, dto, 1L));
+        verify(personagemRepository, never()).save(any());
     }
 
     @Test

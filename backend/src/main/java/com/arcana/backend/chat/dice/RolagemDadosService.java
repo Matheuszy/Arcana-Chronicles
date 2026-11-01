@@ -16,6 +16,7 @@ public class RolagemDadosService {
     public static final Set<Integer> LADOS_PERMITIDOS = Set.of(4, 6, 8, 10, 12, 20, 100);
     public static final int QUANTIDADE_MAXIMA = 20;
     public static final int MODIFICADOR_MAXIMO = 20;
+    public static final int DESCRICAO_MAXIMA = 120;
 
     private final RandomGenerator random;
 
@@ -37,8 +38,12 @@ public class RolagemDadosService {
         int quantidade = valorOuPadrao(pedido.quantidade(), 1);
         int modificador = valorOuPadrao(pedido.modificador(), 0);
         ModoRolagem modo = pedido.modo() != null ? pedido.modo() : ModoRolagem.NORMAL;
+        String descricao = pedido.descricao() == null || pedido.descricao().isBlank() ? null : pedido.descricao().trim();
 
         validar(lados, quantidade, modificador, modo);
+        if (descricao != null && descricao.length() > DESCRICAO_MAXIMA) {
+            throw new IllegalArgumentException("A descrição da rolagem deve ter até " + DESCRICAO_MAXIMA + " caracteres.");
+        }
 
         List<Integer> rolagens;
         int mantido;
@@ -66,6 +71,7 @@ public class RolagemDadosService {
         resultado.setTotal(mantido + modificador);
         resultado.setCritical(dadoUnicoD20 && mantido == 20);
         resultado.setFumble(dadoUnicoD20 && mantido == 1);
+        resultado.setLabel(descricao);
         return resultado;
     }
 
@@ -75,7 +81,8 @@ public class RolagemDadosService {
             case DESVANTAGEM -> " com desvantagem";
             case NORMAL -> "";
         };
-        return "rolou " + resultado.getExpression() + sufixo;
+        String rotulo = resultado.getLabel() != null ? " (" + resultado.getLabel() + ")" : "";
+        return "rolou " + resultado.getExpression() + sufixo + rotulo;
     }
 
     private void validar(int lados, int quantidade, int modificador, ModoRolagem modo) {
