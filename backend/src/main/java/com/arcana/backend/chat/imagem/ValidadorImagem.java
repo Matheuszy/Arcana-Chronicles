@@ -11,6 +11,7 @@ public class ValidadorImagem {
 
     public static final int LIMITE_BYTES_IMAGEM = 2 * 1024 * 1024;
     public static final int LIMITE_TAMANHO_MENSAGEM_BYTES = 4 * 1024 * 1024;
+    public static final int LIMITE_CARACTERES_DESCRICAO = 250;
 
     private static final int LIMITE_CARACTERES_BASE64 = ((LIMITE_BYTES_IMAGEM + 2) / 3) * 4;
     private static final String MARCADOR_BASE64 = ";base64,";
@@ -27,6 +28,7 @@ public class ValidadorImagem {
             throw new IllegalArgumentException("Envie uma imagem.");
         }
 
+        String descricao = validarDescricao(recebida.descricao());
         String base64 = extrairBase64(recebida.dataUrl());
         if (base64.length() > LIMITE_CARACTERES_BASE64) {
             throw new IllegalArgumentException(mensagemLimite());
@@ -50,7 +52,18 @@ public class ValidadorImagem {
         return new ImagemAnexada(
                 "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(conteudo),
                 mimeType,
-                conteudo.length);
+                conteudo.length,
+                descricao);
+    }
+
+    private String validarDescricao(String descricao) {
+        if (descricao == null || descricao.isBlank()) return null;
+        String limpa = descricao.strip();
+        if (limpa.length() > LIMITE_CARACTERES_DESCRICAO) {
+            throw new IllegalArgumentException(
+                    "A descrição da imagem passa do limite de " + LIMITE_CARACTERES_DESCRICAO + " caracteres.");
+        }
+        return limpa;
     }
 
     private String extrairBase64(String dataUrl) {

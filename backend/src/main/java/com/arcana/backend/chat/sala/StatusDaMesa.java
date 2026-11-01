@@ -8,6 +8,7 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public class StatusDaMesa {
@@ -48,6 +49,10 @@ public class StatusDaMesa {
             throw new IllegalArgumentException("Esta ficha não tem status.");
         }
         return registrar(removida.personagemId(), removida.nome(), removida.npc(), REMOVIDO, removida.texto(), agora);
+    }
+
+    public synchronized Optional<Long> donoDe(Long personagemId) {
+        return Optional.ofNullable(atuais.get(personagemId)).map(Entrada::donoId);
     }
 
     public synchronized List<StatusDto.Registro> removerDoDono(Long donoId, Instant agora) {

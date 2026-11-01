@@ -1,11 +1,9 @@
 package com.arcana.backend.chat;
 
-import com.arcana.backend.chat.model.Canal;
 import com.arcana.backend.chat.model.ChatMessage;
 import com.arcana.backend.chat.sala.ComandoSala;
 import com.arcana.backend.chat.sala.NotaCompartilhada;
 import com.arcana.backend.chat.sala.SalaService;
-import com.arcana.backend.chat.sala.StatusDaMesa;
 import com.arcana.backend.chat.sala.StatusDto;
 import com.arcana.backend.chat.sessao.MesaAtiva;
 import com.arcana.backend.table.AcessoMesaDto;
@@ -55,13 +53,11 @@ public class SalaChat {
                 notificarNotaCompartilhada(mesa, acesso, compartilhada);
             }
             case STATUS_DEFINIR -> {
-                StatusDto.Registro registro = salaService.definirStatus(mesa, acesso, comando);
-                anunciarStatus(mesa, registro);
+                salaService.definirStatus(mesa, acesso, comando);
                 notificarStatus(mesa);
             }
             case STATUS_REMOVER -> {
-                StatusDto.Registro registro = salaService.removerStatus(mesa, acesso, comando);
-                anunciarStatus(mesa, registro);
+                salaService.removerStatus(mesa, acesso, comando);
                 notificarStatus(mesa);
             }
             case ITEM_CRIAR -> {
@@ -93,21 +89,7 @@ public class SalaChat {
     public void aoJogadorSair(MesaAtiva mesa, Long jogadorId) {
         List<StatusDto.Registro> removidos = salaService.removerStatusDoJogador(mesa, jogadorId);
         if (removidos.isEmpty()) return;
-        removidos.forEach(registro -> anunciarStatus(mesa, registro));
         notificarStatus(mesa);
-    }
-
-    private void anunciarStatus(MesaAtiva mesa, StatusDto.Registro registro) {
-        if (registro.npc()) return;
-
-        String texto = StatusDaMesa.DEFINIDO.equals(registro.acao())
-                ? "Status de " + registro.nome() + ": " + registro.texto() + "."
-                : "Status de " + registro.nome() + " removido (" + registro.texto() + ").";
-        ChatMessage aviso = novoEvento(mesa, ChatMessage.Type.SISTEMA);
-        aviso.setCanal(Canal.CONVERSA);
-        aviso.setContent(texto);
-        mesa.registrar(aviso);
-        mesa.sessoes().forEach(sessao -> enviar(sessao, aviso));
     }
 
     private void notificarNota(MesaAtiva mesa, Long userId, String nota) {

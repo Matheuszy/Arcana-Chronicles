@@ -63,19 +63,21 @@ public class SalaService {
     }
 
     public StatusDto.Registro definirStatus(MesaAtiva mesa, AcessoMesaDto acesso, ComandoSala comando) {
-        exigirMestre(acesso, "Apenas o mestre pode alterar status.");
         if (comando.personagemId() == null) {
             throw new IllegalArgumentException("Escolha a ficha que recebe o status.");
         }
         AlvoDeStatus alvo = mesaService.buscarAlvoDeStatus(mesa.getMesaId(), comando.personagemId());
+        exigirDonoDaFicha(alvo.donoId(), acesso);
         return mesa.statusDeFichas().definir(alvo, comando.texto(), clock.instant());
     }
 
     public StatusDto.Registro removerStatus(MesaAtiva mesa, AcessoMesaDto acesso, ComandoSala comando) {
-        exigirMestre(acesso, "Apenas o mestre pode alterar status.");
         if (comando.personagemId() == null) {
             throw new IllegalArgumentException("Escolha a ficha que perde o status.");
         }
+        Long donoId = mesa.statusDeFichas().donoDe(comando.personagemId())
+                .orElseThrow(() -> new IllegalArgumentException("Esta ficha não tem status."));
+        exigirDonoDaFicha(donoId, acesso);
         return mesa.statusDeFichas().remover(comando.personagemId(), clock.instant());
     }
 
@@ -103,9 +105,9 @@ public class SalaService {
         return mesa.itens().lista();
     }
 
-    private void exigirMestre(AcessoMesaDto acesso, String mensagem) {
-        if (!ehMestre(acesso)) {
-            throw new AccessDeniedException(mensagem);
+    private void exigirDonoDaFicha(Long donoId, AcessoMesaDto acesso) {
+        if (!acesso.userId().equals(donoId)) {
+            throw new AccessDeniedException("Você só pode alterar o status das suas próprias fichas.");
         }
     }
 

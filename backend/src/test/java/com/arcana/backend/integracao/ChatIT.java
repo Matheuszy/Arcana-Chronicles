@@ -164,7 +164,6 @@ class ChatIT extends IntegracaoTest {
 
         assertEquals("O mestre removeu você da mesa.", chatDoJogador.aguardar("REMOVIDO_DA_MESA").get("content").asText());
         assertEquals(WebSocket.NORMAL_CLOSURE, chatDoJogador.aguardarFechamento());
-        chatDoMestre.aguardarConteudo("O mestre removeu " + jogador.conta().username() + " da mesa.");
         chatDoMestre.aguardar("PARTICIPANTES");
         assertEquals(403, statusDoHandshake(mesaId, jogador.conta().token()));
     }

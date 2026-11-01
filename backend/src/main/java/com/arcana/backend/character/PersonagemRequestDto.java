@@ -94,7 +94,12 @@ public record PersonagemRequestDto(
         String talentos,
 
         @Min(value = 0, message = "Vida temporária não pode ser negativa")
-        Integer vidaTemporaria
+        Integer vidaTemporaria,
+
+        @NotNull(message = "Deslocamento é obrigatório")
+        @Min(value = 0, message = "Deslocamento não pode ser negativo")
+        @Max(value = 300, message = "Deslocamento não pode passar de 300 metros")
+        Integer deslocamento
 
 ) {
     public record ClasseDto(

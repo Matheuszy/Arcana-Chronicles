@@ -318,3 +318,36 @@
 }
 .ui-checklist-item { display: flex; align-items: baseline; gap: 0.4rem; font-size: 0.88rem; cursor: pointer; overflow-wrap: anywhere; }
 .ui-checklist-item small { flex-shrink: 0; }
+
+input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+.number-input { position: relative; display: flex; align-items: stretch; min-width: 0; }
+.number-input > input[type='number'] { flex: 1 1 auto; min-width: 0; padding-right: 1.9rem; }
+.number-input-steps {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  bottom: 3px;
+  display: flex;
+  flex-direction: column;
+  width: 1.35rem;
+  border-left: 1px solid rgba(201, 150, 47, 0.35);
+}
+.number-input-steps button {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ember);
+  cursor: pointer;
+}
+.number-input-steps button:first-child { border-radius: 0 var(--radius-sm) 0 0; }
+.number-input-steps button:last-child { border-radius: 0 0 var(--radius-sm) 0; }
+.number-input-steps button:hover:not(:disabled) { color: var(--ember-bright); background: rgba(201, 150, 47, 0.16); }
+.number-input-steps button:active:not(:disabled) { background: rgba(201, 150, 47, 0.28); }
+.number-input-steps button:disabled { opacity: 0.3; cursor: default; }
+.number-input-steps svg { width: 0.6rem; height: 0.4rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }

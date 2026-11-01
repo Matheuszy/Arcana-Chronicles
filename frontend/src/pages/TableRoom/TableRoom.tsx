@@ -7,7 +7,7 @@ import { chatService, ConnectionState, ConnectionStatus, MAX_RECONNECT_ATTEMPTS 
 import { diceService, isRollCommand } from '../../services/diceService';
 import { CharacterEditor } from '../CharacterForm/CharacterForm';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
-import { Character, Attributes } from '../../types/character';
+import { Character, Attributes, KIND_LABEL } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
 import { ChallengeTarget, isActiveState } from '../../types/challenge';
 import { BLOCKED_ROLL_DURING_COMBAT, isMyTurn } from '../../types/combat';
@@ -30,7 +30,7 @@ import ImageComposer from './ImageComposer';
 import NotesPanel from './NotesPanel';
 import ReceivedNoteDialog from './ReceivedNoteDialog';
 import SharedItemsView from './SharedItemsView';
-import StatusControls from './StatusControls';
+import StatusControls, { StatusTarget } from './StatusControls';
 import StatusView from './StatusView';
 import { useRoomResources } from './useRoomResources';
 import JoinRequestsPanel from './JoinRequestsPanel';
@@ -324,6 +324,20 @@ export default function TableRoom() {
     if (confirmed) changeStatus('ENCERRADA');
   };
 
+  const leaveSession = async () => {
+    if (isMaster) {
+      const confirmed = await confirm({
+        title: 'Deixar a sessão?',
+        message:
+          'A sessão termina para todos e o chat desta sessão é apagado. A mesa continua sua: os jogadores seguem vinculados e você pode abrir uma nova sessão quando quiser.',
+        confirmLabel: 'Deixar a sessão',
+      });
+      if (!confirmed) return;
+      chatService.endSession();
+    }
+    navigate('/mesas');
+  };
+
   const leaveTable = async () => {
     if (!id) return;
     const confirmed = await confirm({
@@ -508,7 +522,10 @@ export default function TableRoom() {
       label: entry.nomePersonagem,
       detail: entry.tipo === 'JOGADOR' ? `(${entry.nomeJogador})` : '(monstro do mestre)',
     }));
-  const myCreatedChallenges = challenges.filter((c) => String(c.criadorId) === viewerId);
+  const statusTargets: StatusTarget[] = (isMaster ? characters : activeCharacter ? [activeCharacter] : []).flatMap(
+    (c) => (c.id ? [{ id: Number(c.id), label: isMaster ? `${c.name} (${KIND_LABEL[c.kind]})` : c.name }] : []),
+  );
+  const myCreatedChallenges =challenges.filter((c) => String(c.criadorId) === viewerId);
   const playerChallengeTargets =
     combat === null
       ? masterChallengeTargets.filter((target) => target.id !== viewerId)
@@ -552,9 +569,14 @@ export default function TableRoom() {
               options={characters.flatMap((c) => (c.id ? [{ value: String(c.id), label: c.name }] : []))}
             />
             {characterError && <p className="roll-error">{characterError}</p>}
+            <button className="btn btn-ghost leave-table" onClick={leaveSession}>
+              Deixar a sessão
+            </button>
+            <p className="muted leave-hint">Você sai agora e pode voltar quando quiser, sem pedir para entrar.</p>
             <button className="btn btn-danger leave-table" onClick={leaveTable} disabled={leaving}>
               {leaving ? 'Saindo...' : 'Sair da mesa'}
             </button>
+            <p className="muted leave-hint">Deixa de participar. Para voltar, precisa pedir ao mestre de novo.</p>
             {leaveError && <p className="roll-error">{leaveError}</p>}
           </div>
         )}
@@ -567,9 +589,14 @@ export default function TableRoom() {
               onChange={changeStatus}
               options={MASTER_STATUS_OPTIONS.map((option) => ({ value: option, label: TABLE_STATUS_LABEL[option] }))}
             />
+            <button className="btn btn-ghost" onClick={leaveSession}>
+              Deixar a sessão
+            </button>
+            <p className="muted leave-hint">Encerra a sessão para todos. A mesa e os jogadores continuam.</p>
             <button className="btn btn-danger" onClick={closeTable}>
               Encerrar mesa
             </button>
+            <p className="muted leave-hint">Fecha a mesa de vez. Ela não pode ser reaberta.</p>
             {statusError && <p className="roll-error">{statusError}</p>}
           </div>
         )}
@@ -611,16 +638,22 @@ export default function TableRoom() {
           }
         />
 
-        {isMaster && (
-          <StatusControls
-            status={roomStatus}
-            participants={table.participants}
-            masterCharacters={characters}
-            canSend={connected}
-            onSet={chatService.setCharacterStatus.bind(chatService)}
-            onRemove={chatService.removeCharacterStatus.bind(chatService)}
-          />
-        )}
+        <StatusControls
+          status={roomStatus}
+          targets={statusTargets}
+          title={isMaster ? 'Status das suas fichas' : 'Status da sua ficha'}
+          hint={
+            isMaster
+              ? 'Você informa o status das fichas que criou. Só você vê. Cada jogador informa o da própria ficha.'
+              : 'Informe como seu personagem está, de bom ou de ruim: Envenenado, Voando, Caído. Todos da mesa veem.'
+          }
+          emptyText={
+            isMaster ? 'Você ainda não criou personagens ou NPCs.' : 'Selecione seu personagem nesta mesa para informar o status.'
+          }
+          canSend={connected}
+          onSet={chatService.setCharacterStatus.bind(chatService)}
+          onRemove={chatService.removeCharacterStatus.bind(chatService)}
+        />
 
 
         </div>
@@ -810,13 +843,20 @@ export default function TableRoom() {
                       animate={!m.id || !historyIds.current.has(m.id)}
                     />
                   ) : m.type === 'IMAGEM' && m.image ? (
-                    <button
-                      className="chat-image-button"
-                      onClick={() => setExpandedImage(m.image?.dataUrl ?? null)}
-                      title="Ampliar imagem"
-                    >
-                      <img className="chat-image" src={m.image.dataUrl} alt={`Imagem enviada por ${m.authorName}`} />
-                    </button>
+                    <figure className="chat-image-figure">
+                      <button
+                        className="chat-image-button"
+                        onClick={() => setExpandedImage(m.image?.dataUrl ?? null)}
+                        title="Ampliar imagem"
+                      >
+                        <img
+                          className="chat-image"
+                          src={m.image.dataUrl}
+                          alt={m.image.descricao ?? `Imagem enviada por ${m.authorName}`}
+                        />
+                      </button>
+                      {m.image.descricao && <figcaption className="chat-image-caption">{m.image.descricao}</figcaption>}
+                    </figure>
                   ) : (
                     <p className="content">{m.content}</p>
                   )}
@@ -880,12 +920,16 @@ export default function TableRoom() {
         )}
 
         {activeChannel === 'IMAGENS' && (
-          <ImageComposer disabled={!canSend} onSend={(dataUrl) => chatService.sendImage(dataUrl)} />
+          <ImageComposer
+            disabled={!canSend}
+            onSend={(dataUrl, description) => chatService.sendImage(dataUrl, description)}
+          />
         )}
       </div>
 
       <aside className="room-notes card" aria-label="Caderno privado">
         <NotesPanel
+          tableName={table.name}
           savedNote={note}
           canSave={connected}
           recipients={onlineUsers.filter((person) => String(person.userId) !== viewerId)}
