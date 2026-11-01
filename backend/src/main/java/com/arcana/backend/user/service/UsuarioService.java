@@ -11,6 +11,7 @@ import com.arcana.backend.user.dto.request.LoginRequestDto;
 import com.arcana.backend.user.dto.request.UsuarioRequestDto;
 import com.arcana.backend.user.dto.response.LoginResponseDto;
 import com.arcana.backend.user.dto.response.UsuarioResponseDto;
+import com.arcana.backend.user.model.PapelUsuario;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
 import jakarta.transaction.Transactional;
@@ -46,11 +47,11 @@ public class UsuarioService {
     /** Cadastra um novo usuário com senha criptografada em BCrypt */
     @Transactional
     public UsuarioResponseDto criar(UsuarioRequestDto dto) {
-        if (usuarioRepositorie.findByUsername(dto.username()).isPresent()) {
-            throw new RegraDeNegocioException("Username já está em uso: " + dto.username());
+        if (usuarioRepositorie.findByUsernameIgnoreCase(dto.username()).isPresent()) {
+            throw usuarioJaExiste(dto.username());
         }
-        if (usuarioRepositorie.findByEmail(dto.email()).isPresent()) {
-            throw new RegraDeNegocioException("Email já está em uso.");
+        if (usuarioRepositorie.findByEmailIgnoreCaseAndPapel(dto.email(), dto.papel()).isPresent()) {
+            throw emailJaUsadoNoPapel(dto.papel());
         }
 
         String encodedPassword = passwordEncoder.encode(dto.password());
@@ -92,15 +93,15 @@ public class UsuarioService {
         Usuario usuario = usuarioRepositorie.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado: " + id));
 
-        usuarioRepositorie.findByUsername(dto.username())
+        usuarioRepositorie.findByUsernameIgnoreCase(dto.username())
                 .filter(outro -> !outro.getId().equals(id))
                 .ifPresent(outro -> {
-                    throw new RegraDeNegocioException("Username já está em uso: " + dto.username());
+                    throw usuarioJaExiste(dto.username());
                 });
-        usuarioRepositorie.findByEmail(dto.email())
+        usuarioRepositorie.findByEmailIgnoreCaseAndPapel(dto.email(), usuario.getPapel())
                 .filter(outro -> !outro.getId().equals(id))
                 .ifPresent(outro -> {
-                    throw new RegraDeNegocioException("Email já está em uso.");
+                    throw emailJaUsadoNoPapel(usuario.getPapel());
                 });
 
         usuario.setUsername(dto.username());
@@ -123,6 +124,16 @@ public class UsuarioService {
         }
         mesaService.removerVinculosDoUsuario(id);
         usuarioRepositorie.deleteById(id);
+    }
+
+    private RegraDeNegocioException usuarioJaExiste(String username) {
+        return new RegraDeNegocioException("O usuário \"" + username + "\" já existe. Escolha outro nome.");
+    }
+
+    private RegraDeNegocioException emailJaUsadoNoPapel(PapelUsuario papel) {
+        String conta = papel == PapelUsuario.MESTRE ? "mestre" : "jogador";
+        return new RegraDeNegocioException("Este email já tem uma conta de " + conta
+                + ". Cada email pode ter uma conta de mestre e uma de jogador.");
     }
 
     private void validarDonoDoRecurso(Long id, Long usuarioAutenticadoId) {

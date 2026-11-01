@@ -3,6 +3,16 @@ import { NETWORK_ERROR_MESSAGE, readErrorMessage } from './httpClient';
 
 export type AccountRole = 'MESTRE' | 'JOGADOR';
 
+export const MAX_EMAIL_LENGTH = 250;
+export const INVALID_EMAIL_MESSAGE = 'E-mail inválido. Use o formato nome@dominio.com.';
+const EMAIL_PATTERN =
+  /^[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$/;
+
+export function isValidEmail(email: string): boolean {
+  const trimmed = email.trim();
+  return trimmed.length <= MAX_EMAIL_LENGTH && EMAIL_PATTERN.test(trimmed);
+}
+
 const BASE_URL = `${API_BASE_URL}/users`;
 
 async function handle<T>(res: Response): Promise<T> {

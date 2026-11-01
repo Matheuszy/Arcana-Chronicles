@@ -24,6 +24,7 @@ public class Desafio {
     private final String id;
     private final Long criadorId;
     private final String nomeDoCriador;
+    private final boolean doMestre;
     private final boolean doCombate;
     private final int cd;
     private final String descricao;
@@ -99,11 +100,12 @@ public class Desafio {
         }
     }
 
-    public Desafio(String id, Long criadorId, String nomeDoCriador, boolean doCombate, int cd, String descricao,
-                   Instant criadoEm) {
+    public Desafio(String id, Long criadorId, String nomeDoCriador, boolean doMestre, boolean doCombate, int cd,
+                   String descricao, Instant criadoEm) {
         this.id = id;
         this.criadorId = criadorId;
         this.nomeDoCriador = nomeDoCriador;
+        this.doMestre = doMestre;
         this.doCombate = doCombate;
         this.cd = cd;
         this.descricao = descricao;
@@ -135,6 +137,10 @@ public class Desafio {
 
     public String getNomeDoCriador() {
         return nomeDoCriador;
+    }
+
+    public boolean isDoMestre() {
+        return doMestre;
     }
 
     public boolean isDoCombate() {
@@ -203,7 +209,7 @@ public class Desafio {
         if (!participacao.estado.aguardandoRolagem()) {
             throw new IllegalStateException(switch (participacao.estado) {
                 case AGUARDANDO_DECISAO_DO_MESTRE -> "Aguarde "
-                        + (doCombate ? nomeDoCriador : "o mestre") + " decidir se haverá uma nova tentativa.";
+                        + (doMestre ? "o mestre" : nomeDoCriador) + " decidir se haverá uma nova tentativa.";
                 case CANCELADO -> "Este desafio foi cancelado.";
                 default -> "Este desafio já foi concluído.";
             });

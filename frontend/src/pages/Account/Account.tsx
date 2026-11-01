@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSession } from '../../context/SessionContext';
 import { MIN_PASSWORD_LENGTH, accountService } from '../../services/accountService';
+import { INVALID_EMAIL_MESSAGE, MAX_EMAIL_LENGTH, isValidEmail } from '../../services/authService';
 import { characterService } from '../../services/characterService';
 import { tableService } from '../../services/tableService';
 import { Character, KIND_LABEL } from '../../types/character';
@@ -59,6 +60,10 @@ export default function Account() {
 
   const save = async () => {
     if (userId === null || !canSave) return;
+    if (!isValidEmail(email)) {
+      setSaveError(INVALID_EMAIL_MESSAGE);
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -148,6 +153,7 @@ export default function Account() {
             id="accountEmail"
             type="email"
             value={email}
+            maxLength={MAX_EMAIL_LENGTH}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
           />
