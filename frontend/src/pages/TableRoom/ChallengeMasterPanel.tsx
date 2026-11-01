@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useConfirm } from '../../components/ui/Confirm';
+import NumberInput from '../../components/ui/NumberInput';
 import Select from '../../components/ui/Select';
 import { RollMode } from '../../types/chat';
 import {
@@ -291,13 +292,13 @@ export default function ChallengeMasterPanel({
           <div className="row">
             <div className="field">
               <label htmlFor="challengeDc">CD</label>
-              <input
+              <NumberInput
                 id="challengeDc"
-                type="number"
                 min={MIN_CHALLENGE_DC}
                 max={MAX_CHALLENGE_DC}
-                value={dc}
-                onChange={(e) => setDc(e.target.value)}
+                value={dc === '' ? undefined : Number(dc)}
+                onChange={(next) => setDc(String(next))}
+                onClear={() => setDc('')}
               />
             </div>
             <div className="field grow">

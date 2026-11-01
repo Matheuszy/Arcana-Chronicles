@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import NumberInput from '../../components/ui/NumberInput';
 import { DICE_SIDES, RollMode, RollRequest } from '../../types/chat';
 import { MAX_DICE_QUANTITY, MAX_MODIFIER, validateRollRequest } from '../../services/diceService';
 import RollModePicker from './RollModePicker';
@@ -75,24 +76,24 @@ export default function DiceRoller({ disabled, onRoll }: DiceRollerProps) {
           <div className="roll-panel-row">
             <div className="field">
               <label htmlFor="rollQuantity">Quantidade</label>
-              <input
+              <NumberInput
                 id="rollQuantity"
-                type="number"
                 min={1}
                 max={MAX_DICE_QUANTITY}
-                value={quantity}
-                onChange={(e) => changeQuantity(e.target.value)}
+                value={quantity === '' ? undefined : Number(quantity)}
+                onChange={(next) => changeQuantity(String(next))}
+                onClear={() => changeQuantity('')}
               />
             </div>
             <div className="field">
               <label htmlFor="rollModifier">Modificador?</label>
-              <input
+              <NumberInput
                 id="rollModifier"
-                type="number"
                 min={-MAX_MODIFIER}
                 max={MAX_MODIFIER}
-                value={modifier}
-                onChange={(e) => setModifier(e.target.value)}
+                value={modifier === '' ? undefined : Number(modifier)}
+                onChange={(next) => setModifier(String(next))}
+                onClear={() => setModifier('')}
                 onKeyUp={(e) => e.key === 'Enter' && roll()}
                 autoFocus
               />

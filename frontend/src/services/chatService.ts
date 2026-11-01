@@ -123,12 +123,13 @@ class ChatService {
     });
   }
 
-  sendImage(dataUrl: string): void {
+  sendImage(dataUrl: string, description: string): void {
+    const descricao = description.trim();
     this.send({
       type: 'IMAGEM',
       canal: 'IMAGENS',
       content: '',
-      image: { dataUrl },
+      image: { dataUrl, descricao: descricao || null },
     });
   }
 

@@ -1,28 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
-import { Character, KIND_LABEL } from '../../types/character';
 import { StatusSnapshot, MAX_STATUS_LENGTH } from '../../types/room';
-import { TableParticipant } from '../../types/table';
+
+export interface StatusTarget {
+  id: number;
+  label: string;
+}
 
 interface StatusControlsProps {
   status: StatusSnapshot;
-  participants: TableParticipant[];
-  masterCharacters: Character[];
+  targets: StatusTarget[];
+  title: string;
+  hint: string;
+  emptyText: string;
   canSend: boolean;
   onSet: (characterId: number, text: string) => void;
   onRemove: (characterId: number) => void;
 }
 
-interface Target {
-  id: number;
-  label: string;
-}
-
 export default function StatusControls({
   status,
-  participants,
-  masterCharacters,
+  targets,
+  title,
+  hint,
+  emptyText,
   canSend,
   onSet,
   onRemove,
@@ -30,13 +32,14 @@ export default function StatusControls({
   const confirm = useConfirm();
   const [targetId, setTargetId] = useState('');
   const [text, setText] = useState('');
+  const singleTargetId = targets.length === 1 ? String(targets[0].id) : null;
 
-  const playerTargets: Target[] = participants
-    .filter((p) => p.role === 'JOGADOR' && p.characterId)
-    .map((p) => ({ id: Number(p.characterId), label: `Ficha de ${p.displayName}` }));
-  const masterTargets: Target[] = masterCharacters
-    .filter((c) => c.id)
-    .map((c) => ({ id: Number(c.id), label: `${c.name} (${KIND_LABEL[c.kind]})` }));
+  useEffect(() => {
+    if (singleTargetId) setTargetId(singleTargetId);
+  }, [singleTargetId]);
+
+  const myTargetIds = targets.map((t) => t.id);
+  const myStatuses = status.atuais.filter((s) => myTargetIds.includes(Number(s.personagemId)));
 
   const apply = () => {
     const trimmed = text.trim();
@@ -47,34 +50,38 @@ export default function StatusControls({
 
   return (
     <div className="status-controls">
-      <h3 className="section-title">Status das fichas</h3>
-      <Select
-        label="Ficha"
-        value={targetId}
-        onChange={setTargetId}
-        options={[
-          ...playerTargets.map((t) => ({ value: String(t.id), label: t.label, group: 'Jogadores' })),
-          ...masterTargets.map((t) => ({ value: String(t.id), label: t.label, group: 'Suas fichas (só você vê)' })),
-        ]}
-      />
-      <div className="field">
-        <label htmlFor="statusText">Status</label>
-        <input
-          id="statusText"
-          type="text"
-          maxLength={MAX_STATUS_LENGTH}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyUp={(e) => e.key === 'Enter' && canSend && apply()}
-          placeholder="ex: Envenenado, sem armadura"
-        />
-      </div>
-      <button className="btn btn-primary" onClick={apply} disabled={!canSend || !targetId || !text.trim()}>
-        Aplicar status
-      </button>
-      {status.atuais.length > 0 && (
+      <h3 className="section-title">{title}</h3>
+      <p className="muted private-sheets-hint">{hint}</p>
+      {targets.length === 0 ? (
+        <p className="muted">{emptyText}</p>
+      ) : (
+        <>
+          <Select
+            label="Ficha"
+            value={targetId}
+            onChange={setTargetId}
+            options={targets.map((t) => ({ value: String(t.id), label: t.label }))}
+          />
+          <div className="field">
+            <label htmlFor="statusText">Status</label>
+            <input
+              id="statusText"
+              type="text"
+              maxLength={MAX_STATUS_LENGTH}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyUp={(e) => e.key === 'Enter' && canSend && apply()}
+              placeholder="ex: Envenenado, Voando, Caído"
+            />
+          </div>
+          <button className="btn btn-primary" onClick={apply} disabled={!canSend || !targetId || !text.trim()}>
+            Aplicar status
+          </button>
+        </>
+      )}
+      {myStatuses.length > 0 && (
         <ul className="participant-list status-list">
-          {status.atuais.map((s) => (
+          {myStatuses.map((s) => (
             <li key={s.personagemId} className="participant-item">
               <span>
                 <strong>{s.nome}</strong>: {s.texto}

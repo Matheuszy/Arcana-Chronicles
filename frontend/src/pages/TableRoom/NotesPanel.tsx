@@ -4,6 +4,7 @@ import { MAX_NOTE_LENGTH } from '../../types/room';
 import ShareNoteDialog from './ShareNoteDialog';
 
 interface NotesPanelProps {
+  tableName: string;
   savedNote: string;
   canSave: boolean;
   recipients: Presence[];
@@ -11,7 +12,29 @@ interface NotesPanelProps {
   onShare: (text: string, recipientIds: number[]) => void;
 }
 
-export default function NotesPanel({ savedNote, canSave, recipients, onSave, onShare }: NotesPanelProps) {
+function exportFileName(tableName: string): string {
+  const slug = tableName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const date = new Date().toISOString().slice(0, 10);
+  return `caderno-${slug || 'mesa'}-${date}.txt`;
+}
+
+function downloadText(fileName: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export default function NotesPanel({ tableName, savedNote, canSave, recipients, onSave, onShare }: NotesPanelProps) {
   const [draft, setDraft] = useState(savedNote);
   const [excerpt, setExcerpt] = useState('');
   const [sharing, setSharing] = useState(false);
@@ -32,7 +55,10 @@ export default function NotesPanel({ savedNote, canSave, recipients, onSave, onS
   return (
     <div className="notes-panel notes-panel--notebook">
       <h3 className="notes-title">Caderno privado</h3>
-      <p className="muted private-sheets-hint">Só você vê. Somem quando todos saem da mesa.</p>
+      <p className="muted private-sheets-hint">
+        Só você vê. As anotações somem quando todos saem da mesa e não ficam salvas no servidor. Use "Exportar .txt"
+        para guardar uma cópia no seu computador.
+      </p>
       <textarea
         ref={textareaRef}
         aria-label="Anotações privadas"
@@ -52,6 +78,14 @@ export default function NotesPanel({ savedNote, canSave, recipients, onSave, onS
           {!dirty && draft.length > 0 && ' · salvo'}
         </span>
         <div className="notes-actions">
+          <button
+            className="btn btn-ghost"
+            onClick={() => downloadText(exportFileName(tableName), draft)}
+            disabled={!draft.trim()}
+            title="Baixar as anotações como arquivo de texto"
+          >
+            Exportar .txt
+          </button>
           <button
             className="btn btn-ghost"
             onClick={() => setSharing(true)}

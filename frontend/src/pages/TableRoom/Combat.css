@@ -106,7 +106,8 @@
 }
 
 .combat-quantity {
-  width: 4.5rem;
+  width: 5.5rem;
+  flex: none;
 }
 
 .combat-proficiency {

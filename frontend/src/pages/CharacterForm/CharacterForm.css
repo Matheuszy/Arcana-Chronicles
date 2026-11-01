@@ -251,10 +251,11 @@
 .attr-field .bonus-input input { width: 4.5rem; }
 
 .skill-row .skill-name { cursor: pointer; }
+.skill-row .number-input { margin-left: auto; }
 .skill-row .skill-bonus {
-  width: 3.5rem;
-  margin-left: auto;
-  padding: 0.15rem 0.3rem;
+  width: 4.6rem;
+  flex: none;
+  padding: 0.15rem 1.8rem 0.15rem 0.3rem;
 }
 
 .items-list {

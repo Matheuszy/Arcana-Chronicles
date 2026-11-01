@@ -76,6 +76,8 @@ const NEW_EQUIPMENT: Equipment = {
   propriedades: '',
 };
 
+const MAX_MOVEMENT = 300;
+
 const EMPTY_CHARACTER: Character = {
   name: '',
   kind: 'PLAYER',
@@ -142,6 +144,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           ...EMPTY_CHARACTER,
           ...char,
           vidaTemporaria: char.vidaTemporaria ?? undefined,
+          deslocamento: char.deslocamento ?? undefined,
           equipamentos: char.equipamentos ?? [],
           classes: loadedClasses.length > 0 ? loadedClasses : [newClassEntry(Math.min(MAX_CLASS_LEVEL, char.level))],
           habilidades: char.habilidades ?? '',
@@ -442,6 +445,10 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
       setSaveError('Preencha a raça e o alinhamento antes de salvar.');
       return;
     }
+    if (form.deslocamento == null || !Number.isInteger(form.deslocamento)) {
+      setSaveError('Informe o deslocamento em metros, só com números inteiros.');
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -622,21 +629,12 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         {/* ── Stats base ── */}
         <div className="row">
           <div className="field">
-            <label
-              htmlFor="level"
-              className="required-mark"
-              title={hasClasses ? 'Soma dos níveis das classes' : undefined}
-            >
-              Nível
+            <label htmlFor="level" title="Soma dos níveis das classes">
+              Nível (soma das classes)
             </label>
-            <NumberInput
-              id="level"
-              required
-              min={1}
-              readOnly={hasClasses}
-              value={form.level}
-              onChange={(level) => setField('level', level)}
-            />
+            <output id="level" className="computed-value" aria-live="polite">
+              {hasClasses ? totalClassLevel(classes) : form.level}
+            </output>
           </div>
           <div className="field">
             <label htmlFor="hpMax" className="required-mark">HP máximo</label>
@@ -676,6 +674,20 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
               min={0}
               value={form.armorClass}
               onChange={(armorClass) => setField('armorClass', armorClass)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="deslocamento" className="required-mark">Deslocamento (metros)</label>
+            <NumberInput
+              id="deslocamento"
+              required
+              min={0}
+              max={MAX_MOVEMENT}
+              step={1}
+              placeholder="ex: 9"
+              value={form.deslocamento}
+              onChange={(deslocamento) => setField('deslocamento', deslocamento)}
+              onClear={() => setField('deslocamento', undefined)}
             />
           </div>
           <div className="field">

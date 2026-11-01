@@ -238,8 +238,7 @@ class MesaChatHandlerTest {
 
         List<String> conteudos = new ArrayList<>();
         sincronizacao.get("historico").get("CONVERSA").forEach(m -> conteudos.add(m.get("content").asText()));
-        assertTrue(conteudos.contains("a porta está trancada"));
-        assertTrue(conteudos.contains("gandalf entrou na mesa."));
+        assertEquals(List.of("a porta está trancada"), conteudos);
 
         JsonNode presentes = sincronizacao.get("presentes");
         assertEquals(3, presentes.size());
@@ -363,21 +362,22 @@ class MesaChatHandlerTest {
     }
 
     @Test
-    void deveAvisarOsDemaisQuandoAlguemEntraOuSai() throws Exception {
+    void deveAtualizarSoAPresencaQuandoAlguemEntraOuSaiSemAvisoNoChat() throws Exception {
         WebSocketSession novoJogador = sessaoAutenticada("n", new AcessoMesaDto(1L, 5L, "ana", "JOGADOR", StatusMesa.ABERTA));
         handler.afterConnectionEstablished(novoJogador);
 
         List<JsonNode> aoEntrar = mensagensRecebidas(outroJogador);
-        assertEquals("ana entrou na mesa.", aoEntrar.get(0).get("content").asText());
-        assertEquals("PRESENCA", aoEntrar.get(1).get("type").asText());
-        assertEquals(3, aoEntrar.get(1).get("presentes").size());
+        assertEquals(1, aoEntrar.size());
+        assertEquals("PRESENCA", aoEntrar.get(0).get("type").asText());
+        assertEquals(3, aoEntrar.get(0).get("presentes").size());
         clearInvocations(outroJogador);
 
         handler.afterConnectionClosed(novoJogador, CloseStatus.NORMAL);
 
         List<JsonNode> aoSair = mensagensRecebidas(outroJogador);
-        assertEquals("ana saiu da mesa.", aoSair.get(0).get("content").asText());
-        assertEquals(2, aoSair.get(1).get("presentes").size());
+        assertEquals(1, aoSair.size());
+        assertEquals(2, aoSair.get(0).get("presentes").size());
+        assertTrue(gerenciador.buscar(1L).orElseThrow().historico(Canal.CONVERSA).isEmpty());
     }
 
     @Test
@@ -531,14 +531,13 @@ class MesaChatHandlerTest {
     }
 
     @Test
-    void deveAvisarAMesaQuandoOMestrePausa() throws Exception {
+    void deveAtualizarOStatusDaMesaSemAvisoNoChatQuandoOMestrePausa() throws Exception {
         handler.aoAlterarStatusDaMesa(new MesaStatusAlteradoEvent(1L, StatusMesa.PAUSADA));
 
         List<JsonNode> recebidas = mensagensRecebidas(outroJogador);
-        assertEquals("O mestre pausou a mesa. Mensagens e rolagens estão bloqueadas.",
-                recebidas.get(0).get("content").asText());
-        assertEquals("STATUS_MESA", recebidas.get(1).get("type").asText());
-        assertEquals("PAUSADA", recebidas.get(1).get("content").asText());
+        assertEquals(1, recebidas.size());
+        assertEquals("STATUS_MESA", recebidas.get(0).get("type").asText());
+        assertEquals("PAUSADA", recebidas.get(0).get("content").asText());
         assertTrue(mensagensRecebidas(jogadorDeOutraMesa).isEmpty());
     }
 
@@ -569,11 +568,11 @@ class MesaChatHandlerTest {
         assertEquals("voltamos", mensagensRecebidas(outroJogador).get(0).get("content").asText());
         List<String> historico = gerenciador.buscar(1L).orElseThrow().historico(Canal.CONVERSA).stream()
                 .map(ChatMessage::getContent).toList();
-        assertTrue(historico.contains("O mestre retomou a mesa."));
+        assertEquals(List.of("voltamos"), historico);
     }
 
     @Test
-    void deveDesconectarJogadorRemovidoPeloMestreEAvisarOsDemais() throws Exception {
+    void deveDesconectarJogadorRemovidoPeloMestreEAtualizarOsDemais() throws Exception {
         handler.aoRemoverParticipante(new ParticipanteRemovidoEvent(1L, 2L, "joao", true));
 
         JsonNode aviso = mensagensRecebidas(remetente).get(0);
@@ -582,9 +581,9 @@ class MesaChatHandlerTest {
         verify(remetente).close(any(CloseStatus.class));
 
         List<JsonNode> recebidas = mensagensRecebidas(outroJogador);
-        assertEquals("O mestre removeu joao da mesa.", recebidas.get(0).get("content").asText());
-        assertEquals("PARTICIPANTES", recebidas.get(1).get("type").asText());
-        assertEquals(1, recebidas.get(2).get("presentes").size());
+        assertEquals(2, recebidas.size());
+        assertEquals("PARTICIPANTES", recebidas.get(0).get("type").asText());
+        assertEquals(1, recebidas.get(1).get("presentes").size());
         assertTrue(mensagensRecebidas(jogadorDeOutraMesa).isEmpty());
         clearInvocations(outroJogador);
 
@@ -594,11 +593,11 @@ class MesaChatHandlerTest {
     }
 
     @Test
-    void deveAvisarQuandoJogadorDeixaAMesa() throws Exception {
+    void deveAtualizarOsParticipantesSemAvisoNoChatQuandoJogadorDeixaAMesa() throws Exception {
         handler.aoRemoverParticipante(new ParticipanteRemovidoEvent(1L, 2L, "joao", false));
 
         assertEquals("Você saiu da mesa.", mensagensRecebidas(remetente).get(0).get("content").asText());
-        assertEquals("joao deixou a mesa.", mensagensRecebidas(outroJogador).get(0).get("content").asText());
+        assertEquals("PARTICIPANTES", mensagensRecebidas(outroJogador).get(0).get("type").asText());
         assertFalse(gerenciador.buscar(1L).orElseThrow().usuarioConectado(2L));
     }
 

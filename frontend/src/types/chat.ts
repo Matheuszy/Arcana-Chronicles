@@ -90,10 +90,13 @@ export const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'i
 
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
+export const MAX_IMAGE_DESCRIPTION = 250;
+
 export interface ImageAttachment {
   dataUrl: string;
   mimeType?: string | null;
   sizeBytes?: number | null;
+  descricao?: string | null;
 }
 
 export interface ChatMessage {

@@ -35,15 +35,15 @@ class MensagensDeValidacaoTest {
     }
 
     @Test
-    void deveExigirOsCamposObrigatoriosDaFichaERecusarVidaTemporariaNegativa() {
+    void deveExigirOsCamposObrigatoriosDaFichaComDeslocamentoERecusarVidaTemporariaNegativa() {
         var ficha = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
-                List.of(), null, null, null, null, " ", null, null, null, -1);
+                List.of(), null, null, null, null, " ", null, null, null, -1, null);
 
         assertEquals(List.of("A ficha precisa de ao menos uma classe", "Alinhamento é obrigatório",
-                "Bônus de proficiência é obrigatório", "Raça é obrigatória",
+                "Bônus de proficiência é obrigatório", "Deslocamento é obrigatório", "Raça é obrigatória",
                 "Vida temporária não pode ser negativa"), mensagens(validador.validate(ficha)));
     }
 
@@ -54,7 +54,7 @@ class MensagensDeValidacaoTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
-                "Elfo", "Neutro e Bom", null, null, null);
+                "Elfo", "Neutro e Bom", null, null, null, 9);
 
         assertEquals(List.of(), mensagens(validador.validate(ficha)));
     }
