@@ -20,6 +20,7 @@ import ChallengeMasterPanel from './ChallengeMasterPanel';
 import ChallengePlayerPanel from './ChallengePlayerPanel';
 import ChallengeMonsterRolls from './ChallengeMonsterRolls';
 import ChallengeRollOverlay from './ChallengeRollOverlay';
+import ChallengeMessageDialog from './ChallengeMessageDialog';
 import CombatStartPanel from './CombatStartPanel';
 import CombatTracker from './CombatTracker';
 import DiceRoller from './DiceRoller';
@@ -165,7 +166,7 @@ export default function TableRoom() {
     reset: resetChallenges,
     dismissReveal,
     dismissMessage,
-  } = useChallenges(isMaster);
+  } = useChallenges(viewerId);
   const {
     note,
     status: roomStatus,
@@ -640,15 +641,16 @@ export default function TableRoom() {
           />
           <ChallengeMasterPanel
             challenges={challenges}
-            participants={table.participants}
             targets={masterChallengeTargets}
             viewerId={viewerId}
             title="Desafios de CD"
             canSend={canSend}
+            connected={connected}
             onCreate={chatService.createChallenge.bind(chatService)}
             onAllowExtraAttempt={chatService.allowExtraAttempt.bind(chatService)}
             onEndWithFailure={chatService.endChallengeWithFailure.bind(chatService)}
             onCancel={chatService.cancelChallenge.bind(chatService)}
+            onFinish={chatService.finishChallenge.bind(chatService)}
             onSendMessage={chatService.sendChallengeMessage.bind(chatService)}
           />
           </>
@@ -657,16 +659,17 @@ export default function TableRoom() {
         {!isMaster && (combat !== null || myCreatedChallenges.length > 0) && (
           <ChallengeMasterPanel
             challenges={myCreatedChallenges}
-            participants={table.participants}
             targets={combatChallengeTargets}
             viewerId={viewerId}
             title="Meus desafios de combate"
             createHint={playerChallengeHint}
             canSend={canSend}
+            connected={connected}
             onCreate={chatService.createChallenge.bind(chatService)}
             onAllowExtraAttempt={chatService.allowExtraAttempt.bind(chatService)}
             onEndWithFailure={chatService.endChallengeWithFailure.bind(chatService)}
             onCancel={chatService.cancelChallenge.bind(chatService)}
+            onFinish={chatService.finishChallenge.bind(chatService)}
             onSendMessage={chatService.sendChallengeMessage.bind(chatService)}
           />
         )}
@@ -678,9 +681,7 @@ export default function TableRoom() {
             character={activeCharacter}
             paused={Boolean(isPaused)}
             canSend={connected}
-            incomingMessage={incomingMessage}
             onRoll={chatService.rollChallenge.bind(chatService)}
-            onDismissMessage={dismissMessage}
           />
         )}
 
@@ -921,6 +922,7 @@ export default function TableRoom() {
       )}
 
       {reveal && <ChallengeRollOverlay key={reveal.key} reveal={reveal} viewerId={viewerId} onClose={dismissReveal} />}
+      {!reveal && incomingMessage && <ChallengeMessageDialog incoming={incomingMessage} onClose={dismissMessage} />}
 
       {expandedImage && (
         <div className="image-lightbox" role="dialog" aria-modal="true" onClick={() => setExpandedImage(null)}>

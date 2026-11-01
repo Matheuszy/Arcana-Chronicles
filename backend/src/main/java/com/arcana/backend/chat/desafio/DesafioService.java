@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -144,6 +145,10 @@ public class DesafioService {
                 throw new IllegalStateException("Não há desafio em andamento para cancelar.");
             }
         });
+    }
+
+    public Map<Long, DesafioDto> finalizar(MesaAtiva mesa, AcessoMesaDto criador, String desafioId) {
+        return mesa.desafios().finalizar(desafioId, desafio -> exigirCriadorDoDesafio(desafio, criador));
     }
 
     public MensagemEnviada enviarMensagem(MesaAtiva mesa, AcessoMesaDto criador, String desafioId,

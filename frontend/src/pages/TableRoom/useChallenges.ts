@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { ChatMessage } from '../../types/chat';
-import { Challenge, IncomingChallengeMessage, RollReveal } from '../../types/challenge';
+import { Challenge, IncomingChallengeMessage, RollReveal, challengeAuthor } from '../../types/challenge';
 
 function findNewRoll(previous: Challenge | undefined, updated: Challenge): RollReveal | null {
   if (!previous) return null;
@@ -17,16 +17,18 @@ function findNewRoll(previous: Challenge | undefined, updated: Challenge): RollR
 function findNewMessage(previous: Challenge | undefined, updated: Challenge): IncomingChallengeMessage | null {
   const fresh = updated.mensagens.filter((m) => !previous?.mensagens.some((p) => p.id === m.id));
   const latest = fresh[fresh.length - 1];
-  return latest ? { challengeId: updated.id, message: latest, dc: updated.cd } : null;
+  return latest
+    ? { challengeId: updated.id, message: latest, dc: updated.cd, from: challengeAuthor(updated) }
+    : null;
 }
 
-export function useChallenges(isMaster: boolean) {
+export function useChallenges(viewerId: string | null) {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [reveal, setReveal] = useState<RollReveal | null>(null);
   const [incomingMessage, setIncomingMessage] = useState<IncomingChallengeMessage | null>(null);
   const known = useRef<Challenge[]>([]);
-  const masterRef = useRef(isMaster);
-  masterRef.current = isMaster;
+  const viewerRef = useRef(viewerId);
+  viewerRef.current = viewerId;
 
   const replaceAll = useCallback((next: Challenge[]) => {
     known.current = next;
@@ -39,6 +41,12 @@ export function useChallenges(isMaster: boolean) {
         replaceAll(msg.desafios ?? []);
         return true;
       }
+      if (msg.type === 'DESAFIO_FINALIZADO') {
+        const finishedId = msg.desafio?.id;
+        replaceAll(known.current.filter((c) => c.id !== finishedId));
+        setIncomingMessage((current) => (current?.challengeId === finishedId ? null : current));
+        return true;
+      }
       if (msg.type !== 'DESAFIO' || !msg.desafio) return false;
 
       const updated = msg.desafio;
@@ -49,7 +57,8 @@ export function useChallenges(isMaster: boolean) {
       const newRoll = findNewRoll(previous, updated);
       if (newRoll) setReveal(newRoll);
 
-      const newMessage = masterRef.current ? null : findNewMessage(previous, updated);
+      const isCreator = String(updated.criadorId) === viewerRef.current;
+      const newMessage = isCreator ? null : findNewMessage(previous, updated);
       if (newMessage) setIncomingMessage(newMessage);
       return true;
     },
