@@ -16,7 +16,7 @@ import {
   Challenge,
   ChallengeChoice,
   ChallengePlayer,
-  IncomingChallengeMessage,
+  challengeAuthor,
   isActiveState,
   isPendingRoll,
 } from '../../types/challenge';
@@ -29,9 +29,7 @@ interface ChallengePlayerPanelProps {
   character: Character | undefined;
   paused: boolean;
   canSend: boolean;
-  incomingMessage: IncomingChallengeMessage | null;
   onRoll: (choice: ChallengeChoice) => void;
-  onDismissMessage: () => void;
 }
 
 function myEntry(challenge: Challenge, userId: string | null): ChallengePlayer | undefined {
@@ -39,7 +37,7 @@ function myEntry(challenge: Challenge, userId: string | null): ChallengePlayer |
 }
 
 function challengeTitle(challenge: Challenge): string {
-  return challenge.doCombate ? `Desafio de ${challenge.criadorNome}` : 'Desafio do mestre';
+  return challenge.doCombate ? `Desafio de ${challengeAuthor(challenge)}` : 'Desafio do mestre';
 }
 
 function RollPicker({
@@ -156,24 +154,20 @@ function RollPicker({
   );
 }
 
-function summary(entry: ChallengePlayer): string {
-  const last = entry.rolagens[entry.rolagens.length - 1];
-  return last ? ` · ${last.descricaoEscolha}: ${last.total}` : '';
-}
-
 export default function ChallengePlayerPanel({
   challenges,
   userId,
   character,
   paused,
   canSend,
-  incomingMessage,
   onRoll,
-  onDismissMessage,
 }: ChallengePlayerPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const mine = challenges.filter((c) => myEntry(c, userId)).slice().reverse();
+  const mine = challenges.filter((c) => {
+    const entry = myEntry(c, userId);
+    return entry ? isActiveState(entry.estado) : false;
+  });
   const pending = mine.find((c) => {
     const entry = myEntry(c, userId);
     return entry ? isPendingRoll(entry.estado) : false;
@@ -185,7 +179,7 @@ export default function ChallengePlayerPanel({
     setPickerOpen(pendingKey !== null);
   }, [pendingKey]);
 
-  if (mine.length === 0 && !incomingMessage) return null;
+  if (mine.length === 0) return null;
 
   return (
     <div className="challenge-panel">
@@ -194,27 +188,20 @@ export default function ChallengePlayerPanel({
         {mine.map((challenge) => {
           const entry = myEntry(challenge, userId);
           if (!entry) return null;
-          const active = isActiveState(entry.estado);
           return (
-            <li key={challenge.id} className={`challenge-card ${active ? 'challenge-card--ativo' : ''}`}>
+            <li key={challenge.id} className="challenge-card challenge-card--ativo">
               <div className="challenge-card-head">
                 <strong>{challenge.descricao ?? challengeTitle(challenge)}</strong>
                 <span className="challenge-card-dc">CD {challenge.cd}</span>
               </div>
               <p className={`challenge-state challenge-state--${entry.estado.toLowerCase()}`}>
                 {CHALLENGE_STATE_LABEL[entry.estado]}
-                {summary(entry)}
               </p>
               {isPendingRoll(entry.estado) && (
                 <button className="btn btn-primary" onClick={() => setPickerOpen(true)}>
                   Abrir teste
                 </button>
               )}
-              {challenge.mensagens.map((message) => (
-                <p key={message.id} className="challenge-master-note">
-                  <span>{challenge.doCombate ? challenge.criadorNome : 'Mestre'}:</span> {message.texto}
-                </p>
-              ))}
             </li>
           );
         })}
@@ -234,18 +221,6 @@ export default function ChallengePlayerPanel({
           }}
           onClose={() => setPickerOpen(false)}
         />
-      )}
-
-      {incomingMessage && (
-        <div className="roll-overlay" role="dialog" aria-modal="true" aria-label="Mensagem do mestre">
-          <div className="challenge-letter">
-            <p className="eyebrow">Mensagem do mestre</p>
-            <p className="challenge-letter-text">{incomingMessage.message.texto}</p>
-            <button className="btn btn-primary" onClick={onDismissMessage} autoFocus>
-              Entendi
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,7 +29,8 @@ public class DesafioChat {
             ChatMessage.Type.DESAFIO_TENTATIVA_EXTRA,
             ChatMessage.Type.DESAFIO_ENCERRAR_FALHA,
             ChatMessage.Type.DESAFIO_CANCELAR,
-            ChatMessage.Type.DESAFIO_MENSAGEM);
+            ChatMessage.Type.DESAFIO_MENSAGEM,
+            ChatMessage.Type.DESAFIO_FINALIZAR);
 
     private final DesafioService desafioService;
     private final ObjectMapper objectMapper;
@@ -42,6 +44,10 @@ public class DesafioChat {
         ComandoDesafio comando = mensagem.getComandoDesafio();
         if (comando == null) {
             throw new IllegalArgumentException("Comando de desafio ausente.");
+        }
+        if (mensagem.getType() == ChatMessage.Type.DESAFIO_FINALIZAR) {
+            notificarFinalizado(mesa, desafioService.finalizar(mesa, acesso, comando.desafioId()));
+            return;
         }
 
         String desafioId = switch (mensagem.getType()) {
@@ -93,6 +99,14 @@ public class DesafioChat {
             evento.setDesafio(desafioService.visaoPara(mesa, desafioId, userId));
             sessoes.forEach(sessao -> enviar(sessao, evento));
         }
+    }
+
+    private void notificarFinalizado(MesaAtiva mesa, Map<Long, DesafioDto> visoes) {
+        visoes.forEach((userId, visao) -> {
+            ChatMessage evento = novoEvento(mesa, ChatMessage.Type.DESAFIO_FINALIZADO);
+            evento.setDesafio(visao);
+            mesa.sessoesDoUsuario(userId).forEach(sessao -> enviar(sessao, evento));
+        });
     }
 
     private void enviar(WebSocketSession sessao, ChatMessage evento) {

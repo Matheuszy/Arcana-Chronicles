@@ -165,6 +165,10 @@ class ChatService {
     this.sendChallengeCommand('DESAFIO_CANCELAR', { desafioId: challengeId, alvoId: targetId });
   }
 
+  finishChallenge(challengeId: string): void {
+    this.sendChallengeCommand('DESAFIO_FINALIZAR', { desafioId: challengeId });
+  }
+
   sendChallengeMessage(
     challengeId: string,
     target: ChallengeMessageTarget,

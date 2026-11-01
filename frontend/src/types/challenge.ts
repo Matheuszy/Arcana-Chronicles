@@ -113,6 +113,11 @@ export interface IncomingChallengeMessage {
   challengeId: string;
   message: ChallengeMessage;
   dc: number;
+  from: string;
+}
+
+export function challengeAuthor(challenge: Challenge): string {
+  return challenge.doCombate ? challenge.criadorNome : 'Mestre';
 }
 
 export function isPendingRoll(state: ChallengeState): boolean {

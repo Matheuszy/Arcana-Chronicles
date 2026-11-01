@@ -49,6 +49,16 @@ public class DesafiosDaMesa {
         return DesafioDto.paraUsuario(desafio, visualizadorId);
     }
 
+    public synchronized Map<Long, DesafioDto> finalizar(String desafioId, Consumer<Desafio> validacao) {
+        Desafio desafio = buscar(desafioId);
+        validacao.accept(desafio);
+        desafio.cancelarTodos();
+        desafios.remove(desafioId);
+        Map<Long, DesafioDto> visoes = new LinkedHashMap<>();
+        desafio.destinatarios().forEach(userId -> visoes.put(userId, DesafioDto.paraUsuario(desafio, userId)));
+        return visoes;
+    }
+
     public synchronized DesafioDto visaoPara(String desafioId, Long userId) {
         Desafio desafio = buscar(desafioId);
         if (!desafio.envolve(userId)) {
