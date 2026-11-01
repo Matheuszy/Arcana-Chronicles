@@ -126,6 +126,7 @@ public class PersonagemService {
         personagem.setHpMax(dto.hpMax());
         personagem.setHpCurrent(dto.hpCurrent());
         personagem.setArmorClass(dto.armorClass());
+        personagem.setVidaTemporaria(dto.vidaTemporaria());
         personagem.setBackstory(dto.backstory());
         personagem.setPersonalityPrompt(dto.personalityPrompt());
         personagem.setAvatarUrl(dto.avatarUrl());

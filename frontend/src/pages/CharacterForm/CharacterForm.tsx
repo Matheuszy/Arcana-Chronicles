@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
 import { useSession } from '../../context/SessionContext';
 import LoadError from '../../components/LoadError';
 import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
+import NumberInput from '../../components/ui/NumberInput';
 import {
   attributeModifier,
   attributeRollModifier,
@@ -30,6 +31,7 @@ import {
   MAX_PROFICIENCY_BONUS,
   MAX_RACE_LENGTH,
   MAX_SPELL_SLOTS,
+  passivePerception,
   remainingSpellSlots,
   rollAttribute,
   totalClassLevel,
@@ -48,6 +50,8 @@ const NEW_SPELL = { name: '', circle: '', slots: 1, description: '' };
 
 const NEW_CANTRIP = { name: '', description: '' };
 
+const newClassEntry = (nivel = 1): ClassEntry => ({ classe: '', subclasse: '', nivel });
+
 const EMPTY_CHARACTER: Character = {
   name: '',
   kind: 'PLAYER',
@@ -62,7 +66,7 @@ const EMPTY_CHARACTER: Character = {
   equipment: '',
   spells: [],
   spellSlots: { ...EMPTY_SPELL_SLOTS },
-  classes: [],
+  classes: [newClassEntry()],
   habilidades: '',
   talentos: '',
   raca: '',
@@ -102,10 +106,12 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     characterService
       .getById(id)
       .then((char) => {
+        const loadedClasses = (char.classes ?? []).map((entry) => ({ ...entry, subclasse: entry.subclasse ?? '' }));
         const loaded: Character = {
           ...EMPTY_CHARACTER,
           ...char,
-          classes: (char.classes ?? []).map((entry) => ({ ...entry, subclasse: entry.subclasse ?? '' })),
+          vidaTemporaria: char.vidaTemporaria ?? undefined,
+          classes: loadedClasses.length > 0 ? loadedClasses : [newClassEntry(Math.min(MAX_CLASS_LEVEL, char.level))],
           habilidades: char.habilidades ?? '',
           talentos: char.talentos ?? '',
           raca: char.raca ?? '',
@@ -189,7 +195,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
   const addClass = () => {
     if (classes.length >= MAX_CLASSES) return;
-    updateClasses([...classes, { classe: '', subclasse: '', nivel: 1 }]);
+    updateClasses([...classes, newClassEntry()]);
   };
 
   const changeClass = (index: number, changes: Partial<ClassEntry>) =>
@@ -304,13 +310,26 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     }));
   };
 
+  const openInvalidSection = (event: FormEvent<HTMLFormElement>) => {
+    const section = (event.target as HTMLElement).closest('details');
+    if (section) section.open = true;
+  };
+
   const save = async () => {
     if (!form.name.trim()) {
       setSaveError('Dê um nome ao personagem antes de salvar.');
       return;
     }
+    if (classes.length === 0) {
+      setSaveError('Adicione ao menos uma classe à ficha.');
+      return;
+    }
     if (classes.some((entry) => !entry.classe.trim())) {
       setSaveError('Preencha o nome de todas as classes ou remova as linhas vazias.');
+      return;
+    }
+    if (!form.raca?.trim() || !form.alinhamento?.trim()) {
+      setSaveError('Preencha a raça e o alinhamento antes de salvar.');
       return;
     }
     setSaving(true);
@@ -354,19 +373,24 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
       )}
 
       <form
-        className="form card"
+        className="form card character-sheet-form"
+        onInvalidCapture={openInvalidSection}
         onSubmit={(e) => {
           e.preventDefault();
           save();
         }}
       >
+        <p className="required-legend">
+          Campos marcados com <span className="required-mark" aria-hidden="true" /> são obrigatórios.
+        </p>
         {/* ── Identificação ── */}
         <div className="row">
           <div className="field grow">
-            <label htmlFor="name">Nome</label>
+            <label htmlFor="name" className="required-mark">Nome</label>
             <input
               id="name"
               type="text"
+              required
               value={form.name}
               onChange={(e) => setField('name', e.target.value)}
               placeholder="ex: Arannis, o Feiticeiro"
@@ -374,6 +398,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           </div>
           <Select
             label="Tipo"
+            required
             value={form.kind}
             onChange={(kind) => setField('kind', kind)}
             disabled={kindOptions.length === 1}
@@ -386,80 +411,83 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         </div>
 
         <h4 className="sheet-subtitle">Classes</h4>
-        {hasClasses ? (
-          classes.map((entry, i) => (
-            <div className="row" key={i}>
-              <div className="field grow">
-                <label htmlFor={`classe-${i}`}>Classe</label>
-                <input
-                  id={`classe-${i}`}
-                  type="text"
-                  maxLength={MAX_CLASS_LENGTH}
-                  value={entry.classe}
-                  onChange={(e) => changeClass(i, { classe: e.target.value })}
-                  placeholder="ex: Guerreiro"
-                />
-              </div>
-              <div className="field grow">
-                <label htmlFor={`subclasse-${i}`}>Subclasse</label>
-                <input
-                  id={`subclasse-${i}`}
-                  type="text"
-                  maxLength={MAX_CLASS_LENGTH}
-                  value={entry.subclasse}
-                  onChange={(e) => changeClass(i, { subclasse: e.target.value })}
-                  placeholder="ex: Campeão"
-                />
-              </div>
-              <div className="field">
-                <label htmlFor={`nivel-${i}`}>Nível</label>
-                <input
-                  id={`nivel-${i}`}
-                  type="number"
-                  min={1}
-                  max={MAX_CLASS_LEVEL}
-                  value={entry.nivel}
-                  onChange={(e) => changeClass(i, { nivel: clampClassLevel(Number(e.target.value)) })}
-                />
-              </div>
-              <button
-                type="button"
-                className="btn-remove"
-                onClick={() => removeClass(i)}
-                aria-label={`Remover classe ${entry.classe || i + 1}`}
-              >
-                ✕
-              </button>
+        {classes.map((entry, i) => (
+          <div className="row" key={i}>
+            <div className="field grow">
+              <label htmlFor={`classe-${i}`} className="required-mark">Classe</label>
+              <input
+                id={`classe-${i}`}
+                type="text"
+                required
+                maxLength={MAX_CLASS_LENGTH}
+                value={entry.classe}
+                onChange={(e) => changeClass(i, { classe: e.target.value })}
+                placeholder="ex: Guerreiro"
+              />
             </div>
-          ))
-        ) : (
-          <p className="muted-hint">Nenhuma classe na ficha.</p>
-        )}
+            <div className="field grow">
+              <label htmlFor={`subclasse-${i}`}>Subclasse</label>
+              <input
+                id={`subclasse-${i}`}
+                type="text"
+                maxLength={MAX_CLASS_LENGTH}
+                value={entry.subclasse}
+                onChange={(e) => changeClass(i, { subclasse: e.target.value })}
+                placeholder="ex: Campeão"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor={`nivel-${i}`} className="required-mark">Nível</label>
+              <NumberInput
+                id={`nivel-${i}`}
+                required
+                min={1}
+                max={MAX_CLASS_LEVEL}
+                value={entry.nivel}
+                onChange={(nivel) => changeClass(i, { nivel: clampClassLevel(nivel) })}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn-remove"
+              onClick={() => removeClass(i)}
+              disabled={classes.length === 1}
+              aria-label={`Remover classe ${entry.classe || i + 1}`}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
         <div className="row">
           <button type="button" className="btn btn-ghost" onClick={addClass} disabled={classes.length >= MAX_CLASSES}>
             + Adicionar classe
           </button>
           <div className="field">
-            <label htmlFor="proficiencyBonus" title="Valor sugerido ao marcar um atributo ou perícia">
+            <label
+              htmlFor="proficiencyBonus"
+              className="required-mark"
+              title="Valor sugerido ao marcar um atributo ou perícia"
+            >
               Bônus padrão
             </label>
-            <input
+            <NumberInput
               id="proficiencyBonus"
-              type="number"
+              required
               min={0}
               max={10}
               value={form.proficiencyBonus ?? DEFAULT_PROFICIENCY_BONUS}
-              onChange={(e) => setField('proficiencyBonus', Number(e.target.value))}
+              onChange={(bonus) => setField('proficiencyBonus', bonus)}
             />
           </div>
         </div>
 
         <div className="row">
           <div className="field grow">
-            <label htmlFor="raca">Raça</label>
+            <label htmlFor="raca" className="required-mark">Raça</label>
             <input
               id="raca"
               type="text"
+              required
               maxLength={MAX_RACE_LENGTH}
               value={form.raca ?? ''}
               onChange={(e) => setField('raca', e.target.value)}
@@ -467,10 +495,11 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
             />
           </div>
           <div className="field grow">
-            <label htmlFor="alinhamento">Alinhamento</label>
+            <label htmlFor="alinhamento" className="required-mark">Alinhamento</label>
             <input
               id="alinhamento"
               type="text"
+              required
               maxLength={MAX_ALIGNMENT_LENGTH}
               value={form.alinhamento ?? ''}
               onChange={(e) => setField('alinhamento', e.target.value)}
@@ -482,47 +511,69 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         {/* ── Stats base ── */}
         <div className="row">
           <div className="field">
-            <label htmlFor="level" title={hasClasses ? 'Soma dos níveis das classes' : undefined}>
+            <label
+              htmlFor="level"
+              className="required-mark"
+              title={hasClasses ? 'Soma dos níveis das classes' : undefined}
+            >
               Nível
             </label>
-            <input
+            <NumberInput
               id="level"
-              type="number"
+              required
               min={1}
               readOnly={hasClasses}
               value={form.level}
-              onChange={(e) => setField('level', Number(e.target.value))}
+              onChange={(level) => setField('level', level)}
             />
           </div>
           <div className="field">
-            <label htmlFor="hpMax">HP máximo</label>
-            <input
+            <label htmlFor="hpMax" className="required-mark">HP máximo</label>
+            <NumberInput
               id="hpMax"
-              type="number"
+              required
               min={1}
               value={form.hpMax}
-              onChange={(e) => setField('hpMax', Number(e.target.value))}
+              onChange={(hpMax) => setField('hpMax', hpMax)}
             />
           </div>
           <div className="field">
-            <label htmlFor="hpCurrent">HP atual</label>
-            <input
+            <label htmlFor="hpCurrent" className="required-mark">HP atual</label>
+            <NumberInput
               id="hpCurrent"
-              type="number"
+              required
               min={0}
               value={form.hpCurrent}
-              onChange={(e) => setField('hpCurrent', Number(e.target.value))}
+              onChange={(hpCurrent) => setField('hpCurrent', hpCurrent)}
             />
           </div>
           <div className="field">
-            <label htmlFor="armorClass">Classe de Armadura</label>
-            <input
+            <label htmlFor="vidaTemporaria">Vida temporária</label>
+            <NumberInput
+              id="vidaTemporaria"
+              min={0}
+              value={form.vidaTemporaria}
+              onChange={(vida) => setField('vidaTemporaria', vida)}
+              onClear={() => setField('vidaTemporaria', undefined)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="armorClass" className="required-mark">Classe de Armadura</label>
+            <NumberInput
               id="armorClass"
-              type="number"
+              required
               min={0}
               value={form.armorClass}
-              onChange={(e) => setField('armorClass', Number(e.target.value))}
+              onChange={(armorClass) => setField('armorClass', armorClass)}
             />
+          </div>
+          <div className="field">
+            <label htmlFor="passivePerception" title="8 + 2 + modificador de Sabedoria">
+              Percepção passiva
+            </label>
+            <output id="passivePerception" className="computed-value" aria-live="polite">
+              {passivePerception(form)}
+            </output>
           </div>
         </div>
 
@@ -545,15 +596,15 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         <div className="attrs-grid">
           {ATTRIBUTE_KEYS.map((key) => (
             <div className="field attr-field" key={key}>
-              <label htmlFor={key}>{ATTRIBUTE_LABEL[key]}</label>
+              <label htmlFor={key} className="required-mark">{ATTRIBUTE_LABEL[key]}</label>
               <div className="attr-input-row">
-                <input
+                <NumberInput
                   id={key}
-                  type="number"
+                  required
                   min={8}
                   max={20}
                   value={form.attributes[key]}
-                  onChange={(e) => setAttribute(key, Number(e.target.value))}
+                  onChange={(score) => setAttribute(key, score)}
                 />
                 {!id && (
                   <button
@@ -578,14 +629,14 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
               </label>
               {form.savingThrows?.[key] !== undefined && (
                 <div className="bonus-input">
-                  <label htmlFor={`bonus-${key}`}>Bônus</label>
-                  <input
+                  <label htmlFor={`bonus-${key}`} className="required-mark">Bônus</label>
+                  <NumberInput
                     id={`bonus-${key}`}
-                    type="number"
+                    required
                     min={0}
                     max={MAX_PROFICIENCY_BONUS}
                     value={form.savingThrows[key]}
-                    onChange={(e) => setSavingThrowBonus(key, Number(e.target.value))}
+                    onChange={(bonus) => setSavingThrowBonus(key, bonus)}
                   />
                 </div>
               )}
@@ -614,13 +665,13 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
                 <label htmlFor={`skill-${skill}`} className="skill-name">{SKILL_LABEL[skill]}</label>
                 <span className="skill-attr">({ATTRIBUTE_LABEL[SKILL_ATTRIBUTE[skill]].slice(0, 3)})</span>
                 {active && (
-                  <input
+                  <NumberInput
                     className="skill-bonus"
-                    type="number"
+                    required
                     min={0}
                     max={MAX_PROFICIENCY_BONUS}
                     value={bonus}
-                    onChange={(e) => setSkillBonus(skill, Number(e.target.value))}
+                    onChange={(value) => setSkillBonus(skill, value)}
                     aria-label={`Bônus de ${SKILL_LABEL[skill]}`}
                   />
                 )}
@@ -792,13 +843,13 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
                     </button>
                   </div>
                   <label className="slot-total">
-                    <span>Total</span>
-                    <input
-                      type="number"
+                    <span className="required-mark">Total</span>
+                    <NumberInput
+                      required
                       min={1}
                       max={MAX_SPELL_SLOTS}
                       value={total}
-                      onChange={(e) => setSlotTotal(circle, Number(e.target.value))}
+                      onChange={(value) => setSlotTotal(circle, value)}
                     />
                   </label>
                   {!circleHasSpells(circle) && (
@@ -864,13 +915,13 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           {newSpell.circle !== '' && (
             <div className="field">
               <label htmlFor="spell-slots">Espaços de magia do {newSpell.circle}º círculo</label>
-              <input
+              <NumberInput
                 id="spell-slots"
-                type="number"
                 min={1}
                 max={MAX_SPELL_SLOTS}
                 value={newSpell.slots}
-                onChange={(e) => setNewSpell((s) => ({ ...s, slots: Number(e.target.value) }))}
+                onChange={(slots) => setNewSpell((s) => ({ ...s, slots }))}
+                onClear={() => setNewSpell((s) => ({ ...s, slots: 0 }))}
               />
             </div>
           )}
