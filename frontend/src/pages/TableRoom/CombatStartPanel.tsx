@@ -10,6 +10,7 @@ interface CombatStartPanelProps {
   combatActive: boolean;
   canSend: boolean;
   onStart: (playerIds: number[], monsters: MonsterGroup[]) => void;
+  onManageLinks: () => void;
 }
 
 function clampQuantity(value: number): number {
@@ -24,6 +25,7 @@ export default function CombatStartPanel({
   combatActive,
   canSend,
   onStart,
+  onManageLinks,
 }: CombatStartPanelProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -104,11 +106,15 @@ export default function CombatStartPanel({
           </ul>
 
           <h4 className="section-title">Monstros, NPCs e chefes</h4>
-          {linkedNpcs.length === 0 ? (
-            <p className="muted">
-              Vincule fichas em "NPCs da mesa" para colocá-las no combate. Uma única ficha pode virar vários monstros.
-            </p>
-          ) : (
+          <p className="muted combat-link-hint">
+            {linkedNpcs.length === 0
+              ? 'Nenhuma ficha vinculada à mesa ainda. Só as fichas vinculadas entram no combate, e uma única ficha pode virar vários monstros.'
+              : 'Aparecem aqui as fichas vinculadas à mesa.'}{' '}
+            <button type="button" className="btn btn-ghost" onClick={onManageLinks}>
+              Vincular fichas
+            </button>
+          </p>
+          {linkedNpcs.length > 0 && (
             <>
               <p className="muted">
                 Informe quantos de cada ficha entram e, se quiser, um nome para o combate (vazio usa o nome da ficha). Cada um rola o próprio d20 e a ficha não é duplicada.

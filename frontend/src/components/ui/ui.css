@@ -298,3 +298,23 @@
   letter-spacing: 0.08em;
   color: var(--parchment-dim);
 }
+
+.ui-checklist {
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+.ui-checklist legend { padding: 0 0.35rem; font-size: 0.85rem; color: var(--parchment); }
+.ui-checklist-hint { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--parchment-dim); }
+.ui-checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.35rem 0.75rem;
+}
+.ui-checklist-item { display: flex; align-items: baseline; gap: 0.4rem; font-size: 0.88rem; cursor: pointer; overflow-wrap: anywhere; }
+.ui-checklist-item small { flex-shrink: 0; }
