@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
-import { TableParticipant } from '../../types/table';
 import { RollMode } from '../../types/chat';
 import {
   CHALLENGE_STATE_LABEL,
@@ -21,16 +20,17 @@ const MODES: RollMode[] = ['NORMAL', 'VANTAGEM', 'DESVANTAGEM'];
 
 interface ChallengeMasterPanelProps {
   challenges: Challenge[];
-  participants: TableParticipant[];
   targets: ChallengeTarget[];
   viewerId: string | null;
   title: string;
   createHint?: string;
   canSend: boolean;
+  connected: boolean;
   onCreate: (dc: number, description: string, targets: { alvoId: string; modo: RollMode }[]) => void;
   onAllowExtraAttempt: (challengeId: string, targetId: string, mode: RollMode) => void;
   onEndWithFailure: (challengeId: string, targetId: string) => void;
   onCancel: (challengeId: string, targetId?: string) => void;
+  onFinish: (challengeId: string) => void;
   onSendMessage: (challengeId: string, target: ChallengeMessageTarget, text: string, targetId?: string) => void;
 }
 
@@ -132,12 +132,10 @@ function PlayerRow({
 
 function MessageComposer({
   challenge,
-  participants,
   canSend,
   onSendMessage,
 }: {
   challenge: Challenge;
-  participants: TableParticipant[];
   canSend: boolean;
   onSendMessage: ChallengeMasterPanelProps['onSendMessage'];
 }) {
@@ -147,11 +145,10 @@ function MessageComposer({
   const [target, setTarget] = useState<ChallengeMessageTarget>('VENCEDORES');
   const [targetId, setTargetId] = useState('');
   const [text, setText] = useState('');
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
   if (resolved.length === 0) return null;
 
-  const nameOf = (id: number) =>
-    participants.find((p) => String(p.userId) === String(id))?.displayName ?? String(id);
   const recipientCount = target === 'VENCEDORES' ? winners.length : target === 'DERROTADOS' ? losers.length : targetId ? 1 : 0;
   const trimmed = text.trim();
 
@@ -159,6 +156,13 @@ function MessageComposer({
     if (!trimmed || recipientCount === 0) return;
     onSendMessage(challenge.id, target, trimmed, target === 'JOGADOR' ? targetId : undefined);
     setText('');
+    setSentTo(
+      target === 'VENCEDORES'
+        ? 'quem venceu'
+        : target === 'DERROTADOS'
+          ? 'quem falhou'
+          : resolved.find((p) => p.id === targetId)?.nomePersonagem ?? 'o participante',
+    );
   };
 
   return (
@@ -205,39 +209,24 @@ function MessageComposer({
       <button className="btn btn-primary" disabled={!canSend || !trimmed || recipientCount === 0} onClick={send}>
         Enviar mensagem
       </button>
-
-      {challenge.mensagens.length > 0 && (
-        <ul className="challenge-sent">
-          {challenge.mensagens.map((message) => (
-            <li key={message.id}>
-              <span className="muted">
-                Para{' '}
-                {message.destinatarios && message.destinatarios.length > 0
-                  ? message.destinatarios.map(nameOf).join(', ')
-                  : 'ninguém'}
-                :
-              </span>{' '}
-              {message.texto}
-            </li>
-          ))}
-        </ul>
-      )}
+      {sentTo && <p className="muted challenge-sent-hint">Mensagem enviada para {sentTo}.</p>}
     </div>
   );
 }
 
 export default function ChallengeMasterPanel({
   challenges,
-  participants,
   targets,
   viewerId,
   title,
   createHint,
   canSend,
+  connected,
   onCreate,
   onAllowExtraAttempt,
   onEndWithFailure,
   onCancel,
+  onFinish,
   onSendMessage,
 }: ChallengeMasterPanelProps) {
   const confirm = useConfirm();
@@ -282,23 +271,22 @@ export default function ChallengeMasterPanel({
     setFormOpen(false);
   };
 
-  const ordered = challenges.slice().reverse();
+  const ordered = challenges.filter((c) => c.ativo || String(c.criadorId) === viewerId);
+  const ownOpen = ordered.some((c) => String(c.criadorId) === viewerId);
+  const hint = createHint ?? (ownOpen ? 'Finalize o desafio atual para lançar o próximo.' : undefined);
 
   return (
     <div className="challenge-panel">
-      <h3 className="section-title">
-        {title}
-        {challenges.some((c) => c.ativo) && <span className="badge">{challenges.filter((c) => c.ativo).length}</span>}
-      </h3>
+      <h3 className="section-title">{title}</h3>
 
-      {!formOpen && createHint && <p className="muted">{createHint}</p>}
-      {!formOpen && !createHint ? (
+      {!formOpen && hint && <p className="muted">{hint}</p>}
+      {!formOpen && !hint ? (
         <button className="btn btn-primary challenge-new" onClick={() => setFormOpen(true)}>
           Novo desafio
         </button>
       ) : null}
 
-      {formOpen && !createHint && (
+      {formOpen && !hint && (
         <div className="challenge-form">
           <div className="row">
             <div className="field">
@@ -377,8 +365,6 @@ export default function ChallengeMasterPanel({
         </div>
       )}
 
-      {ordered.length === 0 && !formOpen && <p className="muted">Nenhum desafio nesta sessão.</p>}
-
       <ul className="challenge-list">
         {ordered.map((challenge) => {
           const own = String(challenge.criadorId) === viewerId;
@@ -403,30 +389,32 @@ export default function ChallengeMasterPanel({
                 />
               ))}
             </ul>
-            {own && challenge.ativo && challenge.jogadores.length > 1 && (
-              <button
-                className="btn btn-danger challenge-cancel"
-                onClick={async () => {
-                  const confirmed = await confirm({
-                    title: 'Cancelar para todos?',
-                    message: 'Cancelar o desafio para todos os jogadores em andamento?',
-                    confirmLabel: 'Cancelar para todos',
-                    cancelLabel: 'Voltar',
-                    danger: true,
-                  });
-                  if (confirmed) onCancel(challenge.id);
-                }}
-              >
-                Cancelar para todos
-              </button>
-            )}
             {own && (
               <MessageComposer
                 challenge={challenge}
-                participants={participants}
                 canSend={canSend}
                 onSendMessage={onSendMessage}
               />
+            )}
+            {own && (
+              <button
+                className="btn btn-primary challenge-finish"
+                disabled={!connected}
+                onClick={async () => {
+                  if (challenge.ativo) {
+                    const confirmed = await confirm({
+                      title: 'Finalizar desafio?',
+                      message: 'Quem ainda não rolou terá o teste cancelado.',
+                      confirmLabel: 'Finalizar',
+                      cancelLabel: 'Voltar',
+                    });
+                    if (!confirmed) return;
+                  }
+                  onFinish(challenge.id);
+                }}
+              >
+                Finalizar
+              </button>
             )}
           </li>
           );

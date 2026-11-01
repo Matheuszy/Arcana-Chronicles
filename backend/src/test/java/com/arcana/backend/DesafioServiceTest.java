@@ -319,6 +319,42 @@ class DesafioServiceTest {
     }
 
     @Test
+    void deveFinalizarDesafioCancelandoQuemNaoRolouERemovendoDaMesa() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL), convocar(BROM, ModoRolagem.NORMAL)).id();
+        proximasFaces(12);
+        service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+
+        Map<Long, DesafioDto> visoes = service.finalizar(mesa, MESTRE, desafioId);
+
+        assertEquals(Set.of(MESTRE.userId(), ARIA.userId(), BROM.userId()), visoes.keySet());
+        assertEquals(EstadoDesafio.CANCELADO, participacao(visoes.get(BROM.userId()), BROM).estado());
+        assertEquals(EstadoDesafio.SUCESSO, participacao(visoes.get(ARIA.userId()), ARIA).estado());
+        assertFalse(service.jogadorBloqueado(mesa, BROM.userId()));
+        assertTrue(service.visiveisPara(mesa, MESTRE.userId()).isEmpty());
+        assertTrue(service.visiveisPara(mesa, ARIA.userId()).isEmpty());
+        assertThrows(IllegalArgumentException.class, () -> service.finalizar(mesa, MESTRE, desafioId));
+    }
+
+    @Test
+    void deveNegarFinalizarDesafioPorQuemNaoCriou() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
+
+        assertThrows(AccessDeniedException.class, () -> service.finalizar(mesa, ARIA, desafioId));
+        assertEquals(1, service.visiveisPara(mesa, ARIA.userId()).size());
+        assertTrue(service.jogadorBloqueado(mesa, ARIA.userId()));
+    }
+
+    @Test
+    void devePermitirFinalizarDesafioComMesaPausada() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
+        mesa.alterarStatus(StatusMesa.PAUSADA);
+
+        service.finalizar(mesa, MESTRE, desafioId);
+
+        assertTrue(service.visiveisPara(mesa, ARIA.userId()).isEmpty());
+    }
+
+    @Test
     void deveCancelarAutomaticamenteNaSaidaDoJogadorENaAusenciaDoMestre() {
         desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL), convocar(BROM, ModoRolagem.NORMAL));
 

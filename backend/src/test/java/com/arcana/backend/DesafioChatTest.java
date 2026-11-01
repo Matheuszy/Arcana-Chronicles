@@ -288,6 +288,39 @@ class DesafioChatTest {
     }
 
     @Test
+    void deveFinalizarODesafioEAvisarSoOsEnvolvidos() throws Exception {
+        String desafioId = criarDesafioParaAriaEBrom();
+
+        enviar(sessaoMestre, """
+                {"type":"DESAFIO_FINALIZAR","comandoDesafio":{"desafioId":"%s"}}
+                """.formatted(desafioId));
+
+        List<JsonNode> doBrom = recebidas(sessaoBrom, "DESAFIO_FINALIZADO");
+        assertEquals(1, doBrom.size());
+        assertEquals(desafioId, doBrom.get(0).get("desafio").get("id").asText());
+        assertEquals(1, recebidas(sessaoMestre, "DESAFIO_FINALIZADO").size());
+        assertEquals(1, recebidas(sessaoAria, "DESAFIO_FINALIZADO").size());
+        assertTrue(recebidas(sessaoCael, "DESAFIO_FINALIZADO").isEmpty());
+
+        WebSocketSession novaDaAria = sessao("a2", ARIA);
+        handler.afterConnectionEstablished(novaDaAria);
+        assertEquals(0, recebidas(novaDaAria, "DESAFIOS").get(0).get("desafios").size());
+    }
+
+    @Test
+    void deveRecusarFinalizacaoPorQuemNaoCriouODesafio() throws Exception {
+        String desafioId = criarDesafioParaAriaEBrom();
+
+        enviar(sessaoAria, """
+                {"type":"DESAFIO_FINALIZAR","comandoDesafio":{"desafioId":"%s"}}
+                """.formatted(desafioId));
+
+        assertTrue(recebidas(sessaoMestre, "DESAFIO_FINALIZADO").isEmpty());
+        assertEquals("Apenas o mestre pode administrar desafios.",
+                recebidas(sessaoAria, "SISTEMA").get(0).get("content").asText());
+    }
+
+    @Test
     void naoDeveAceitarEventosDeDesafioForjadosPeloCliente() throws Exception {
         enviar(sessaoAria, """
                 {"type":"DESAFIO","desafio":{"id":"x","cd":1,"jogadores":[],"mensagens":[]}}
