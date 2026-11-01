@@ -1,9 +1,13 @@
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
+import { tableService } from '../../services/tableService';
 import { useSession } from '../../context/SessionContext';
+import { GameTable, TABLE_STATUS_LABEL } from '../../types/table';
 import LoadError from '../../components/LoadError';
+import CheckList from '../../components/ui/CheckList';
 import { useConfirm } from '../../components/ui/Confirm';
+import { useToast } from '../../components/ui/Toast';
 import Select from '../../components/ui/Select';
 import NumberInput from '../../components/ui/NumberInput';
 import {
@@ -105,7 +109,7 @@ interface CharacterEditorProps {
 }
 
 export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: CharacterEditorProps) {
-  const { role } = useSession();
+  const { role, userId } = useSession();
   const confirm = useConfirm();
   const allowedKinds = KINDS_BY_ROLE[role === 'MESTRE' ? 'MESTRE' : 'JOGADOR'];
   const initialCharacter: Character = { ...EMPTY_CHARACTER, kind: allowedKinds[0] };
@@ -119,6 +123,12 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
   const [newSpell, setNewSpell] = useState({ ...NEW_SPELL });
   const [newCantrip, setNewCantrip] = useState({ ...NEW_CANTRIP });
   const [newEquipment, setNewEquipment] = useState<Equipment>({ ...NEW_EQUIPMENT });
+  const [myTables, setMyTables] = useState<GameTable[]>([]);
+  const [linkedTableIds, setLinkedTableIds] = useState<string[]>([]);
+  const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
+  const [tablesLoading, setTablesLoading] = useState(false);
+  const [tablesError, setTablesError] = useState<string | null>(null);
+  const { notify } = useToast();
 
   const loadCharacter = useCallback(() => {
     if (!id) return;
@@ -150,7 +160,31 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
   useEffect(loadCharacter, [loadCharacter]);
 
-  const dirty = JSON.stringify(form) !== savedSnapshot;
+  const showTableLinks = !embedded && role === 'MESTRE' && form.kind !== 'PLAYER';
+
+  useEffect(() => {
+    if (embedded || role !== 'MESTRE') return;
+    setTablesLoading(true);
+    setTablesError(null);
+    tableService
+      .list()
+      .then((tables) => {
+        const mine = tables.filter((t) => String(t.masterId) === String(userId) && t.status !== 'ENCERRADA');
+        const linked = id
+          ? mine.flatMap((t) => (t.id && t.npcIds.map(String).includes(String(id)) ? [t.id] : []))
+          : [];
+        setMyTables(mine);
+        setLinkedTableIds(linked);
+        setSelectedTableIds(linked);
+      })
+      .catch((e: unknown) => setTablesError(e instanceof Error ? e.message : 'Erro ao carregar suas mesas.'))
+      .finally(() => setTablesLoading(false));
+  }, [embedded, role, userId, id]);
+
+  const linksChanged =
+    showTableLinks &&
+    (selectedTableIds.length !== linkedTableIds.length || selectedTableIds.some((t) => !linkedTableIds.includes(t)));
+  const dirty = JSON.stringify(form) !== savedSnapshot || linksChanged;
 
   useEffect(() => {
     if (!dirty || saving) return;
@@ -371,6 +405,26 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     if (section) section.open = true;
   };
 
+  const syncTableLinks = async (characterId: string) => {
+    const changes = myTables.flatMap((table) => {
+      if (!table.id) return [];
+      const wanted = selectedTableIds.includes(table.id);
+      const linked = linkedTableIds.includes(table.id);
+      if (wanted === linked) return [];
+      return [
+        {
+          name: table.name,
+          request: wanted ? tableService.linkNpc(table.id, characterId) : tableService.unlinkNpc(table.id, characterId),
+        },
+      ];
+    });
+    const results = await Promise.allSettled(changes.map((change) => change.request));
+    const failed = changes.filter((_, index) => results[index].status === 'rejected').map((change) => change.name);
+    if (failed.length > 0) {
+      notify(`A ficha foi salva, mas o vínculo não mudou em: ${failed.join(', ')}.`, 'danger');
+    }
+  };
+
   const save = async () => {
     if (!form.name.trim()) {
       setSaveError('Dê um nome ao personagem antes de salvar.');
@@ -392,6 +446,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     setSaveError(null);
     try {
       const saved = id ? await characterService.update(id, form) : await characterService.create(form);
+      if (showTableLinks && saved.id) await syncTableLinks(saved.id);
       onSaved(saved);
     } catch (e: unknown) {
       setSaveError(e instanceof Error ? e.message : 'Erro ao salvar a ficha.');
@@ -1182,6 +1237,21 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
               placeholder="ex: Fale como um anão rabugento, desconfiado de forasteiros, que só ajuda por moedas de ouro."
             />
           </div>
+        )}
+
+        {showTableLinks && (
+          <CheckList
+            legend="Vincular às mesas (opcional)"
+            hint="Nas mesas marcadas, a ficha aparece na aba Fichas e fica disponível para o combate."
+            items={myTables.flatMap((table) =>
+              table.id ? [{ id: table.id, label: table.name, detail: TABLE_STATUS_LABEL[table.status] }] : [],
+            )}
+            selected={selectedTableIds}
+            emptyText="Você ainda não tem mesas abertas. Dá para vincular depois, ao criar a mesa ou dentro dela."
+            loading={tablesLoading}
+            error={tablesError}
+            onChange={setSelectedTableIds}
+          />
         )}
 
         {/* ── Ações ── */}

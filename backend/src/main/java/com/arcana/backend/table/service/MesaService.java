@@ -90,6 +90,13 @@ public class MesaService {
         mesa.getParticipants().add(
                 new Participante(masterId, masterName, "MESTRE", null));
 
+        if (dto.npcIds() != null) {
+            dto.npcIds().stream().distinct().forEach(npcId -> {
+                validarNpcProprioDoMestre(npcId, masterId);
+                mesa.getNpcIds().add(npcId);
+            });
+        }
+
         return MesaResponseDto.from(mesaRepository.save(mesa));
     }
 
