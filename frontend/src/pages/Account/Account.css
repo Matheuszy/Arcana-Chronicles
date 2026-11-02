@@ -12,6 +12,16 @@
   padding-bottom: 0.5rem;
   border-bottom: 1px dashed var(--ink-700);
 }
+.account-friend { display: flex; flex-direction: column; gap: 0.5rem; }
+.account-friend-code {
+  margin: 0.25rem 0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 1.4rem;
+  letter-spacing: 0.12em;
+  color: var(--ember-bright);
+  user-select: all;
+}
+.account-friend-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .account-link { align-self: flex-start; }
 .account-danger { border-color: var(--seal); }
 .account-danger .btn { margin-top: 0.5rem; }

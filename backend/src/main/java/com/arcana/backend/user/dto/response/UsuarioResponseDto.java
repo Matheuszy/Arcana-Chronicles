@@ -1,5 +1,6 @@
 package com.arcana.backend.user.dto.response;
 
+import com.arcana.backend.user.model.CodigoAmigo;
 import com.arcana.backend.user.model.PapelUsuario;
 import com.arcana.backend.user.model.Usuario;
 
@@ -7,10 +8,12 @@ public record UsuarioResponseDto(
         Long id,
         String username,
         String email,
-        PapelUsuario papel
+        PapelUsuario papel,
+        String codigoAmigo
         // senha nunca exposta na resposta
 ) {
     public static UsuarioResponseDto from(Usuario u) {
-        return new UsuarioResponseDto(u.getId(), u.getUsername(), u.getEmail(), u.getPapel());
+        return new UsuarioResponseDto(u.getId(), u.getUsername(), u.getEmail(), u.getPapel(),
+                CodigoAmigo.formatar(u.getCodigoAmigo()));
     }
 }

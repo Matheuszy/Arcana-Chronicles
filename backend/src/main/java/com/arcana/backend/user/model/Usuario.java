@@ -37,6 +37,9 @@ public class Usuario implements UserDetails {
     @Column(nullable = false, length = 20)
     private PapelUsuario papel = PapelUsuario.JOGADOR;
 
+    @Column(name = "codigo_amigo", nullable = false, unique = true, length = CodigoAmigo.TAMANHO)
+    private String codigoAmigo;
+
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<Personagem> personagens = new ArrayList<>();
