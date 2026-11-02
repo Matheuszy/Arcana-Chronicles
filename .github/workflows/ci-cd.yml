@@ -1,0 +1,109 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (build e testes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Testes e build
+        working-directory: backend
+        run: |
+          chmod +x mvnw
+          ./mvnw -B verify
+
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependências
+        working-directory: frontend
+        run: npm ci
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  deploy:
+    name: Deploy na Hostinger
+    needs: [backend, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/deploy.sh
+          sparse-checkout-cone-mode: false
+      - name: Validar configuração de deploy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_APP_PATH: ${{ secrets.VPS_APP_PATH }}
+          VPS_COMPOSE_PROJECT: ${{ secrets.VPS_COMPOSE_PROJECT }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          : "${VPS_HOST:?VPS_HOST não configurado}"
+          : "${VPS_USER:?VPS_USER não configurado}"
+          : "${VPS_SSH_KEY:?VPS_SSH_KEY não configurado}"
+          : "${VPS_KNOWN_HOSTS:?VPS_KNOWN_HOSTS não configurado}"
+          : "${VPS_APP_PATH:?VPS_APP_PATH não configurado}"
+          : "${VPS_COMPOSE_PROJECT:?VPS_COMPOSE_PROJECT não configurado}"
+          : "${DEPLOY_SHA:?DEPLOY_SHA não configurado}"
+      - name: Executar deploy na VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_APP_PATH: ${{ secrets.VPS_APP_PATH }}
+          VPS_COMPOSE_PROJECT: ${{ secrets.VPS_COMPOSE_PROJECT }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          umask 077
+          ssh_key=$(mktemp)
+          known_hosts=$(mktemp)
+          trap 'rm -f "$ssh_key" "$known_hosts"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$ssh_key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$known_hosts"
+          ssh -i "$ssh_key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o LogLevel=ERROR \
+            "$VPS_USER@$VPS_HOST" \
+            "APP_PATH='$VPS_APP_PATH' COMPOSE_PROJECT='$VPS_COMPOSE_PROJECT' DEPLOY_SHA='$DEPLOY_SHA' bash -s" \
+            < scripts/deploy.sh
