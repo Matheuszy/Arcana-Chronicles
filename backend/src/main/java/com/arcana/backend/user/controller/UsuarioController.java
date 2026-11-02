@@ -59,6 +59,14 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.atualizar(id, dto, usuarioAutenticado.getId()));
     }
 
+    @PostMapping("/{id}/codigo-amigo")
+    public ResponseEntity<UsuarioResponseDto> regenerarCodigoAmigo(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        return ResponseEntity.ok(usuarioService.regenerarCodigoAmigo(id, usuarioAutenticado.getId()));
+    }
+
     /** DELETE /api/users/{id} */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(

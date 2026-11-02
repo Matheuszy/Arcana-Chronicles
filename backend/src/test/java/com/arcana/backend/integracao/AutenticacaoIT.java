@@ -15,7 +15,9 @@ import java.util.concurrent.CountDownLatch;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -99,6 +101,32 @@ class AutenticacaoIT extends IntegracaoTest {
         getComo(aria.token(), "/api/users/" + brom.id()).andExpect(status().isForbidden());
         deleteComo(aria.token(), "/api/users/" + brom.id()).andExpect(status().isForbidden());
         getComo(brom.token(), "/api/users/" + brom.id()).andExpect(status().isOk());
+    }
+
+    @Test
+    void deveExibirCodigoDeAmigoNoPerfilERegenerarApenasPeloDono() throws Exception {
+        Conta aria = registrar("JOGADOR");
+        Conta brom = registrar("MESTRE");
+        String formato = "ARC-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}";
+
+        String codigoAnterior = corpo(getComo(aria.token(), "/api/users/" + aria.id())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigoAmigo").value(matchesPattern(formato))))
+                .get("codigoAmigo").asText();
+
+        postComo(brom.token(), "/api/users/" + aria.id() + "/codigo-amigo", null)
+                .andExpect(status().isForbidden());
+        getComo(aria.token(), "/api/users/" + aria.id())
+                .andExpect(jsonPath("$.codigoAmigo").value(codigoAnterior));
+
+        String codigoNovo = corpo(postComo(aria.token(), "/api/users/" + aria.id() + "/codigo-amigo", null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigoAmigo").value(matchesPattern(formato))))
+                .get("codigoAmigo").asText();
+
+        assertNotEquals(codigoAnterior, codigoNovo);
+        getComo(aria.token(), "/api/users/" + aria.id())
+                .andExpect(jsonPath("$.codigoAmigo").value(codigoNovo));
     }
 
     @Test

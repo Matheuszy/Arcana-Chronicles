@@ -19,6 +19,8 @@ public interface UsuarioRepositorie extends JpaRepository<Usuario, Long> {
 
     Optional<Usuario> findByEmailIgnoreCaseAndPapel(String email, PapelUsuario papel);
 
+    boolean existsByCodigoAmigo(String codigoAmigo);
+
     @Query("SELECT u FROM Usuario u JOIN u.personagens p WHERE p.id = :personagemId")
     Optional<Usuario> findByPersonagemId(Long personagemId);
 

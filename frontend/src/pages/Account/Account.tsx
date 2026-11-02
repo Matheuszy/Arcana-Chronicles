@@ -23,6 +23,9 @@ export default function Account() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [friendCode, setFriendCode] = useState('');
+  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [tables, setTables] = useState<GameTable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +43,7 @@ export default function Account() {
       .then(([profile, ownCharacters, allTables]) => {
         setUsername(profile.username);
         setEmail(profile.email);
+        setFriendCode(profile.codigoAmigo);
         setCharacters(ownCharacters);
         setTables(
           allTables.filter(
@@ -79,6 +83,30 @@ export default function Account() {
       setSaveError(errorMessage(e, 'Não foi possível salvar os dados.'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const copyFriendCode = async () => {
+    try {
+      await navigator.clipboard.writeText(friendCode);
+      notify('Código de amigo copiado.', 'success');
+    } catch {
+      notify('Não foi possível copiar o código. Selecione e copie manualmente.', 'danger');
+    }
+  };
+
+  const regenerateFriendCode = async () => {
+    if (userId === null) return;
+    setRegenerating(true);
+    try {
+      const profile = await accountService.regenerateFriendCode(userId);
+      setFriendCode(profile.codigoAmigo);
+      notify('Novo código de amigo gerado.', 'success');
+    } catch (e: unknown) {
+      notify(errorMessage(e, 'Não foi possível gerar um novo código.'), 'danger');
+    } finally {
+      setRegenerating(false);
+      setConfirmingRegenerate(false);
     }
   };
 
@@ -186,6 +214,20 @@ export default function Account() {
         </div>
       </form>
 
+      <section className="card account-friend" aria-labelledby="accountFriendCode">
+        <h2 id="accountFriendCode">Código de amigo</h2>
+        <p className="muted account-hint">Compartilhe este código para que outras pessoas encontrem sua conta.</p>
+        <p className="account-friend-code">{friendCode}</p>
+        <div className="account-friend-actions">
+          <button type="button" className="btn btn-primary" onClick={copyFriendCode}>
+            Copiar código
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => setConfirmingRegenerate(true)}>
+            Gerar novo código
+          </button>
+        </div>
+      </section>
+
       <div className="account-columns">
         <section className="card" aria-labelledby="accountSheets">
           <h2 id="accountSheets">Minhas fichas</h2>
@@ -237,6 +279,18 @@ export default function Account() {
           Excluir minha conta
         </button>
       </section>
+
+      {confirmingRegenerate && (
+        <ConfirmDialog
+          title="Gerar novo código de amigo?"
+          confirmLabel="Gerar novo código"
+          busy={regenerating}
+          onConfirm={regenerateFriendCode}
+          onCancel={() => setConfirmingRegenerate(false)}
+        >
+          O código atual deixará de funcionar e quem ainda não usou precisará do novo.
+        </ConfirmDialog>
+      )}
 
       {confirmingDelete && (
         <ConfirmDialog
