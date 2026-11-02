@@ -24,23 +24,28 @@ import java.util.UUID;
 @Service
 public class UsuarioService {
 
+    private static final int TENTATIVAS_DE_CODIGO_AMIGO = 10;
+
     private final UsuarioRepositorie usuarioRepositorie;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final MesaService mesaService;
     private final SessoesAtivasDeMesa sessoesAtivas;
+    private final GeradorCodigoAmigo geradorCodigoAmigo;
     private final String hashParaComparacaoFalsa;
 
     public UsuarioService(UsuarioRepositorie usuarioRepositorie,
                           PasswordEncoder passwordEncoder,
                           TokenService tokenService,
                           MesaService mesaService,
-                          SessoesAtivasDeMesa sessoesAtivas) {
+                          SessoesAtivasDeMesa sessoesAtivas,
+                          GeradorCodigoAmigo geradorCodigoAmigo) {
         this.usuarioRepositorie = usuarioRepositorie;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.mesaService = mesaService;
         this.sessoesAtivas = sessoesAtivas;
+        this.geradorCodigoAmigo = geradorCodigoAmigo;
         this.hashParaComparacaoFalsa = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
@@ -56,6 +61,7 @@ public class UsuarioService {
 
         String encodedPassword = passwordEncoder.encode(dto.password());
         Usuario usuario = new Usuario(dto.username(), dto.email(), encodedPassword, dto.papel());
+        usuario.setCodigoAmigo(gerarCodigoAmigoUnico());
         return UsuarioResponseDto.from(usuarioRepositorie.save(usuario));
     }
 
@@ -124,6 +130,26 @@ public class UsuarioService {
         }
         mesaService.removerVinculosDoUsuario(id);
         usuarioRepositorie.deleteById(id);
+    }
+
+    @Transactional
+    public UsuarioResponseDto regenerarCodigoAmigo(Long id, Long usuarioAutenticadoId) {
+        validarDonoDoRecurso(id, usuarioAutenticadoId);
+        Usuario usuario = usuarioRepositorie.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado: " + id));
+
+        usuario.setCodigoAmigo(gerarCodigoAmigoUnico());
+        return UsuarioResponseDto.from(usuarioRepositorie.save(usuario));
+    }
+
+    private String gerarCodigoAmigoUnico() {
+        for (int tentativa = 0; tentativa < TENTATIVAS_DE_CODIGO_AMIGO; tentativa++) {
+            String codigo = geradorCodigoAmigo.gerar();
+            if (!usuarioRepositorie.existsByCodigoAmigo(codigo)) {
+                return codigo;
+            }
+        }
+        throw new IllegalStateException("Não foi possível gerar um código de amigo único.");
     }
 
     private RegraDeNegocioException usuarioJaExiste(String username) {

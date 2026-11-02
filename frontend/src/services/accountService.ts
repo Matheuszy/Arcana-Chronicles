@@ -6,6 +6,7 @@ export interface AccountProfile {
   username: string;
   email: string;
   papel: AccountRole;
+  codigoAmigo: string;
 }
 
 export interface AccountUpdate {
@@ -26,6 +27,10 @@ export const accountService = {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  },
+
+  regenerateFriendCode(id: number): Promise<AccountProfile> {
+    return apiRequest<AccountProfile>(`/users/${id}/codigo-amigo`, { method: 'POST' });
   },
 
   delete(id: number): Promise<void> {

@@ -12,6 +12,7 @@ import com.arcana.backend.user.dto.response.UsuarioResponseDto;
 import com.arcana.backend.user.model.PapelUsuario;
 import com.arcana.backend.user.model.Usuario;
 import com.arcana.backend.user.repository.UsuarioRepositorie;
+import com.arcana.backend.user.service.GeradorCodigoAmigo;
 import com.arcana.backend.user.service.UsuarioService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +45,9 @@ class UsuarioServiceTest {
 
     @Mock
     private SessoesAtivasDeMesa sessoesAtivas;
+
+    @Mock
+    private GeradorCodigoAmigo geradorCodigoAmigo;
 
     @InjectMocks
     private UsuarioService service;
@@ -161,6 +165,71 @@ class UsuarioServiceTest {
 
         assertThrows(AccessDeniedException.class, () -> service.atualizar(1L, dto, 2L));
         verify(repository, never()).findById(any());
+    }
+
+    @Test
+    void deveGerarCodigoDeAmigoAoCadastrar() {
+        when(passwordEncoder.encode("123456")).thenReturn("hash");
+        when(geradorCodigoAmigo.gerar()).thenReturn("7K9MX2QP");
+        when(repository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UsuarioResponseDto criado = service.criar(
+                new UsuarioRequestDto("aria", "aria@arcana.com", "123456", PapelUsuario.JOGADOR));
+
+        assertEquals("ARC-7K9M-X2QP", criado.codigoAmigo());
+    }
+
+    @Test
+    void deveGerarOutroCodigoDeAmigoQuandoHouverColisao() {
+        when(passwordEncoder.encode("123456")).thenReturn("hash");
+        when(geradorCodigoAmigo.gerar()).thenReturn("AAAAAAAA", "BBBBBBBB");
+        when(repository.existsByCodigoAmigo("AAAAAAAA")).thenReturn(true);
+        when(repository.existsByCodigoAmigo("BBBBBBBB")).thenReturn(false);
+        when(repository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UsuarioResponseDto criado = service.criar(
+                new UsuarioRequestDto("aria", "aria@arcana.com", "123456", PapelUsuario.JOGADOR));
+
+        assertEquals("ARC-BBBB-BBBB", criado.codigoAmigo());
+    }
+
+    @Test
+    void deveFalharQuandoNaoConseguirGerarCodigoDeAmigoUnico() {
+        when(passwordEncoder.encode("123456")).thenReturn("hash");
+        when(geradorCodigoAmigo.gerar()).thenReturn("AAAAAAAA");
+        when(repository.existsByCodigoAmigo("AAAAAAAA")).thenReturn(true);
+
+        assertThrows(IllegalStateException.class, () -> service.criar(
+                new UsuarioRequestDto("aria", "aria@arcana.com", "123456", PapelUsuario.JOGADOR)));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void deveRegenerarCodigoDeAmigoInvalidandoOAnterior() {
+        Usuario usuario = usuarioComId(1L, "joao", "joao@arcana.com");
+        usuario.setCodigoAmigo("AAAAAAAA");
+        when(repository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(geradorCodigoAmigo.gerar()).thenReturn("CCCCDDDD");
+        when(repository.save(usuario)).thenReturn(usuario);
+
+        UsuarioResponseDto resposta = service.regenerarCodigoAmigo(1L, 1L);
+
+        assertEquals("CCCCDDDD", usuario.getCodigoAmigo());
+        assertEquals("ARC-CCCC-DDDD", resposta.codigoAmigo());
+    }
+
+    @Test
+    void deveNegarRegenerarCodigoDeAmigoDeOutroUsuario() {
+        assertThrows(AccessDeniedException.class, () -> service.regenerarCodigoAmigo(1L, 2L));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarRegenerarCodigoDeAmigoDuranteSessaoDeMesa() {
+        when(sessoesAtivas.usuarioEmSessao(1L)).thenReturn(true);
+
+        assertThrows(RegraDeNegocioException.class, () -> service.regenerarCodigoAmigo(1L, 1L));
+        verify(repository, never()).save(any());
     }
 
     private Usuario usuarioComId(Long id, String username, String email) {
