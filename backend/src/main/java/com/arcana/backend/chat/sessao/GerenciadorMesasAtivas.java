@@ -2,13 +2,17 @@ package com.arcana.backend.chat.sessao;
 
 import com.arcana.backend.table.AcessoMesaDto;
 import com.arcana.backend.table.SessoesAtivasDeMesa;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
@@ -20,6 +24,16 @@ public class GerenciadorMesasAtivas implements SessoesAtivasDeMesa {
     public record Saida(MesaAtiva mesa, AcessoMesaDto acesso, boolean usuarioAindaConectado, boolean mesaEncerrada) {}
 
     private final Map<Long, MesaAtiva> mesas = new ConcurrentHashMap<>();
+    private final ApplicationEventPublisher eventPublisher;
+
+    public GerenciadorMesasAtivas() {
+        this(evento -> {});
+    }
+
+    @Autowired
+    public GerenciadorMesasAtivas(ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
 
     public Entrada entrar(AcessoMesaDto acesso, String sessionId, WebSocketSession sessao) {
         boolean[] primeira = new boolean[1];
@@ -28,10 +42,23 @@ public class GerenciadorMesasAtivas implements SessoesAtivasDeMesa {
             primeira[0] = ativa.adicionarConexao(sessionId, sessao, acesso);
             return ativa;
         });
+        anunciarUsuarios(List.of(acesso.userId()));
         return new Entrada(mesa, primeira[0]);
     }
 
     public Optional<Saida> sair(Long mesaId, String sessionId) {
+        Optional<Saida> saida = removerSessao(mesaId, sessionId);
+        saida.ifPresent(s -> anunciarUsuarios(List.of(s.acesso().userId())));
+        return saida;
+    }
+
+    private void anunciarUsuarios(Collection<Long> usuarioIds) {
+        if (!usuarioIds.isEmpty()) {
+            eventPublisher.publishEvent(new UsuariosEmMesaAlteradosEvent(Set.copyOf(usuarioIds)));
+        }
+    }
+
+    private Optional<Saida> removerSessao(Long mesaId, String sessionId) {
         Saida[] saida = new Saida[1];
         mesas.computeIfPresent(mesaId, (id, mesa) -> {
             mesa.removerConexao(sessionId).ifPresent(conexao -> {
@@ -57,6 +84,9 @@ public class GerenciadorMesasAtivas implements SessoesAtivasDeMesa {
             }
             return mesa;
         });
+        if (!removidas.isEmpty()) {
+            anunciarUsuarios(List.of(userId));
+        }
         return removidas;
     }
 
@@ -74,6 +104,9 @@ public class GerenciadorMesasAtivas implements SessoesAtivasDeMesa {
             encerrada[0] = mesa;
             return null;
         });
+        if (encerrada[0] != null) {
+            anunciarUsuarios(encerrada[0].conexoes().stream().map(conexao -> conexao.acesso().userId()).toList());
+        }
         return Optional.ofNullable(encerrada[0]);
     }
 

@@ -265,6 +265,36 @@ abstract class IntegracaoTest {
         return cliente;
     }
 
+    protected ClienteChat conectarAoCanalDoUsuario(String token) throws Exception {
+        ClienteChat cliente = new ClienteChat(objectMapper);
+        cliente.socket = clienteWebSocket(token, ORIGEM_PERMITIDA)
+                .buildAsync(URI.create("ws://localhost:" + porta + "/ws/usuario"), cliente)
+                .get(5, TimeUnit.SECONDS);
+        return cliente;
+    }
+
+    protected int statusDoHandshakeDoCanalDoUsuario(String token) throws Exception {
+        try {
+            clienteWebSocket(token, ORIGEM_PERMITIDA)
+                    .buildAsync(URI.create("ws://localhost:" + porta + "/ws/usuario"), new WebSocket.Listener() {})
+                    .get(5, TimeUnit.SECONDS)
+                    .abort();
+            return 101;
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof WebSocketHandshakeException recusa) {
+                return recusa.getResponse().statusCode();
+            }
+            throw e;
+        }
+    }
+
+    protected void tornarAmigos(Conta remetente, Conta destinatario) throws Exception {
+        Long pedidoId = corpo(postComo(remetente.token(), "/api/amigos/solicitacoes",
+                Map.of("destinatarioId", destinatario.id())).andExpect(status().isCreated())).get("id").asLong();
+        postComo(destinatario.token(), "/api/amigos/solicitacoes/" + pedidoId + "/aceitar", null)
+                .andExpect(status().isOk());
+    }
+
     protected int statusDoHandshake(Long mesaId, String token) throws Exception {
         return statusDoHandshake(mesaId, token, ORIGEM_PERMITIDA);
     }

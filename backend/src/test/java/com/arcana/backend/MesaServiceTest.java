@@ -300,6 +300,49 @@ class MesaServiceTest {
         assertTrue(eventosPublicados.contains(new ParticipanteRemovidoEvent(20L, 7L, "joao", false)));
     }
 
+    @Test
+    void deveIncluirJogadorConvidadoPeloMestreAceitandoSolicitacaoPendente() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        SolicitacaoEntrada pendente = new SolicitacaoEntrada(1L, 2L, "joao", 100L);
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(personagemRepository.findById(100L)).thenReturn(Optional.of(personagemDoJogador(2L, TipoJogador.PLAYER)));
+        when(solicitacaoRepository.findFirstByMesaIdAndUserIdOrderByCreatedAtDesc(1L, 2L))
+                .thenReturn(Optional.of(pendente));
+        when(solicitacaoRepository.save(pendente)).thenReturn(pendente);
+
+        service.incluirJogadorConvidadoPeloMestre(1L, 2L, "joao", 100L);
+
+        assertTrue(mesa.getParticipants().stream().anyMatch(p -> p.getUserId().equals(2L)));
+        assertEquals(StatusSolicitacao.ACEITA, pendente.getStatus());
+        assertTrue(eventosPublicados.contains(new ParticipantesAlteradosEvent(1L)));
+    }
+
+    @Test
+    void deveRecusarConvidadoPeloMestreQuandoAMesaNaoEstaAbertaOuEleJaParticipa() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.incluirJogadorConvidadoPeloMestre(1L, 2L, "joao", 100L));
+
+        mesa.getParticipants().clear();
+        mesa.setStatus(StatusMesa.EM_ANDAMENTO);
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.incluirJogadorConvidadoPeloMestre(1L, 2L, "joao", 100L));
+        verify(mesaRepository, never()).save(any());
+    }
+
+    @Test
+    void deveExigirPersonagemProprioDoConvidado() {
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesaAbertaDoMestre(1L)));
+        when(personagemRepository.findById(100L)).thenReturn(Optional.of(personagemDoJogador(9L, TipoJogador.PLAYER)));
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.incluirJogadorConvidadoPeloMestre(1L, 2L, "joao", 100L));
+        verify(mesaRepository, never()).save(any());
+    }
+
     private Mesa mesaAbertaDoMestre(Long masterId) {
         Mesa mesa = new Mesa();
         mesa.setId(1L);

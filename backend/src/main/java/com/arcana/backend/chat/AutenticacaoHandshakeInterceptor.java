@@ -2,6 +2,7 @@ package com.arcana.backend.chat;
 
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
+import com.arcana.backend.config.security.TokenDoHandshake;
 import com.arcana.backend.config.security.TokenService;
 import com.arcana.backend.table.AcessoMesaDto;
 import com.arcana.backend.table.service.MesaService;
@@ -17,18 +18,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Component
 public class AutenticacaoHandshakeInterceptor implements HandshakeInterceptor {
 
-    public static final String PROTOCOLO_AUTENTICACAO = "arcana.jwt";
+    public static final String PROTOCOLO_AUTENTICACAO = TokenDoHandshake.PROTOCOLO_AUTENTICACAO;
     public static final String ATRIBUTO_ACESSO = "acessoMesa";
 
-    private static final String CABECALHO_PROTOCOLO = "Sec-WebSocket-Protocol";
     private static final Logger log = LoggerFactory.getLogger(AutenticacaoHandshakeInterceptor.class);
 
     private final TokenService tokenService;
@@ -51,7 +49,7 @@ public class AutenticacaoHandshakeInterceptor implements HandshakeInterceptor {
             return recusar(response, HttpStatus.BAD_REQUEST, null, null, "mesa inválida");
         }
 
-        Optional<Usuario> usuario = extrairToken(request)
+        Optional<Usuario> usuario = TokenDoHandshake.extrair(request)
                 .map(tokenService::validarToken)
                 .flatMap(usuarioRepositorie::findByUsername);
         if (usuario.isEmpty()) {
@@ -90,16 +88,4 @@ public class AutenticacaoHandshakeInterceptor implements HandshakeInterceptor {
         }
     }
 
-    private Optional<String> extrairToken(ServerHttpRequest request) {
-        List<String> protocolos = request.getHeaders().getOrEmpty(CABECALHO_PROTOCOLO).stream()
-                .flatMap(valor -> Arrays.stream(valor.split(",")))
-                .map(String::trim)
-                .toList();
-
-        int indice = protocolos.indexOf(PROTOCOLO_AUTENTICACAO);
-        if (indice < 0 || indice + 1 >= protocolos.size()) {
-            return Optional.empty();
-        }
-        return Optional.of(protocolos.get(indice + 1)).filter(token -> !token.isBlank());
-    }
 }

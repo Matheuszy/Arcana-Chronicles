@@ -179,13 +179,34 @@ public class MesaService {
         }
 
         if (!participaDaMesa(mesa, solicitacao.getUserId())) {
-            mesa.getParticipants().add(new Participante(
-                    solicitacao.getUserId(), solicitacao.getDisplayName(), "JOGADOR", characterId));
-            mesaRepository.save(mesa);
-            eventPublisher.publishEvent(new ParticipantesAlteradosEvent(mesaId));
+            incluirJogador(mesa, solicitacao.getUserId(), solicitacao.getDisplayName(), characterId);
         }
 
         return decidir(solicitacao, StatusSolicitacao.ACEITA);
+    }
+
+    @Transactional
+    public void incluirJogadorConvidadoPeloMestre(Long mesaId, Long userId, String displayName, Long characterId) {
+        Mesa mesa = findOrThrow(mesaId);
+
+        if (mesa.getStatus() != StatusMesa.ABERTA) {
+            throw new RegraDeNegocioException("A mesa não está aberta para novos jogadores.");
+        }
+        if (participaDaMesa(mesa, userId)) {
+            throw new RegraDeNegocioException("Você já participa desta mesa.");
+        }
+        validarPersonagemProprioEJogavel(characterId, userId);
+
+        incluirJogador(mesa, userId, displayName, characterId);
+        solicitacaoRepository.findFirstByMesaIdAndUserIdOrderByCreatedAtDesc(mesaId, userId)
+                .filter(solicitacao -> solicitacao.getStatus() == StatusSolicitacao.PENDENTE)
+                .ifPresent(solicitacao -> decidir(solicitacao, StatusSolicitacao.ACEITA));
+    }
+
+    private void incluirJogador(Mesa mesa, Long userId, String displayName, Long characterId) {
+        mesa.getParticipants().add(new Participante(userId, displayName, "JOGADOR", characterId));
+        mesaRepository.save(mesa);
+        eventPublisher.publishEvent(new ParticipantesAlteradosEvent(mesa.getId()));
     }
 
     @Transactional

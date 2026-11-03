@@ -3,6 +3,7 @@ import { ChatMessage, ChatMessageType, OutgoingChatMessage, RollMode, RollReques
 import { RoomCommand } from '../types/room';
 import { ChallengeChoice, ChallengeCommand, ChallengeMessageTarget } from '../types/challenge';
 import { CombatCommand, MonsterGroup } from '../types/combat';
+import { UserChannelMessage } from '../types/userChannel';
 
 const AUTH_PROTOCOL = 'arcana.jwt';
 
@@ -273,3 +274,72 @@ class ChatService {
 
 /** Instância única compartilhada pela mesa ativa */
 export const chatService = new ChatService();
+
+type UserChannelListener = (message: UserChannelMessage) => void;
+
+class UserChannelService {
+  private socket?: WebSocket;
+  private token?: string;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private attempt = 0;
+  private listeners = new Set<UserChannelListener>();
+
+  onMessage(listener: UserChannelListener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  connect(token: string): void {
+    if (this.token === token && this.socket) return;
+    this.disconnect();
+    this.token = token;
+    this.attempt = 0;
+    window.addEventListener('online', this.handleOnline);
+    this.open();
+  }
+
+  private open(): void {
+    if (!this.token) return;
+    const socket = new WebSocket(`${WS_BASE_URL}/usuario`, [AUTH_PROTOCOL, this.token]);
+    this.socket = socket;
+
+    socket.onopen = () => {
+      this.attempt = 0;
+    };
+
+    socket.onclose = (event: CloseEvent) => {
+      if (this.socket !== socket) return;
+      this.socket = undefined;
+      this.scheduleReconnect(event.code);
+    };
+
+    socket.onmessage = (event: MessageEvent<string>) => {
+      const message: UserChannelMessage = JSON.parse(event.data);
+      this.listeners.forEach((fn) => fn(message));
+    };
+  }
+
+  private scheduleReconnect(code: number): void {
+    if (code === POLICY_VIOLATION || !this.token) return;
+    const delay = RECONNECT_DELAYS_MS[Math.min(this.attempt, RECONNECT_DELAYS_MS.length - 1)];
+    this.attempt += 1;
+    this.reconnectTimer = setTimeout(() => this.open(), delay);
+  }
+
+  private handleOnline = () => {
+    if (this.socket || !this.token) return;
+    clearTimeout(this.reconnectTimer);
+    this.open();
+  };
+
+  disconnect(): void {
+    clearTimeout(this.reconnectTimer);
+    window.removeEventListener('online', this.handleOnline);
+    this.token = undefined;
+    const socket = this.socket;
+    this.socket = undefined;
+    socket?.close();
+  }
+}
+
+export const userChannelService = new UserChannelService();
