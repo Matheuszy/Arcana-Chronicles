@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useUserChannel } from '../../context/UserChannelContext';
 import { friendService } from '../../services/friendService';
 import { inviteService } from '../../services/inviteService';
-import { Friend, PRESENCE_LABEL } from '../../types/friend';
+import { Friend } from '../../types/friend';
 import { TableParticipant, TableStatus } from '../../types/table';
 import { UserChannelMessage } from '../../types/userChannel';
 import { useToast } from '../../components/ui/Toast';
+import PresenceCandle from '../../components/ui/PresenceCandle';
 
 interface InviteFriendsPanelProps {
   tableId: string;
@@ -94,7 +95,7 @@ export default function InviteFriendsPanel({ tableId, tableStatus, participants 
                   </span>
                   <span className="medallion-text">
                     <span className="medallion-name">{friend.username}</span>
-                    <span className="participant-role">{PRESENCE_LABEL[friend.presenca].toLowerCase()}</span>
+                    <span className="participant-role"><PresenceCandle state={friend.presenca} /></span>
                   </span>
                 </span>
                 <span className="participant-actions">

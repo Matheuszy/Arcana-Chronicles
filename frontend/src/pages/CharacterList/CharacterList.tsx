@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
 import { useSession } from '../../context/SessionContext';
@@ -6,6 +6,7 @@ import { Character, CharacterKind, KIND_LABEL, KINDS_BY_ROLE } from '../../types
 import Badge from '../../components/ui/Badge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
+import { CrownIcon, OpenHandIcon, QuillIcon, SkullIcon } from '../../components/ui/Icons';
 import { useToast } from '../../components/ui/Toast';
 import './CharacterList.css';
 
@@ -16,6 +17,13 @@ const FILTERS: { key: CharacterKind | 'TODOS'; label: string }[] = [
   { key: 'MONSTER', label: 'Monstros' },
   { key: 'BOSS', label: 'Chefes' },
 ];
+
+const KIND_SEAL: Record<CharacterKind, ReactNode> = {
+  PLAYER: <QuillIcon />,
+  NPC_FRIENDLY: <OpenHandIcon />,
+  MONSTER: <SkullIcon />,
+  BOSS: <CrownIcon />,
+};
 
 export default function CharacterList() {
   const { role } = useSession();
@@ -116,6 +124,9 @@ export default function CharacterList() {
         <div className="grid">
           {filtered.map((c) => (
             <article key={c.id} className="sheet-card" data-kind={c.kind}>
+              <span className="wax-seal" data-kind={c.kind} aria-hidden="true">
+                {KIND_SEAL[c.kind]}
+              </span>
               <div className="sheet-card-top">
                 <Badge tone={c.kind === 'PLAYER' ? 'gold' : c.kind === 'NPC_FRIENDLY' ? 'info' : 'danger'}>{KIND_LABEL[c.kind]}</Badge>
                 <span className="level">Nv. {c.level}</span>

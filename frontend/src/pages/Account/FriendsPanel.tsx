@@ -6,12 +6,11 @@ import {
   Friend,
   FriendRequest,
   MIN_FRIEND_SEARCH_LENGTH,
-  PRESENCE_LABEL,
-  PresenceState,
 } from '../../types/friend';
 import { UserChannelMessage } from '../../types/userChannel';
 import { useUserChannel } from '../../context/UserChannelContext';
-import Badge, { BadgeTone } from '../../components/ui/Badge';
+import Badge from '../../components/ui/Badge';
+import PresenceCandle from '../../components/ui/PresenceCandle';
 import { useConfirm } from '../../components/ui/Confirm';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import { useToast } from '../../components/ui/Toast';
@@ -19,12 +18,6 @@ import { useToast } from '../../components/ui/Toast';
 const errorMessage = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
 
 const roleLabel = (papel: FoundUser['papel']) => (papel === 'MESTRE' ? 'Mestre' : 'Jogador');
-
-const PRESENCE_TONE: Record<PresenceState, BadgeTone> = {
-  ONLINE: 'positive',
-  EM_MESA: 'gold',
-  OFFLINE: 'neutral',
-};
 
 export default function FriendsPanel() {
   const { notify } = useToast();
@@ -266,7 +259,7 @@ export default function FriendsPanel() {
                     <span className="account-friend-name">
                       {friend.username}
                       <Badge tone={friend.papel === 'MESTRE' ? 'gold' : 'info'}>{roleLabel(friend.papel)}</Badge>
-                      <Badge tone={PRESENCE_TONE[friend.presenca]}>{PRESENCE_LABEL[friend.presenca]}</Badge>
+                      <PresenceCandle state={friend.presenca} />
                     </span>
                     <span className="account-friend-actions">
                       <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => removeFriend(friend)}>

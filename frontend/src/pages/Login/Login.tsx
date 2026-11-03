@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SeerShieldIcon, SwordShieldIcon } from '../../components/ui/Icons';
 import { useNavigate } from 'react-router-dom';
 import {
   AccountRole,
@@ -132,7 +133,8 @@ export default function Login() {
                 className={`role-pill ${role === 'JOGADOR' ? 'active' : ''}`}
                 onClick={() => setRole('JOGADOR')}
               >
-                ⚔ Jogador
+                <SwordShieldIcon className="role-pill-crest" />
+                Jogador
               </button>
               <button
                 type="button"
@@ -141,7 +143,8 @@ export default function Login() {
                 className={`role-pill role-pill--mestre ${role === 'MESTRE' ? 'active' : ''}`}
                 onClick={() => setRole('MESTRE')}
               >
-                ☾ Mestre
+                <SeerShieldIcon className="role-pill-crest" />
+                Mestre
               </button>
             </div>
             <p className="role-hint">

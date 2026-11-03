@@ -384,3 +384,28 @@
   .roll-stage-verdict,
   .roll-stage-total { animation: none; }
 }
+
+.challenge-card-dc {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.6rem;
+  border-radius: 50% 46% 52% 48% / 48% 52% 47% 53%;
+  background: radial-gradient(circle at 35% 30%, #c4554b, #7a1f19 75%);
+  color: #fbeedd;
+  font-family: var(--font-display);
+  white-space: nowrap;
+  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.roll-stage-dc span {
+  display: inline-grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50% 46% 52% 48% / 48% 52% 47% 53%;
+  background: radial-gradient(circle at 35% 30%, #c4554b, #7a1f19 75%);
+  color: #fbeedd;
+  vertical-align: middle;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12), inset 0 -2px 4px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.45);
+}
