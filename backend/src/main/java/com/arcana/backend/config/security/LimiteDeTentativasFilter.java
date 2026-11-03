@@ -26,25 +26,30 @@ public class LimiteDeTentativasFilter extends OncePerRequestFilter {
 
     private static final String ROTA_LOGIN = "/api/users/login";
     private static final String ROTA_CADASTRO = "/api/users/register";
+    private static final String ROTA_BUSCA_DE_AMIGOS = "/api/amigos/busca";
 
     private final ObjectMapper objectMapper;
     private final LimitadorDeTentativas limitadorDeLogin;
     private final LimitadorDeTentativas limitadorDeCadastro;
+    private final LimitadorDeTentativas limitadorDeBuscaDeAmigos;
 
     public LimiteDeTentativasFilter(ObjectMapper objectMapper,
                                     Clock clock,
                                     @Value("${arcana.seguranca.login-maximo-tentativas}") int loginMaximo,
                                     @Value("${arcana.seguranca.login-janela}") Duration loginJanela,
                                     @Value("${arcana.seguranca.cadastro-maximo-tentativas}") int cadastroMaximo,
-                                    @Value("${arcana.seguranca.cadastro-janela}") Duration cadastroJanela) {
+                                    @Value("${arcana.seguranca.cadastro-janela}") Duration cadastroJanela,
+                                    @Value("${arcana.seguranca.busca-amigos-maximo-tentativas}") int buscaMaximo,
+                                    @Value("${arcana.seguranca.busca-amigos-janela}") Duration buscaJanela) {
         this.objectMapper = objectMapper;
         this.limitadorDeLogin = new LimitadorDeTentativas(loginMaximo, loginJanela, clock);
         this.limitadorDeCadastro = new LimitadorDeTentativas(cadastroMaximo, cadastroJanela, clock);
+        this.limitadorDeBuscaDeAmigos = new LimitadorDeTentativas(buscaMaximo, buscaJanela, clock);
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !HttpMethod.POST.matches(request.getMethod()) || limitadorDaRota(request) == null;
+        return limitadorDaRota(request) == null;
     }
 
     @Override
@@ -65,6 +70,12 @@ public class LimiteDeTentativasFilter extends OncePerRequestFilter {
     }
 
     private LimitadorDeTentativas limitadorDaRota(HttpServletRequest request) {
+        if (HttpMethod.GET.matches(request.getMethod())) {
+            return ROTA_BUSCA_DE_AMIGOS.equals(request.getRequestURI()) ? limitadorDeBuscaDeAmigos : null;
+        }
+        if (!HttpMethod.POST.matches(request.getMethod())) {
+            return null;
+        }
         return switch (request.getRequestURI()) {
             case ROTA_LOGIN -> limitadorDeLogin;
             case ROTA_CADASTRO -> limitadorDeCadastro;

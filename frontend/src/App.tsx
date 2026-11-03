@@ -1,5 +1,7 @@
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { SessionProvider, useSession } from './context/SessionContext';
+import { UserChannelProvider } from './context/UserChannelContext';
+import TableInvites from './components/TableInvites';
 import Login from './pages/Login/Login';
 import CharacterList from './pages/CharacterList/CharacterList';
 import CharacterForm from './pages/CharacterForm/CharacterForm';
@@ -62,6 +64,8 @@ function Shell() {
         )}
       </header>
 
+      {userId && role === 'JOGADOR' && <TableInvites />}
+
       <main className="stage">
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -97,7 +101,9 @@ function Shell() {
 export default function App() {
   return (
     <SessionProvider>
-      <Shell />
+      <UserChannelProvider>
+        <Shell />
+      </UserChannelProvider>
     </SessionProvider>
   );
 }

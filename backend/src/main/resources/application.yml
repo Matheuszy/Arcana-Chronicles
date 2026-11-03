@@ -22,11 +22,15 @@ server:
 arcana:
   cors:
     origens-permitidas: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4200}
+  presenca:
+    tolerancia-offline: ${PRESENCA_TOLERANCIA_OFFLINE:10s}
   seguranca:
     login-maximo-tentativas: ${LOGIN_MAX_TENTATIVAS:10}
     login-janela: ${LOGIN_JANELA:1m}
     cadastro-maximo-tentativas: ${CADASTRO_MAX_TENTATIVAS:10}
     cadastro-janela: ${CADASTRO_JANELA:10m}
+    busca-amigos-maximo-tentativas: ${BUSCA_AMIGOS_MAX_TENTATIVAS:30}
+    busca-amigos-janela: ${BUSCA_AMIGOS_JANELA:1m}
 
 api:
   security:

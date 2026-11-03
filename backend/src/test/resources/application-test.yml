@@ -15,8 +15,12 @@ api:
 arcana:
   cors:
     origens-permitidas: http://localhost:5173,http://localhost:4200
+  presenca:
+    tolerancia-offline: 0s
   seguranca:
     login-maximo-tentativas: 100000
     login-janela: 1m
     cadastro-maximo-tentativas: 100000
     cadastro-janela: 1m
+    busca-amigos-maximo-tentativas: 100000
+    busca-amigos-janela: 1m

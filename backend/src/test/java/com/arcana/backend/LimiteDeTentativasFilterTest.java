@@ -28,7 +28,7 @@ class LimiteDeTentativasFilterTest {
     void setUp() {
         Clock relogio = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
         filtro = new LimiteDeTentativasFilter(new JacksonConfig().objectMapper(), relogio,
-                3, Duration.ofMinutes(1), 2, Duration.ofMinutes(10));
+                3, Duration.ofMinutes(1), 2, Duration.ofMinutes(10), 2, Duration.ofMinutes(1));
         cadeia = mock(FilterChain.class);
     }
 
@@ -70,6 +70,16 @@ class LimiteDeTentativasFilterTest {
         }
 
         assertEquals(200, chamar("POST", "/api/users/login", "2.2.2.2").getStatus());
+    }
+
+    @Test
+    void deveLimitarABuscaDeAmigosComSeuProprioContador() throws Exception {
+        chamar("GET", "/api/amigos/busca", "1.1.1.1");
+        chamar("GET", "/api/amigos/busca", "1.1.1.1");
+
+        assertEquals(429, chamar("GET", "/api/amigos/busca", "1.1.1.1").getStatus());
+        assertEquals(200, chamar("POST", "/api/users/login", "1.1.1.1").getStatus());
+        assertEquals(200, chamar("POST", "/api/amigos/solicitacoes", "1.1.1.1").getStatus());
     }
 
     @Test

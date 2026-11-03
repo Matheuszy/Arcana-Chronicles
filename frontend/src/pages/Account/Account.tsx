@@ -11,6 +11,7 @@ import Badge from '../../components/ui/Badge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { ErrorState, LoadingState } from '../../components/ui/States';
 import { useToast } from '../../components/ui/Toast';
+import FriendsPanel from './FriendsPanel';
 import './Account.css';
 
 const errorMessage = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
@@ -153,132 +154,139 @@ export default function Account() {
           <p className="eyebrow">Seu cadastro na estalagem</p>
           <h1>Minha conta</h1>
         </div>
-        <Badge tone={role === 'MESTRE' ? 'gold' : 'info'}>{role === 'MESTRE' ? 'Mestre' : 'Jogador'}</Badge>
       </header>
 
-      <form
-        className="card account-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save();
-        }}
-      >
-        <h2>Meus dados</h2>
-        <div className="field">
-          <label htmlFor="accountUsername">Nome de usuário</label>
-          <input
-            id="accountUsername"
-            type="text"
-            value={username}
-            maxLength={100}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="accountEmail">E-mail</label>
-          <input
-            id="accountEmail"
-            type="email"
-            value={email}
-            maxLength={MAX_EMAIL_LENGTH}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="accountPassword">Nova senha</label>
-          <input
-            id="accountPassword"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Deixe em branco para manter a atual"
-            autoComplete="new-password"
-            aria-describedby="accountPasswordHint"
-          />
-          <p id="accountPasswordHint" className={passwordTooShort ? 'form-error' : 'muted account-hint'}>
-            A senha precisa ter ao menos {MIN_PASSWORD_LENGTH} caracteres.
-          </p>
-        </div>
-        <p className="muted account-hint">O tipo de conta não pode ser alterado.</p>
-        {saveError && (
-          <p className="form-error" role="alert">
-            {saveError}
-          </p>
-        )}
-        <div>
-          <button type="submit" className="btn btn-primary" disabled={!canSave}>
-            {saving ? 'Salvando...' : 'Salvar alterações'}
-          </button>
-        </div>
-      </form>
+      <div className="account-layout">
+        <div className="account-stack">
+          <form
+            className="card account-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save();
+            }}
+          >
+            <h2>Meus dados</h2>
+            <div className="field">
+              <label htmlFor="accountUsername">Nome de usuário</label>
+              <input
+                id="accountUsername"
+                type="text"
+                value={username}
+                maxLength={100}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="accountEmail">E-mail</label>
+              <input
+                id="accountEmail"
+                type="email"
+                value={email}
+                maxLength={MAX_EMAIL_LENGTH}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="accountPassword">Nova senha</label>
+              <input
+                id="accountPassword"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Deixe em branco para manter a atual"
+                autoComplete="new-password"
+                aria-describedby="accountPasswordHint"
+              />
+              <p id="accountPasswordHint" className={passwordTooShort ? 'form-error' : 'muted account-hint'}>
+                A senha precisa ter ao menos {MIN_PASSWORD_LENGTH} caracteres.
+              </p>
+            </div>
+            <p className="muted account-hint">O tipo de conta não pode ser alterado.</p>
+            {saveError && (
+              <p className="form-error" role="alert">
+                {saveError}
+              </p>
+            )}
+            <div>
+              <button type="submit" className="btn btn-primary" disabled={!canSave}>
+                {saving ? 'Salvando...' : 'Salvar alterações'}
+              </button>
+            </div>
+          </form>
 
-      <section className="card account-friend" aria-labelledby="accountFriendCode">
-        <h2 id="accountFriendCode">Código de amigo</h2>
-        <p className="muted account-hint">Compartilhe este código para que outras pessoas encontrem sua conta.</p>
-        <p className="account-friend-code">{friendCode}</p>
-        <div className="account-friend-actions">
-          <button type="button" className="btn btn-primary" onClick={copyFriendCode}>
-            Copiar código
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={() => setConfirmingRegenerate(true)}>
-            Gerar novo código
-          </button>
+          <section className="card account-friend" aria-labelledby="accountFriendCode">
+            <h2 id="accountFriendCode">Código de amigo</h2>
+            <p className="muted account-hint">Compartilhe este código para que outras pessoas encontrem sua conta.</p>
+            <p className="account-friend-code">{friendCode}</p>
+            <div className="account-friend-actions">
+              <button type="button" className="btn btn-primary" onClick={copyFriendCode}>
+                Copiar código
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setConfirmingRegenerate(true)}>
+                Gerar novo código
+              </button>
+            </div>
+          </section>
+
+          <section className="card account-danger" aria-labelledby="accountDelete">
+            <h2 id="accountDelete">Excluir conta</h2>
+            <p className="muted">{deleteWarning} Essa ação não pode ser desfeita.</p>
+            <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)}>
+              Excluir minha conta
+            </button>
+          </section>
         </div>
-      </section>
 
-      <div className="account-columns">
-        <section className="card" aria-labelledby="accountSheets">
-          <h2 id="accountSheets">Minhas fichas</h2>
-          {characters.length === 0 ? (
-            <p className="muted">Você ainda não criou fichas.</p>
-          ) : (
-            <ul className="account-list">
-              {characters.map((c) => (
-                <li key={c.id}>
-                  <Link to={`/fichas/${c.id}/editar`}>{c.name}</Link>
-                  <Badge>{KIND_LABEL[c.kind]}</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link to="/fichas" className="btn btn-ghost account-link">
-            Ver todas as fichas
-          </Link>
-        </section>
+        <div className="account-stack">
+          <FriendsPanel />
+        </div>
 
-        <section className="card" aria-labelledby="accountTables">
-          <h2 id="accountTables">{role === 'MESTRE' ? 'Mesas que conduzo' : 'Mesas em que participo'}</h2>
-          {tables.length === 0 ? (
-            <p className="muted">Nenhuma mesa por enquanto.</p>
-          ) : (
-            <ul className="account-list">
-              {tables.map((t) => (
-                <li key={t.id}>
-                  {t.status === 'ENCERRADA' ? (
-                    <span>{t.name}</span>
-                  ) : (
-                    <Link to={`/mesas/${t.id}`}>{t.name}</Link>
-                  )}
-                  <Badge tone={t.status === 'ENCERRADA' ? 'danger' : 'positive'}>{TABLE_STATUS_LABEL[t.status]}</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link to="/mesas" className="btn btn-ghost account-link">
-            Ver todas as mesas
-          </Link>
-        </section>
+        <div className="account-stack">
+          <section className="card" aria-labelledby="accountSheets">
+            <h2 id="accountSheets">Minhas fichas</h2>
+            {characters.length === 0 ? (
+              <p className="muted">Você ainda não criou fichas.</p>
+            ) : (
+              <ul className="account-list">
+                {characters.map((c) => (
+                  <li key={c.id}>
+                    <Link to={`/fichas/${c.id}/editar`}>{c.name}</Link>
+                    <Badge>{KIND_LABEL[c.kind]}</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link to="/fichas" className="btn btn-ghost account-link">
+              Ver todas as fichas
+            </Link>
+          </section>
+
+          <section className="card" aria-labelledby="accountTables">
+            <h2 id="accountTables">{role === 'MESTRE' ? 'Mesas que conduzo' : 'Mesas em que participo'}</h2>
+            {tables.length === 0 ? (
+              <p className="muted">Nenhuma mesa por enquanto.</p>
+            ) : (
+              <ul className="account-list">
+                {tables.map((t) => (
+                  <li key={t.id}>
+                    {t.status === 'ENCERRADA' ? (
+                      <span>{t.name}</span>
+                    ) : (
+                      <Link to={`/mesas/${t.id}`}>{t.name}</Link>
+                    )}
+                    <Badge tone={t.status === 'ENCERRADA' ? 'danger' : 'positive'}>{TABLE_STATUS_LABEL[t.status]}</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link to="/mesas" className="btn btn-ghost account-link">
+              Ver todas as mesas
+            </Link>
+          </section>
+        </div>
       </div>
-
-      <section className="card account-danger" aria-labelledby="accountDelete">
-        <h2 id="accountDelete">Excluir conta</h2>
-        <p className="muted">{deleteWarning} Essa ação não pode ser desfeita.</p>
-        <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)}>
-          Excluir minha conta
-        </button>
-      </section>
 
       {confirmingRegenerate && (
         <ConfirmDialog

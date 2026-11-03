@@ -3,6 +3,8 @@ package com.arcana.backend.config;
 import com.arcana.backend.chat.AutenticacaoHandshakeInterceptor;
 import com.arcana.backend.chat.MesaChatHandler;
 import com.arcana.backend.chat.imagem.ValidadorImagem;
+import com.arcana.backend.presence.AutenticacaoCanalDoUsuarioInterceptor;
+import com.arcana.backend.presence.CanalDoUsuarioHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,14 +28,20 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private final MesaChatHandler mesaChatHandler;
     private final AutenticacaoHandshakeInterceptor autenticacaoHandshakeInterceptor;
+    private final CanalDoUsuarioHandler canalDoUsuarioHandler;
+    private final AutenticacaoCanalDoUsuarioInterceptor autenticacaoCanalDoUsuarioInterceptor;
     private final String[] origensPermitidas;
 
     public WebSocketConfig(MesaChatHandler mesaChatHandler,
                            AutenticacaoHandshakeInterceptor autenticacaoHandshakeInterceptor,
+                           CanalDoUsuarioHandler canalDoUsuarioHandler,
+                           AutenticacaoCanalDoUsuarioInterceptor autenticacaoCanalDoUsuarioInterceptor,
                            @Value("${arcana.cors.origens-permitidas}") String[] origensPermitidas) {
         this.origensPermitidas = origensPermitidas;
         this.mesaChatHandler = mesaChatHandler;
         this.autenticacaoHandshakeInterceptor = autenticacaoHandshakeInterceptor;
+        this.canalDoUsuarioHandler = canalDoUsuarioHandler;
+        this.autenticacaoCanalDoUsuarioInterceptor = autenticacaoCanalDoUsuarioInterceptor;
     }
 
     @Override
@@ -45,6 +53,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
             .addHandler(mesaChatHandler, "/ws/mesas/*")
             .setHandshakeHandler(handshakeHandler)
             .addInterceptors(autenticacaoHandshakeInterceptor)
+            .setAllowedOrigins(origensPermitidas);
+
+        registry
+            .addHandler(canalDoUsuarioHandler, "/ws/usuario")
+            .setHandshakeHandler(handshakeHandler)
+            .addInterceptors(autenticacaoCanalDoUsuarioInterceptor)
             .setAllowedOrigins(origensPermitidas);
     }
 
