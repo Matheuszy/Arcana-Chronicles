@@ -4,6 +4,7 @@ import Select from '../../components/ui/Select';
 import { ROLL_MODE_LABEL } from '../../types/challenge';
 import { RollMode } from '../../types/chat';
 import { Combat, CombatEntry, isMyTurn } from '../../types/combat';
+import { CrossedSwordsIcon, TorchIcon } from '../../components/ui/Icons';
 
 const MODES: RollMode[] = ['NORMAL', 'VANTAGEM', 'DESVANTAGEM'];
 
@@ -81,7 +82,16 @@ export default function CombatTracker({
   return (
     <section className="combat-tracker" aria-label="Combate">
       <header className="combat-head">
-        <h3>{inProgress ? `Combate · Rodada ${combat.rodada}` : 'Combate · Rolando iniciativa'}</h3>
+        <h3 className="combat-title">
+          <CrossedSwordsIcon className="combat-title-icon" />
+          {inProgress ? 'Combate' : 'Combate · Rolando iniciativa'}
+        </h3>
+        {inProgress && (
+          <span className="combat-round-crest" aria-label={`Rodada ${combat.rodada}`}>
+            <small aria-hidden="true">Rodada</small>
+            <strong aria-hidden="true">{combat.rodada}</strong>
+          </span>
+        )}
         {!inProgress && (
           <span className="muted">
             {pending} {pending === 1 ? 'participante falta' : 'participantes faltam'} rolar
@@ -104,6 +114,7 @@ export default function CombatTracker({
               className={`combat-entry ${current ? 'combat-entry--current' : ''} ${entry.tipo === 'MONSTRO' ? 'combat-entry--monster' : ''}`}
             >
               {inProgress && <span className="combat-position">{index + 1}</span>}
+              {current && <TorchIcon className="combat-torch" title="Turno atual" />}
               <div className="combat-entry-info">
                 <strong>{entry.nomePersonagem}</strong>
                 <small className="muted">

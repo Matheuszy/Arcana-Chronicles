@@ -91,3 +91,25 @@
   margin-top: 0.5rem;
 }
 .sheet-card-actions .btn { flex: 1; padding: 0.5em 0.8em; font-size: 0.85rem; }
+
+.sheet-card .wax-seal {
+  position: absolute;
+  top: -0.8rem;
+  left: 50%;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin-left: -1.2rem;
+  font-size: 1.3rem;
+}
+.wax-seal[data-kind='PLAYER'] { --wax-light: #d9a43f; --wax-dark: #7a5200; }
+.wax-seal[data-kind='NPC_FRIENDLY'] { --wax-light: #5d93c4; --wax-dark: #24486e; }
+.wax-seal[data-kind='MONSTER'] { --wax-light: #c4554b; --wax-dark: #7a1f19; }
+.wax-seal[data-kind='BOSS'] { --wax-light: #7d5aa6; --wax-dark: #34204f; }
+
+.sheet-card .attrs span {
+  padding: 0.25rem 0.15rem 0.5rem;
+  text-align: center;
+  border: 1px solid #b89c6a;
+  border-radius: 6px 6px 50% 50% / 6px 6px 38% 38%;
+  background: rgba(255, 250, 240, 0.5);
+}

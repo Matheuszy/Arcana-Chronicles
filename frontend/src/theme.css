@@ -1,10 +1,7 @@
+html { background: var(--wood-950); }
+
 body {
-  background:
-    radial-gradient(ellipse at 12% -5%, rgba(230, 184, 89, 0.20), transparent 42%),
-    radial-gradient(ellipse at 88% -5%, rgba(230, 184, 89, 0.12), transparent 38%),
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 140px),
-    linear-gradient(180deg, var(--wood-800), var(--wood-950));
-  background-attachment: fixed;
+  background: transparent;
 }
 
 .card {
@@ -174,4 +171,222 @@ body {
   color: var(--parchment-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.rpg-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}
+.rpg-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: rpg-flicker 1.8s ease-in-out infinite alternate;
+}
+@keyframes rpg-flicker {
+  0% { transform: scale(1, 1) rotate(-2deg); opacity: 0.9; }
+  40% { transform: scale(0.94, 1.06) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1.04, 0.96) rotate(-1deg); opacity: 0.85; }
+}
+
+.nav a { gap: 0.45rem; }
+.nav .rpg-icon { width: 1.15rem; height: 1.15rem; }
+.nav a.active .rpg-icon { filter: drop-shadow(0 0 4px rgba(230, 184, 89, 0.55)); }
+
+.page-head h1::after,
+.section-title::after {
+  content: '';
+  display: block;
+  width: min(12rem, 70%);
+  height: 0.72rem;
+  margin-top: 0.35rem;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 12'%3E%3Cdefs%3E%3ClinearGradient id='l' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23c9962f' stop-opacity='0'/%3E%3Cstop offset='1' stop-color='%23c9962f'/%3E%3C/linearGradient%3E%3ClinearGradient id='r' x1='1' x2='0'%3E%3Cstop offset='0' stop-color='%23c9962f' stop-opacity='0'/%3E%3Cstop offset='1' stop-color='%23c9962f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='0' y='5.5' width='90' height='1' fill='url(%23l)'/%3E%3Crect x='110' y='5.5' width='90' height='1' fill='url(%23r)'/%3E%3Ccircle cx='89' cy='6' r='1.6' fill='%23c9962f'/%3E%3Ccircle cx='111' cy='6' r='1.6' fill='%23c9962f'/%3E%3Cpath d='M100 1l5 5-5 5-5-5z' fill='%23e6b859'/%3E%3C/svg%3E") left center / 100% 100% no-repeat;
+}
+.section-title::after { width: min(9rem, 60%); height: 0.54rem; }
+
+.card {
+  --corner: rgba(230, 184, 89, 0.5);
+  --corner-size: 14px;
+  --corner-inset: 7px;
+  background:
+    linear-gradient(var(--corner), var(--corner)) left var(--corner-inset) top var(--corner-inset) / var(--corner-size) 2px no-repeat,
+    linear-gradient(var(--corner), var(--corner)) left var(--corner-inset) top var(--corner-inset) / 2px var(--corner-size) no-repeat,
+    linear-gradient(var(--corner), var(--corner)) right var(--corner-inset) top var(--corner-inset) / var(--corner-size) 2px no-repeat,
+    linear-gradient(var(--corner), var(--corner)) right var(--corner-inset) top var(--corner-inset) / 2px var(--corner-size) no-repeat,
+    linear-gradient(var(--corner), var(--corner)) left var(--corner-inset) bottom var(--corner-inset) / var(--corner-size) 2px no-repeat,
+    linear-gradient(var(--corner), var(--corner)) left var(--corner-inset) bottom var(--corner-inset) / 2px var(--corner-size) no-repeat,
+    linear-gradient(var(--corner), var(--corner)) right var(--corner-inset) bottom var(--corner-inset) / var(--corner-size) 2px no-repeat,
+    linear-gradient(var(--corner), var(--corner)) right var(--corner-inset) bottom var(--corner-inset) / 2px var(--corner-size) no-repeat,
+    linear-gradient(180deg, #261a11, var(--surface));
+}
+
+.ui-d20-spinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--ember-bright);
+  filter: drop-shadow(0 0 6px rgba(230, 184, 89, 0.45));
+  animation: ui-d20-roll 1.4s cubic-bezier(0.45, 0.05, 0.35, 1) infinite;
+}
+@keyframes ui-d20-roll {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(200deg) scale(0.88); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.ui-state-art { width: 6rem; height: 4rem; margin-bottom: 0.25rem; }
+.ui-state-art-paper { fill: rgba(230, 216, 184, 0.1); stroke: var(--parchment-dim); stroke-width: 1.5; }
+.ui-state-art-roll { fill: var(--leather); stroke: var(--leather-bright); stroke-width: 1.5; }
+.ui-state-art-line { fill: none; stroke: var(--parchment-dim); stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 3 3; opacity: 0.6; }
+.ui-state-art-dust { fill: none; stroke: var(--ember); stroke-width: 1.5; stroke-linecap: round; opacity: 0.5; }
+
+.wax-seal,
+.status-seal-wax,
+.guild-crest {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50% 46% 52% 48% / 48% 52% 47% 53%;
+  background: radial-gradient(circle at 35% 30%, var(--wax-light, #c4554b), var(--wax-dark, #7a1f19) 72%);
+  color: #fbeedd;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.12),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.35),
+    0 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+.presence-candle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.presence-candle .rpg-icon { width: 1.25em; height: 1.25em; }
+.presence-candle--online .rpg-flame { fill: #f0a63c; }
+.presence-candle--em_mesa .rpg-flame { fill: #9b86e6; }
+.presence-candle--offline { opacity: 0.7; }
+
+.scenery {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.9  0 0 0 0 0.8  0 0 0 0 0.6  0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 180px 180px repeat,
+    radial-gradient(ellipse at 12% -5%, rgba(230, 184, 89, 0.20), transparent 42%),
+    radial-gradient(ellipse at 88% -5%, rgba(230, 184, 89, 0.12), transparent 38%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 140px),
+    linear-gradient(180deg, var(--wood-800), var(--wood-950));
+  background-blend-mode: soft-light, normal, normal, normal, normal;
+}
+.scenery-motif { position: absolute; inset: 0; }
+
+.scenery--portal .scenery-motif {
+  inset: auto;
+  top: clamp(1rem, 18vh, 10rem);
+  left: 50%;
+  width: min(120vw, 680px);
+  aspect-ratio: 1;
+  margin-left: calc(min(120vw, 680px) / -2);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-100 -100 200 200' fill='none' stroke='%23e6b859'%3E%3Ccircle r='98'/%3E%3Ccircle r='91' stroke-width='4' stroke-dasharray='1 5'/%3E%3Ccircle r='83'/%3E%3Cpath d='M0-83L71.9 41.5H-71.9zM0 83L-71.9-41.5H71.9z'/%3E%3Ccircle r='48'/%3E%3Ccircle r='41' stroke-width='3' stroke-dasharray='7 3 1 3'/%3E%3Ccircle r='12'/%3E%3Cpath d='M0-98v15M0 83v15M-98 0h15M83 0h15M-69.3-69.3l10.6 10.6M69.3 69.3l-10.6-10.6M69.3-69.3l-10.6 10.6M-69.3 69.3l10.6-10.6'/%3E%3C/svg%3E") center / contain no-repeat;
+  opacity: 0.07;
+  animation: scenery-portal-turn 240s linear infinite;
+}
+@keyframes scenery-portal-turn { to { transform: rotate(360deg); } }
+
+.scenery--mapa .scenery-motif {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 420' fill='none' stroke='%23e6d8b8' stroke-linecap='round'%3E%3Cpath d='M30 0c32 40 8 82 40 112s62 28 52 80-52 62-30 112 42 62 18 116' stroke-width='1.5'/%3E%3Cpath d='M14 0c30 42 6 84 38 114s60 30 50 80-50 60-28 110 40 64 16 116' stroke-opacity='0.5'/%3E%3Cpath d='M130 60c40 30 92 18 112 70s-22 92 22 132' stroke-dasharray='4 7' stroke-width='1.5'/%3E%3Cpath d='M258 256l14 14M272 256l-14 14' stroke-width='2'/%3E%3Cpath d='M170 340l16-26 16 26M198 340l12-20 12 20M150 120l10-16 10 16'/%3E%3Cpath d='M200 200c6-4 12-4 18 0s12 4 18 0M180 400c6-4 12-4 18 0s12 4 18 0' stroke-opacity='0.6'/%3E%3C/svg%3E") left -2rem top 4.5rem / min(34vw, 340px) auto no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -60 100 110' fill='none' stroke='%23e6d8b8'%3E%3Ccircle r='44'/%3E%3Ccircle r='38' stroke-dasharray='2 3'/%3E%3Cpath d='M0-48L6-6 48 0 6 6 0 48-6 6-48 0-6-6z'/%3E%3Cpath d='M-24-24L-3 0-24 24 0 3 24 24 3 0 24-24 0-3z' stroke-opacity='0.7'/%3E%3Ccircle r='4'/%3E%3Cpath d='M-3-52l3-6 3 6'/%3E%3C/svg%3E") right 3% bottom 4% / min(28vw, 240px) auto no-repeat;
+  opacity: 0.08;
+}
+
+.scenery--grimorio .scenery-motif {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 160' fill='none' stroke='%23e6d8b8' stroke-linecap='round'%3E%3Cpath d='M10 20c10-6 18 6 28 0s18-6 26 0 16 4 26-2 20 2 30 0M10 44c12-5 20 5 30 0s16-6 26 0 18 4 28-1M10 68c9-6 17 6 26 0s18-5 26 1 14 3 24-2 20 1 34-1M10 92c12-5 22 4 32 0s14-5 22 0'/%3E%3Cpath d='M150 118c18-4 34 6 50-4M160 132h30' stroke-opacity='0.7'/%3E%3Cpath d='M178 70l26-40M200 34l6-8' stroke-width='1.5'/%3E%3C/svg%3E") right 9rem top 6rem / min(22vw, 220px) auto no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 170' fill='none' stroke='%23e6d8b8'%3E%3Cpath d='M0 160h120' stroke-width='3'/%3E%3Crect x='6' y='60' width='14' height='100'/%3E%3Crect x='22' y='40' width='18' height='120'/%3E%3Cpath d='M22 60h18M22 140h18'/%3E%3Crect x='42' y='72' width='12' height='88'/%3E%3Crect x='56' y='50' width='20' height='110'/%3E%3Cpath d='M56 70h20M56 76h20M56 136h20'/%3E%3Cpath d='M80 160l14-96 12 2-14 94'/%3E%3Crect x='104' y='80' width='12' height='80'/%3E%3C/svg%3E") left 0.5rem top 0 / 110px auto repeat-y,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 170' fill='none' stroke='%23e6d8b8'%3E%3Cpath d='M0 160h120' stroke-width='3'/%3E%3Crect x='6' y='60' width='14' height='100'/%3E%3Crect x='22' y='40' width='18' height='120'/%3E%3Cpath d='M22 60h18M22 140h18'/%3E%3Crect x='42' y='72' width='12' height='88'/%3E%3Crect x='56' y='50' width='20' height='110'/%3E%3Cpath d='M56 70h20M56 76h20M56 136h20'/%3E%3Cpath d='M80 160l14-96 12 2-14 94'/%3E%3Crect x='104' y='80' width='12' height='80'/%3E%3C/svg%3E") right 0.5rem top 85px / 110px auto repeat-y;
+  opacity: 0.07;
+}
+
+.scenery--estalagem .scenery-motif {
+  background:
+    linear-gradient(180deg, rgba(10, 6, 3, 0.5), transparent 6rem),
+    repeating-linear-gradient(90deg, rgba(10, 6, 3, 0.6) 0 2.25rem, transparent 2.25rem 16rem);
+  -webkit-mask-image: linear-gradient(180deg, #000 2rem, transparent 10rem);
+  mask-image: linear-gradient(180deg, #000 2rem, transparent 10rem);
+}
+.scenery--estalagem::after {
+  content: '';
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  width: min(80vw, 520px);
+  aspect-ratio: 100 / 120;
+  transform: translate(-50%, -50%);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120' fill='none' stroke='%23e6b859' stroke-linejoin='round'%3E%3Cpath d='M50 6l38 14v30c0 30-17 50-38 62C29 100 12 80 12 50V20z' stroke-width='2'/%3E%3Cpath d='M50 14l30 11v25c0 24-13 41-30 51-17-10-30-27-30-51V25z'/%3E%3Cpath d='M30 34l40 44M70 34L30 78M26 72l8 8M74 72l-8 8M27 37l5-5M73 37l-5-5' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='56' r='8'/%3E%3C/svg%3E") center / contain no-repeat;
+  opacity: 0.05;
+}
+
+.scenery--mesa .scenery-motif {
+  background:
+    radial-gradient(ellipse at 50% 110%, rgba(240, 166, 60, 0.1), transparent 55%),
+    radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.scenery-embers { display: none; }
+
+@media (max-width: 860px) {
+  .scenery--mapa .scenery-motif {
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 420' fill='none' stroke='%23e6d8b8' stroke-linecap='round'%3E%3Cpath d='M30 0c32 40 8 82 40 112s62 28 52 80-52 62-30 112 42 62 18 116' stroke-width='1.5'/%3E%3Cpath d='M14 0c30 42 6 84 38 114s60 30 50 80-50 60-28 110 40 64 16 116' stroke-opacity='0.5'/%3E%3Cpath d='M130 60c40 30 92 18 112 70s-22 92 22 132' stroke-dasharray='4 7' stroke-width='1.5'/%3E%3Cpath d='M258 256l14 14M272 256l-14 14' stroke-width='2'/%3E%3Cpath d='M170 340l16-26 16 26M198 340l12-20 12 20M150 120l10-16 10 16'/%3E%3Cpath d='M200 200c6-4 12-4 18 0s12 4 18 0M180 400c6-4 12-4 18 0s12 4 18 0' stroke-opacity='0.6'/%3E%3C/svg%3E") left -3rem top 3rem / 9rem auto no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -60 100 110' fill='none' stroke='%23e6d8b8'%3E%3Ccircle r='44'/%3E%3Ccircle r='38' stroke-dasharray='2 3'/%3E%3Cpath d='M0-48L6-6 48 0 6 6 0 48-6 6-48 0-6-6z'/%3E%3Cpath d='M-24-24L-3 0-24 24 0 3 24 24 3 0 24-24 0-3z' stroke-opacity='0.7'/%3E%3Ccircle r='4'/%3E%3Cpath d='M-3-52l3-6 3 6'/%3E%3C/svg%3E") right -1.5rem bottom 1rem / 8rem auto no-repeat;
+  }
+  .scenery--grimorio .scenery-motif {
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 160' fill='none' stroke='%23e6d8b8' stroke-linecap='round'%3E%3Cpath d='M10 20c10-6 18 6 28 0s18-6 26 0 16 4 26-2 20 2 30 0M10 44c12-5 20 5 30 0s16-6 26 0 18 4 28-1M10 68c9-6 17 6 26 0s18-5 26 1 14 3 24-2 20 1 34-1M10 92c12-5 22 4 32 0s14-5 22 0'/%3E%3Cpath d='M150 118c18-4 34 6 50-4M160 132h30' stroke-opacity='0.7'/%3E%3Cpath d='M178 70l26-40M200 34l6-8' stroke-width='1.5'/%3E%3C/svg%3E") right -1rem top 7rem / 8rem auto no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 170' fill='none' stroke='%23e6d8b8'%3E%3Cpath d='M0 160h120' stroke-width='3'/%3E%3Crect x='6' y='60' width='14' height='100'/%3E%3Crect x='22' y='40' width='18' height='120'/%3E%3Cpath d='M22 60h18M22 140h18'/%3E%3Crect x='42' y='72' width='12' height='88'/%3E%3Crect x='56' y='50' width='20' height='110'/%3E%3Cpath d='M56 70h20M56 76h20M56 136h20'/%3E%3Cpath d='M80 160l14-96 12 2-14 94'/%3E%3Crect x='104' y='80' width='12' height='80'/%3E%3C/svg%3E") left -0.75rem bottom 0 / 70px auto no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 170' fill='none' stroke='%23e6d8b8'%3E%3Cpath d='M0 160h120' stroke-width='3'/%3E%3Crect x='6' y='60' width='14' height='100'/%3E%3Crect x='22' y='40' width='18' height='120'/%3E%3Cpath d='M22 60h18M22 140h18'/%3E%3Crect x='42' y='72' width='12' height='88'/%3E%3Crect x='56' y='50' width='20' height='110'/%3E%3Cpath d='M56 70h20M56 76h20M56 136h20'/%3E%3Cpath d='M80 160l14-96 12 2-14 94'/%3E%3Crect x='104' y='80' width='12' height='80'/%3E%3C/svg%3E") right -0.75rem bottom 0 / 70px auto no-repeat;
+  }
+}
+
+@media (min-width: 861px) {
+  .scenery-embers { display: block; position: absolute; inset: 0; }
+  .scenery-ember {
+    position: absolute;
+    bottom: -1rem;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #f6a43c;
+    box-shadow: 0 0 6px 1px rgba(246, 164, 60, 0.7);
+    opacity: 0;
+    animation: scenery-ember-rise 14s linear infinite;
+  }
+  .scenery-ember:nth-child(1) { left: 6%; animation-delay: 0s; animation-duration: 14s; }
+  .scenery-ember:nth-child(2) { left: 14%; animation-delay: 5s; animation-duration: 17s; }
+  .scenery-ember:nth-child(3) { left: 23%; animation-delay: 9s; animation-duration: 14s; }
+  .scenery-ember:nth-child(4) { left: 31%; animation-delay: 2s; animation-duration: 19s; }
+  .scenery-ember:nth-child(5) { left: 42%; animation-delay: 11s; animation-duration: 16s; }
+  .scenery-ember:nth-child(6) { left: 55%; animation-delay: 7s; animation-duration: 14s; }
+  .scenery-ember:nth-child(7) { left: 63%; animation-delay: 3s; animation-duration: 18s; }
+  .scenery-ember:nth-child(8) { left: 71%; animation-delay: 12s; animation-duration: 14s; }
+  .scenery-ember:nth-child(9) { left: 79%; animation-delay: 6s; animation-duration: 15s; }
+  .scenery-ember:nth-child(10) { left: 86%; animation-delay: 1s; animation-duration: 20s; }
+  .scenery-ember:nth-child(11) { left: 92%; animation-delay: 8s; animation-duration: 14s; }
+  .scenery-ember:nth-child(12) { left: 97%; animation-delay: 13s; animation-duration: 17s; }
+}
+@keyframes scenery-ember-rise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 0.55; }
+  50% { transform: translate(18px, -50vh); opacity: 0.35; }
+  100% { transform: translate(-12px, -100vh); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scenery-embers { display: none; }
 }

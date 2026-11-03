@@ -13,6 +13,7 @@ import { ErrorState, LoadingState } from '../../components/ui/States';
 import { useToast } from '../../components/ui/Toast';
 import FriendsPanel from './FriendsPanel';
 import './Account.css';
+import { SwordShieldIcon } from '../../components/ui/Icons';
 
 const errorMessage = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
 
@@ -216,8 +217,14 @@ export default function Account() {
             </div>
           </form>
 
-          <section className="card account-friend" aria-labelledby="accountFriendCode">
-            <h2 id="accountFriendCode">Código de amigo</h2>
+          <section className="card account-friend guild-card" aria-labelledby="accountFriendCode">
+            <div className="guild-card-head">
+              <span className="guild-crest" aria-hidden="true"><SwordShieldIcon /></span>
+              <div>
+                <p className="guild-card-eyebrow">Cartão da guilda</p>
+                <h2 id="accountFriendCode">Código de amigo</h2>
+              </div>
+            </div>
             <p className="muted account-hint">Compartilhe este código para que outras pessoas encontrem sua conta.</p>
             <p className="account-friend-code">{friendCode}</p>
             <div className="account-friend-actions">
