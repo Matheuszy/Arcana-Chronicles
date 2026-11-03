@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +21,10 @@ public interface UsuarioRepositorie extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByEmailIgnoreCaseAndPapel(String email, PapelUsuario papel);
 
     boolean existsByCodigoAmigo(String codigoAmigo);
+
+    Optional<Usuario> findByCodigoAmigo(String codigoAmigo);
+
+    List<Usuario> findTop10ByUsernameContainingIgnoreCaseAndIdNotInOrderByUsernameAsc(String trecho, Collection<Long> ids);
 
     @Query("SELECT u FROM Usuario u JOIN u.personagens p WHERE p.id = :personagemId")
     Optional<Usuario> findByPersonagemId(Long personagemId);

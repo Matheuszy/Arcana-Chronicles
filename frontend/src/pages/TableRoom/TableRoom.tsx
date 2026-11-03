@@ -35,6 +35,7 @@ import StatusView from './StatusView';
 import { useRoomResources } from './useRoomResources';
 import JoinRequestsPanel from './JoinRequestsPanel';
 import ParticipantsPanel from './ParticipantsPanel';
+import InviteFriendsPanel from './InviteFriendsPanel';
 import PrivateSheetsPanel from './PrivateSheetsPanel';
 import './TableRoom.css';
 import './Challenge.css';
@@ -613,6 +614,9 @@ export default function TableRoom() {
             isMaster={isMaster}
             onParticipantRemoved={setTable}
           />
+        )}
+        {id && (
+          <InviteFriendsPanel tableId={id} tableStatus={table.status} participants={table.participants} />
         )}
 
         </div>
