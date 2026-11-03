@@ -215,3 +215,20 @@
   .paper-attributes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .paper-items { columns: 1; }
 }
+
+.paper-attribute {
+  padding: 0.6rem 0.4rem 1.2rem;
+  border-radius: 10px 10px 50% 50% / 10px 10px 26% 26%;
+  background: linear-gradient(180deg, rgba(255, 250, 240, 0.8), rgba(230, 216, 184, 0.65));
+}
+.paper-attribute-mod {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 2px solid #7a5200;
+  border-radius: 50%;
+  background: #fffaf0;
+  font-size: 1.35rem;
+  line-height: 1;
+}

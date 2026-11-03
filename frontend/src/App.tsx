@@ -2,6 +2,8 @@ import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { SessionProvider, useSession } from './context/SessionContext';
 import { UserChannelProvider } from './context/UserChannelContext';
 import TableInvites from './components/TableInvites';
+import Scenery, { sceneryForPath } from './components/Scenery';
+import { D20Icon, HelmIcon, QuillIcon } from './components/ui/Icons';
 import Login from './pages/Login/Login';
 import CharacterList from './pages/CharacterList/CharacterList';
 import CharacterForm from './pages/CharacterForm/CharacterForm';
@@ -18,11 +20,13 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function Shell() {
   const { role, displayName, userId, clear } = useSession();
-  const inRoom = /^\/mesas\/[^/]+/.test(useLocation().pathname);
+  const { pathname } = useLocation();
+  const inRoom = /^\/mesas\/[^/]+/.test(pathname);
   const canCreateSheets = !inRoom || role === 'MESTRE';
 
   return (
     <div className={`shell ${inRoom ? 'shell--room' : ''}`}>
+      <Scenery variant={userId ? sceneryForPath(pathname) : 'portal'} />
       <header className="topbar">
         <NavLink to="/" className="brand">
           <span className="brand-glyph">✦</span>
@@ -34,14 +38,17 @@ function Shell() {
             <nav className="nav" aria-label="Principal">
               {canCreateSheets && (
                 <NavLink to="/fichas" className={({ isActive }) => (isActive ? 'active' : '')}>
+                  <QuillIcon />
                   Fichas
                 </NavLink>
               )}
               <NavLink to="/mesas" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <D20Icon />
                 Mesas
               </NavLink>
               {!inRoom && (
                 <NavLink to="/conta" className={({ isActive }) => (isActive ? 'active' : '')}>
+                  <HelmIcon />
                   Minha conta
                 </NavLink>
               )}

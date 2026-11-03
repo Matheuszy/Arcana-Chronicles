@@ -376,3 +376,23 @@
 .slot-step:disabled { opacity: 0.35; cursor: not-allowed; }
 .slot-total { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
 .slot-total input { width: 4.5rem; }
+
+.attr-field {
+  padding: 0.75rem 0.85rem 1.9rem;
+  border: 1px solid var(--leather);
+  border-radius: 10px 10px 50% 50% / 10px 10px 16% 16%;
+  background: linear-gradient(180deg, var(--ink-800), var(--ink-900));
+}
+.attr-field .modifier {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin: 0.4rem auto 0.2rem;
+  border: 2px solid var(--ember);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--leather-bright), var(--wood-700));
+  font-size: 0.95rem;
+}
+.attr-input-row,
+.attr-input-row > * { min-width: 0; }

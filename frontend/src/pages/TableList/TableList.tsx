@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tableService } from '../../services/tableService';
 import { characterService } from '../../services/characterService';
 import { useSession } from '../../context/SessionContext';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, KIND_LABEL } from '../../types/character';
-import Badge, { BadgeTone } from '../../components/ui/Badge';
+import { CrossedSwordsIcon, DoorIcon, HourglassIcon, LockIcon } from '../../components/ui/Icons';
 import CheckList from '../../components/ui/CheckList';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
@@ -18,18 +18,11 @@ type ScopeFilter = 'TODAS' | 'MINHAS';
 
 const STATUS_FILTERS: StatusFilter[] = ['TODAS', 'ABERTA', 'EM_ANDAMENTO', 'PAUSADA', 'ENCERRADA'];
 
-const STATUS_TONE: Record<TableStatus, BadgeTone> = {
-  ABERTA: 'positive',
-  EM_ANDAMENTO: 'gold',
-  PAUSADA: 'neutral',
-  ENCERRADA: 'danger',
-};
-
-const STATUS_ICON: Record<TableStatus, string> = {
-  ABERTA: '●',
-  EM_ANDAMENTO: '⚔',
-  PAUSADA: '❚❚',
-  ENCERRADA: '✕',
+const STATUS_SEAL: Record<TableStatus, ReactNode> = {
+  ABERTA: <DoorIcon />,
+  EM_ANDAMENTO: <CrossedSwordsIcon />,
+  PAUSADA: <HourglassIcon />,
+  ENCERRADA: <LockIcon />,
 };
 
 const errorMessage = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
@@ -234,9 +227,10 @@ export default function TableList() {
         {visibleTables.map((t) => (
           <article key={t.id} className="table-card poster">
             <div className="table-card-top">
-              <Badge tone={STATUS_TONE[t.status]} icon={STATUS_ICON[t.status]}>
+              <span className={`status-seal status-seal--${t.status.toLowerCase()}`}>
+                <span className="status-seal-wax" aria-hidden="true">{STATUS_SEAL[t.status]}</span>
                 {TABLE_STATUS_LABEL[t.status]}
-              </Badge>
+              </span>
               <span className="players">{t.participants?.length ?? 0} na mesa</span>
             </div>
             <h3>{t.name}</h3>

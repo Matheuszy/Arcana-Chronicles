@@ -505,3 +505,30 @@
   .combat-monster-pick { flex-wrap: wrap; }
   .image-composer { flex-wrap: wrap; gap: 0.5rem; }
 }
+
+.dice-roll.dice-roll--critico { animation: dice-crit-glow 1.4s ease-in-out 2; }
+@keyframes dice-crit-glow {
+  0%, 100% { box-shadow: 0 0 18px rgba(230, 184, 89, 0.45); }
+  50% { box-shadow: 0 0 32px rgba(246, 217, 138, 0.85); }
+}
+.dice-roll.dice-roll--falha .die-face:not(.die-face--descartado) {
+  background:
+    linear-gradient(118deg, transparent 44%, rgba(43, 12, 9, 0.75) 45% 48%, transparent 49%),
+    linear-gradient(64deg, transparent 58%, rgba(43, 12, 9, 0.6) 59% 61%, transparent 62%),
+    #c96b6b;
+}
+.dice-roll .dice-outcome {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.85rem;
+  border-radius: 50% 46% 52% 48% / 48% 52% 47% 53%;
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.dice-roll.dice-roll--critico .dice-outcome {
+  color: #2b1d12;
+  background: radial-gradient(circle at 35% 30%, #f6d98a, #c9962f 75%);
+}
+.dice-roll.dice-roll--falha .dice-outcome {
+  color: #fbeedd;
+  background: radial-gradient(circle at 35% 30%, #c4554b, #7a1f19 75%);
+}
