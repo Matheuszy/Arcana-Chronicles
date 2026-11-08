@@ -11,6 +11,7 @@ import { useToast } from '../../components/ui/Toast';
 import Select from '../../components/ui/Select';
 import NumberInput from '../../components/ui/NumberInput';
 import TextListEditor from './TextListEditor';
+import AdditionalMovementsEditor from './AdditionalMovementsEditor';
 import {
   attributeModifier,
   attributeRollModifier,
@@ -23,6 +24,7 @@ import {
   DAMAGE_DICE_PATTERN,
   DEATH_SAVE_MARKS,
   MAX_BACKGROUND_LENGTH,
+  MAX_MOVEMENT,
   MAX_PERSONALITY_LENGTH,
   MAX_PROFICIENCY_ENTRIES,
   PERSONALITY_FIELDS,
@@ -85,7 +87,6 @@ const NEW_EQUIPMENT: Equipment = {
   propriedades: '',
 };
 
-const MAX_MOVEMENT = 300;
 
 const EMPTY_CHARACTER: Character = {
   name: '',
@@ -122,6 +123,7 @@ const EMPTY_CHARACTER: Character = {
   ideais: '',
   vinculos: '',
   defeitos: '',
+  deslocamentosAdicionais: [],
 };
 
 interface CharacterEditorProps {
@@ -731,6 +733,11 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
             </output>
           </div>
         </div>
+
+        <AdditionalMovementsEditor
+          movements={form.deslocamentosAdicionais ?? []}
+          onChange={(movements) => setField('deslocamentosAdicionais', movements)}
+        />
 
         <div className="death-saves">
           <label className={`inspiration-toggle ${form.inspiracao ? 'active' : ''}`}>

@@ -67,6 +67,29 @@ export const EQUIPMENT_TYPE_LABEL: Record<EquipmentType, string> = {
   ARMADURA: 'Armadura',
 };
 
+export type MovementType = 'VOO' | 'NATACAO' | 'ESCALADA' | 'ESCAVACAO' | 'BONUS_CAMINHADA';
+
+export const MOVEMENT_TYPES: MovementType[] = ['VOO', 'NATACAO', 'ESCALADA', 'ESCAVACAO', 'BONUS_CAMINHADA'];
+
+export const MOVEMENT_TYPE_LABEL: Record<MovementType, string> = {
+  VOO: 'Voo',
+  NATACAO: 'Natação',
+  ESCALADA: 'Escalada',
+  ESCAVACAO: 'Escavação',
+  BONUS_CAMINHADA: 'Bônus de caminhada',
+};
+
+export interface AdditionalMovement {
+  tipo: MovementType;
+  metros: number;
+  origem?: string | null;
+  temporario: boolean;
+}
+
+export const MAX_MOVEMENT = 300;
+export const MAX_ADDITIONAL_MOVEMENTS = 10;
+export const MAX_MOVEMENT_ORIGIN_LENGTH = 60;
+
 export interface Character {
   id?: string;
   ownerId?: string;
@@ -91,6 +114,7 @@ export interface Character {
   vinculos?: string;
   defeitos?: string;
   percepcaoPassiva?: number;
+  deslocamentosAdicionais?: AdditionalMovement[];
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */

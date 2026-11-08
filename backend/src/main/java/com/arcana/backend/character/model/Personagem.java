@@ -59,6 +59,11 @@ public class Personagem {
     private Integer falhasContraMorte = 0;
 
     @ElementCollection
+    @CollectionTable(name = "personagem_deslocamentos_adicionais", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    private List<DeslocamentoAdicional> deslocamentosAdicionais = new ArrayList<>();
+
+    @ElementCollection
     @CollectionTable(name = "personagem_classes", joinColumns = @JoinColumn(name = "personagem_id"))
     @OrderColumn(name = "posicao")
     private List<ClassePersonagem> classes = new ArrayList<>();

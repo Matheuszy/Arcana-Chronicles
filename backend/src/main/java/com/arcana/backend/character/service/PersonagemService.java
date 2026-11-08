@@ -5,6 +5,7 @@ import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.ClassePersonagem;
+import com.arcana.backend.character.model.DeslocamentoAdicional;
 import com.arcana.backend.character.model.Equipamento;
 import com.arcana.backend.character.model.Magia;
 import com.arcana.backend.character.model.Pericia;
@@ -140,6 +141,7 @@ public class PersonagemService {
         personagem.setPersonalityPrompt(dto.personalityPrompt());
         personagem.setAvatarUrl(dto.avatarUrl());
         mapearEquipamentos(dto, personagem);
+        mapearDeslocamentosAdicionais(dto, personagem);
         mapearClasses(dto, personagem);
         personagem.setHabilidades(textoOuNulo(dto.habilidades()));
         personagem.setTalentos(textoOuNulo(dto.talentos()));
@@ -207,6 +209,15 @@ public class PersonagemService {
         dto.equipamentos().stream()
                 .map(this::paraEquipamento)
                 .forEach(personagem.getEquipamentos()::add);
+    }
+
+    private void mapearDeslocamentosAdicionais(PersonagemRequestDto dto, Personagem personagem) {
+        personagem.getDeslocamentosAdicionais().clear();
+        if (dto.deslocamentosAdicionais() == null) return;
+        dto.deslocamentosAdicionais().stream()
+                .map(d -> new DeslocamentoAdicional(d.tipo(), d.metros(), textoOuNulo(d.origem()),
+                        Boolean.TRUE.equals(d.temporario())))
+                .forEach(personagem.getDeslocamentosAdicionais()::add);
     }
 
     private Equipamento paraEquipamento(PersonagemRequestDto.EquipamentoDto dto) {

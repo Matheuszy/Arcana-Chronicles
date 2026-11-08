@@ -1,5 +1,6 @@
 package com.arcana.backend.character;
 
+import com.arcana.backend.character.model.TipoDeslocamento;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import jakarta.validation.Valid;
@@ -140,7 +141,10 @@ public record PersonagemRequestDto(
         String vinculos,
 
         @Size(max = 1000, message = "Defeitos não podem ter mais de 1000 caracteres")
-        String defeitos
+        String defeitos,
+
+        @Size(max = 10, message = "A ficha pode ter no máximo 10 deslocamentos adicionais")
+        List<@Valid DeslocamentoAdicionalDto> deslocamentosAdicionais
 
 ) {
     public record ClasseDto(
@@ -177,6 +181,21 @@ public record PersonagemRequestDto(
 
             @Size(max = 200, message = "As propriedades não podem ter mais de 200 caracteres")
             String propriedades
+    ) {}
+
+    public record DeslocamentoAdicionalDto(
+            @NotNull(message = "Escolha o tipo do deslocamento adicional")
+            TipoDeslocamento tipo,
+
+            @NotNull(message = "Informe os metros do deslocamento adicional")
+            @Min(value = 0, message = "O deslocamento adicional não pode ser negativo")
+            @Max(value = 300, message = "O deslocamento adicional não pode passar de 300 metros")
+            Integer metros,
+
+            @Size(max = 60, message = "A origem do deslocamento não pode ter mais de 60 caracteres")
+            String origem,
+
+            Boolean temporario
     ) {}
 
     public record AtributosDto(

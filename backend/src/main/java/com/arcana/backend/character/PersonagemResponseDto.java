@@ -3,6 +3,7 @@ package com.arcana.backend.character;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
+import com.arcana.backend.character.model.TipoDeslocamento;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -58,7 +59,8 @@ public record PersonagemResponseDto(
         String ideais,
         String vinculos,
         String defeitos,
-        int percepcaoPassiva
+        int percepcaoPassiva,
+        List<DeslocamentoAdicionalDto> deslocamentosAdicionais
 
 ) {
     public record ClasseDto(
@@ -83,6 +85,13 @@ public record PersonagemResponseDto(
             Integer inteligencia,
             Integer sabedoria,
             Integer carisma
+    ) {}
+
+    public record DeslocamentoAdicionalDto(
+            TipoDeslocamento tipo,
+            Integer metros,
+            String origem,
+            boolean temporario
     ) {}
 
     public record SpellDto(
@@ -167,7 +176,10 @@ public record PersonagemResponseDto(
                 p.getIdeais(),
                 p.getVinculos(),
                 p.getDefeitos(),
-                p.calcularPercepcaoPassiva()
+                p.calcularPercepcaoPassiva(),
+                p.getDeslocamentosAdicionais().stream()
+                        .map(d -> new DeslocamentoAdicionalDto(d.getTipo(), d.getMetros(), d.getOrigem(), d.isTemporario()))
+                        .toList()
         );
     }
 

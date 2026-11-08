@@ -5,6 +5,7 @@ import {
   Character,
   DEATH_SAVE_MARKS,
   KIND_LABEL,
+  MOVEMENT_TYPE_LABEL,
   PERSONALITY_FIELDS,
   PROFICIENCY_LISTS,
   SKILL_ATTRIBUTE,
@@ -113,6 +114,21 @@ export default function CharacterSheet({
           <div className="paper-vital">
             <span className="paper-vital-label">Deslocamento</span>
             <strong>{character.deslocamento != null ? `${character.deslocamento} m` : '—'}</strong>
+            {(character.deslocamentosAdicionais ?? []).length > 0 && (
+              <ul className="paper-movements">
+                {(character.deslocamentosAdicionais ?? []).map((movement, index) => (
+                  <li key={`${movement.tipo}-${index}`}>
+                    {MOVEMENT_TYPE_LABEL[movement.tipo]} {movement.metros} m
+                    {(movement.origem || movement.temporario) && (
+                      <span className="paper-movement-detail">
+                        {' '}
+                        ({[movement.origem, movement.temporario ? 'temporário' : null].filter(Boolean).join(', ')})
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className="paper-vital">
             <span className="paper-vital-label">Proficiência</span>
