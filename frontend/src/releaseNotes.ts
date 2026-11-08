@@ -65,10 +65,6 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
         title: 'Histórico de rolagens',
         text: 'As 50 rolagens mais recentes da ficha ficam guardadas, e o mestre da mesa pode consultá-las.',
       },
-      {
-        title: 'Notas de atualização',
-        text: 'Este cartaz! A cada versão nova, ele aparece uma vez, e depois fica guardado na aba Notas.',
-      },
     ],
     improvements: [
       {

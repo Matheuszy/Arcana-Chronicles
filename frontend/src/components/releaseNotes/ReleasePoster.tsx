@@ -48,7 +48,7 @@ export default function ReleasePoster({ notes, headingId, compact = false, actio
       <NoteList label="Novidades" items={notes.news} />
       <NoteList label="Melhorias" items={notes.improvements} />
       <NoteList label="Correções" items={notes.fixes} />
-      <p className="poster-signature">Assinado: o xerife do Arcana</p>
+      <p className="poster-signature">Assinado: o mestre da Guilda Arcana</p>
       {actions && <div className="poster-actions">{actions}</div>}
     </article>
   );
