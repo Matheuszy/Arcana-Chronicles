@@ -231,8 +231,11 @@ export default function FriendsPanel() {
             <ul className="account-list">
               {results.map((user) => (
                 <li key={user.id}>
-                  <span className="account-friend-name">
-                    {user.username} <Badge tone={user.papel === 'MESTRE' ? 'gold' : 'info'}>{roleLabel(user.papel)}</Badge>
+                  <span className="account-friend-info">
+                    <strong className="account-friend-username">{user.username}</strong>
+                    <span className="account-friend-meta">
+                      <Badge tone={user.papel === 'MESTRE' ? 'gold' : 'info'}>{roleLabel(user.papel)}</Badge>
+                    </span>
                   </span>
                   {renderResultAction(user)}
                 </li>
@@ -256,10 +259,12 @@ export default function FriendsPanel() {
               <ul className="account-list">
                 {friends.map((friend) => (
                   <li key={friend.usuarioId}>
-                    <span className="account-friend-name">
-                      {friend.username}
-                      <Badge tone={friend.papel === 'MESTRE' ? 'gold' : 'info'}>{roleLabel(friend.papel)}</Badge>
-                      <PresenceCandle state={friend.presenca} />
+                    <span className="account-friend-info">
+                      <strong className="account-friend-username">{friend.username}</strong>
+                      <span className="account-friend-meta">
+                        <Badge tone={friend.papel === 'MESTRE' ? 'gold' : 'info'}>{roleLabel(friend.papel)}</Badge>
+                        <PresenceCandle state={friend.presenca} />
+                      </span>
                     </span>
                     <span className="account-friend-actions">
                       <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => removeFriend(friend)}>
