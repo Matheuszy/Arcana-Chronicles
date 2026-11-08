@@ -3,6 +3,7 @@ package com.arcana.backend.character;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
+import com.arcana.backend.character.model.TipoDeslocamento;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -48,13 +49,36 @@ public record PersonagemResponseDto(
         Integer deslocamento,
         boolean inspiracao,
         Integer sucessosContraMorte,
-        Integer falhasContraMorte
+        Integer falhasContraMorte,
+        List<String> idiomas,
+        List<String> proficienciasFerramentas,
+        List<String> proficienciasArmas,
+        List<String> proficienciasArmaduras,
+        String antecedente,
+        String tracosPersonalidade,
+        String ideais,
+        String vinculos,
+        String defeitos,
+        int percepcaoPassiva,
+        List<DeslocamentoAdicionalDto> deslocamentosAdicionais,
+        Integer moedasCobre,
+        Integer moedasPrata,
+        Integer moedasElectro,
+        Integer moedasOuro,
+        Integer moedasPlatina,
+        String pacoteEquipamento,
+        List<String> itensDoPacote,
+        Integer caAdicional,
+        int classeArmaduraTotal,
+        boolean moedasRoladas
 
 ) {
     public record ClasseDto(
             String classe,
             String subclasse,
-            Integer nivel
+            Integer nivel,
+            Integer dadoVida,
+            Integer dadosVidaDisponiveis
     ) {}
 
     public record EquipamentoDto(
@@ -75,6 +99,13 @@ public record PersonagemResponseDto(
             Integer carisma
     ) {}
 
+    public record DeslocamentoAdicionalDto(
+            TipoDeslocamento tipo,
+            Integer metros,
+            String origem,
+            boolean temporario
+    ) {}
+
     public record SpellDto(
             Long id,
             String name,
@@ -87,28 +118,6 @@ public record PersonagemResponseDto(
     /** Converte uma entidade Personagem para o DTO de resposta */
     public static PersonagemResponseDto from(Personagem p) {
 
-        AtributosDto attrs = null;
-        if (p.getAttributes() != null) {
-            attrs = new AtributosDto(
-                    p.getAttributes().getForca(),
-                    p.getAttributes().getDestreza(),
-                    p.getAttributes().getConstituicao(),
-                    p.getAttributes().getInteligencia(),
-                    p.getAttributes().getSabedoria(),
-                    p.getAttributes().getCarisma()
-            );
-        }
-
-        List<SpellDto> spellDtos = p.getSpells() == null ? Collections.emptyList() :
-                p.getSpells().stream()
-                        .map(m -> new SpellDto(m.getId(), m.getName(), m.getLevel(), m.getDescription()))
-                        .toList();
-
-        Map<String, Integer> slots = lerEspacos(p.getSpellSlots());
-        Map<String, Integer> slotsAtuais = p.getSpellSlotsCurrent() == null
-                ? slots
-                : lerEspacos(p.getSpellSlotsCurrent());
-
         return new PersonagemResponseDto(
                 p.getId(),
                 p.getName(),
@@ -117,24 +126,18 @@ public record PersonagemResponseDto(
                 p.getHpMax(),
                 p.getHpCurrent(),
                 p.getArmorClass(),
-                attrs,
+                atributos(p),
                 periciasEmOrdem(p),
-                p.getEquipamentos().stream()
-                        .map(e -> new EquipamentoDto(e.getTipo(), e.getNome(), e.getDano(),
-                                e.getAtributo() != null ? e.getAtributo().getChave() : null,
-                                e.getClasseArmadura(), e.getPropriedades()))
-                        .toList(),
-                spellDtos,
-                slots,
-                slotsAtuais,
+                equipamentos(p),
+                magias(p),
+                espacosDeMagia(p),
+                espacosDeMagiaRestantes(p),
                 p.getBackstory(),
                 p.getPersonalityPrompt(),
                 p.getAvatarUrl(),
                 p.getOwner() != null ? p.getOwner().getId() : null,
                 p.getCreatedAt(),
-                p.getClasses().stream()
-                        .map(c -> new ClasseDto(c.getClasse(), c.getSubclasse(), c.getNivel()))
-                        .toList(),
+                classes(p),
                 p.getBonusProficiencia(),
                 salvaguardasEmOrdem(p),
                 List.copyOf(p.getItens()),
@@ -147,8 +150,77 @@ public record PersonagemResponseDto(
                 p.getDeslocamento(),
                 p.isInspiracao(),
                 p.getSucessosContraMorte(),
-                p.getFalhasContraMorte()
+                p.getFalhasContraMorte(),
+                List.copyOf(p.getIdiomas()),
+                List.copyOf(p.getProficienciasFerramentas()),
+                List.copyOf(p.getProficienciasArmas()),
+                List.copyOf(p.getProficienciasArmaduras()),
+                p.getAntecedente(),
+                p.getTracosPersonalidade(),
+                p.getIdeais(),
+                p.getVinculos(),
+                p.getDefeitos(),
+                p.calcularPercepcaoPassiva(),
+                deslocamentosAdicionais(p),
+                p.getMoedasCobre(),
+                p.getMoedasPrata(),
+                p.getMoedasElectro(),
+                p.getMoedasOuro(),
+                p.getMoedasPlatina(),
+                p.getPacoteEquipamento(),
+                List.copyOf(p.getItensDoPacote()),
+                p.getCaAdicional(),
+                p.getArmorClass() + p.getCaAdicional(),
+                p.isMoedasRoladas()
         );
+    }
+
+    public static AtributosDto atributos(Personagem p) {
+        if (p.getAttributes() == null) return null;
+        return new AtributosDto(
+                p.getAttributes().getForca(),
+                p.getAttributes().getDestreza(),
+                p.getAttributes().getConstituicao(),
+                p.getAttributes().getInteligencia(),
+                p.getAttributes().getSabedoria(),
+                p.getAttributes().getCarisma()
+        );
+    }
+
+    public static List<SpellDto> magias(Personagem p) {
+        if (p.getSpells() == null) return Collections.emptyList();
+        return p.getSpells().stream()
+                .map(m -> new SpellDto(m.getId(), m.getName(), m.getLevel(), m.getDescription()))
+                .toList();
+    }
+
+    public static Map<String, Integer> espacosDeMagia(Personagem p) {
+        return lerEspacos(p.getSpellSlots());
+    }
+
+    public static Map<String, Integer> espacosDeMagiaRestantes(Personagem p) {
+        return p.getSpellSlotsCurrent() == null ? espacosDeMagia(p) : lerEspacos(p.getSpellSlotsCurrent());
+    }
+
+    public static List<EquipamentoDto> equipamentos(Personagem p) {
+        return p.getEquipamentos().stream()
+                .map(e -> new EquipamentoDto(e.getTipo(), e.getNome(), e.getDano(),
+                        e.getAtributo() != null ? e.getAtributo().getChave() : null,
+                        e.getClasseArmadura(), e.getPropriedades()))
+                .toList();
+    }
+
+    public static List<ClasseDto> classes(Personagem p) {
+        return p.getClasses().stream()
+                .map(c -> new ClasseDto(c.getClasse(), c.getSubclasse(), c.getNivel(),
+                        c.getDadoVida(), c.getDadosVidaDisponiveis()))
+                .toList();
+    }
+
+    public static List<DeslocamentoAdicionalDto> deslocamentosAdicionais(Personagem p) {
+        return p.getDeslocamentosAdicionais().stream()
+                .map(d -> new DeslocamentoAdicionalDto(d.getTipo(), d.getMetros(), d.getOrigem(), d.isTemporario()))
+                .toList();
     }
 
     private static Map<String, Integer> lerEspacos(String json) {
@@ -160,7 +232,7 @@ public record PersonagemResponseDto(
         }
     }
 
-    private static Map<String, Integer> periciasEmOrdem(Personagem p) {
+    public static Map<String, Integer> periciasEmOrdem(Personagem p) {
         Map<String, Integer> pericias = new LinkedHashMap<>();
         Arrays.stream(Pericia.values())
                 .filter(pericia -> p.getSkills().containsKey(pericia.getChave()))
@@ -168,7 +240,7 @@ public record PersonagemResponseDto(
         return pericias;
     }
 
-    private static Map<String, Integer> salvaguardasEmOrdem(Personagem p) {
+    public static Map<String, Integer> salvaguardasEmOrdem(Personagem p) {
         Map<String, Integer> salvaguardas = new LinkedHashMap<>();
         Arrays.stream(Atributo.values())
                 .filter(p.getSalvaguardas()::containsKey)

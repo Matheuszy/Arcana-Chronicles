@@ -57,7 +57,7 @@ abstract class IntegracaoTest {
     protected MockMvc mockMvc;
 
     @Autowired
-    private JdbcTemplate jdbcTemplate;
+    protected JdbcTemplate jdbcTemplate;
 
     @LocalServerPort
     private int porta;

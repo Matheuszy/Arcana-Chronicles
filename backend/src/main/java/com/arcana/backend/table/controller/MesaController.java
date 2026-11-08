@@ -1,6 +1,7 @@
 package com.arcana.backend.table.controller;
 
 import com.arcana.backend.character.PersonagemResponseDto;
+import com.arcana.backend.character.RolagemDeFichaDto;
 import com.arcana.backend.table.MesaRequestDto;
 import com.arcana.backend.table.MesaResponseDto;
 import com.arcana.backend.table.SolicitacaoEntradaRequestDto;
@@ -100,6 +101,15 @@ public class MesaController {
             @AuthenticationPrincipal Usuario usuario) {
 
         return ResponseEntity.ok(mesaService.buscarFichaDeParticipante(id, characterId, usuario.getId()));
+    }
+
+    @GetMapping("/{id}/fichas/{characterId}/rolagens")
+    public ResponseEntity<List<RolagemDeFichaDto>> buscarRolagensDeFichaDeParticipante(
+            @PathVariable Long id,
+            @PathVariable Long characterId,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(mesaService.buscarRolagensDeFichaDeParticipante(id, characterId, usuario.getId()));
     }
 
     @PatchMapping("/{id}/personagem")

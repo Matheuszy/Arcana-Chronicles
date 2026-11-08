@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Character, KIND_LABEL } from '../../types/character';
+import { characterService } from '../../services/characterService';
 import { RollRequest } from '../../types/chat';
 import CharacterSheet from './CharacterSheet';
 
@@ -21,6 +22,7 @@ interface PrivateSheetsPanelProps {
   onRoll?: (request: RollRequest) => void;
   rollDisabledReason?: string | null;
   npcLinks?: NpcLinks;
+  onCharacterUpdated?: (character: Character) => void;
 }
 
 export default function PrivateSheetsPanel({
@@ -34,6 +36,7 @@ export default function PrivateSheetsPanel({
   onRoll,
   rollDisabledReason,
   npcLinks,
+  onCharacterUpdated,
 }: PrivateSheetsPanelProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [linkBusyId, setLinkBusyId] = useState<string | null>(null);
@@ -116,6 +119,8 @@ export default function PrivateSheetsPanel({
           onClose={() => setOpenId(null)}
           onRoll={onRoll}
           rollDisabledReason={rollDisabledReason}
+          onCharacterUpdated={onCharacterUpdated}
+          loadRollHistory={() => characterService.rollHistory(String(openCharacter.id))}
         />}
     </div>
   );

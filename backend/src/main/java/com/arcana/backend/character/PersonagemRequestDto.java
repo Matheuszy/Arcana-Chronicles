@@ -1,5 +1,6 @@
 package com.arcana.backend.character;
 
+import com.arcana.backend.character.model.TipoDeslocamento;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import jakarta.validation.Valid;
@@ -109,7 +110,68 @@ public record PersonagemRequestDto(
 
         @Min(value = 0, message = "Falhas nos testes contra a morte devem ser de 0 a 3")
         @Max(value = 3, message = "Falhas nos testes contra a morte devem ser de 0 a 3")
-        Integer falhasContraMorte
+        Integer falhasContraMorte,
+
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 idiomas")
+        List<@NotBlank(message = "Idioma não pode ser vazio")
+             @Size(max = 60, message = "Idioma não pode ter mais de 60 caracteres") String> idiomas,
+
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 proficiências em ferramentas")
+        List<@NotBlank(message = "Proficiência em ferramenta não pode ser vazia")
+             @Size(max = 60, message = "Proficiência em ferramenta não pode ter mais de 60 caracteres") String> proficienciasFerramentas,
+
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 proficiências em armas")
+        List<@NotBlank(message = "Proficiência em arma não pode ser vazia")
+             @Size(max = 60, message = "Proficiência em arma não pode ter mais de 60 caracteres") String> proficienciasArmas,
+
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 proficiências em armaduras")
+        List<@NotBlank(message = "Proficiência em armadura não pode ser vazia")
+             @Size(max = 60, message = "Proficiência em armadura não pode ter mais de 60 caracteres") String> proficienciasArmaduras,
+
+        @Size(max = 60, message = "Antecedente não pode ter mais de 60 caracteres")
+        String antecedente,
+
+        @Size(max = 1000, message = "Traços de personalidade não podem ter mais de 1000 caracteres")
+        String tracosPersonalidade,
+
+        @Size(max = 1000, message = "Ideais não podem ter mais de 1000 caracteres")
+        String ideais,
+
+        @Size(max = 1000, message = "Vínculos não podem ter mais de 1000 caracteres")
+        String vinculos,
+
+        @Size(max = 1000, message = "Defeitos não podem ter mais de 1000 caracteres")
+        String defeitos,
+
+        @Size(max = 10, message = "A ficha pode ter no máximo 10 deslocamentos adicionais")
+        List<@Valid DeslocamentoAdicionalDto> deslocamentosAdicionais,
+
+        @Min(value = 0, message = "Moedas de cobre não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de cobre não podem passar de 1.000.000")
+        Integer moedasCobre,
+
+        @Min(value = 0, message = "Moedas de prata não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de prata não podem passar de 1.000.000")
+        Integer moedasPrata,
+
+        @Min(value = 0, message = "Moedas de electro não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de electro não podem passar de 1.000.000")
+        Integer moedasElectro,
+
+        @Min(value = 0, message = "Moedas de ouro não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de ouro não podem passar de 1.000.000")
+        Integer moedasOuro,
+
+        @Min(value = 0, message = "Moedas de platina não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de platina não podem passar de 1.000.000")
+        Integer moedasPlatina,
+
+        @Size(max = 30, message = "Pacote de equipamento inválido")
+        String pacoteEquipamento,
+
+        @Min(value = 0, message = "A CA adicional não pode ser negativa")
+        @Max(value = 20, message = "A CA adicional não pode passar de 20")
+        Integer caAdicional
 
 ) {
     public record ClasseDto(
@@ -123,8 +185,17 @@ public record PersonagemRequestDto(
             @NotNull(message = "O nível da classe é obrigatório")
             @Min(value = 1, message = "O nível da classe deve ser de 1 a 20")
             @Max(value = 20, message = "O nível da classe deve ser de 1 a 20")
-            Integer nivel
-    ) {}
+            Integer nivel,
+
+            Integer dadoVida,
+
+            @Min(value = 0, message = "Os dados de vida disponíveis não podem ser negativos")
+            Integer dadosVidaDisponiveis
+    ) {
+        public ClasseDto(String classe, String subclasse, Integer nivel) {
+            this(classe, subclasse, nivel, null, null);
+        }
+    }
 
     public record EquipamentoDto(
             @NotNull(message = "Escolha se o equipamento é arma ou armadura")
@@ -146,6 +217,21 @@ public record PersonagemRequestDto(
 
             @Size(max = 200, message = "As propriedades não podem ter mais de 200 caracteres")
             String propriedades
+    ) {}
+
+    public record DeslocamentoAdicionalDto(
+            @NotNull(message = "Escolha o tipo do deslocamento adicional")
+            TipoDeslocamento tipo,
+
+            @NotNull(message = "Informe os metros do deslocamento adicional")
+            @Min(value = 0, message = "O deslocamento adicional não pode ser negativo")
+            @Max(value = 300, message = "O deslocamento adicional não pode passar de 300 metros")
+            Integer metros,
+
+            @Size(max = 60, message = "A origem do deslocamento não pode ter mais de 60 caracteres")
+            String origem,
+
+            Boolean temporario
     ) {}
 
     public record AtributosDto(

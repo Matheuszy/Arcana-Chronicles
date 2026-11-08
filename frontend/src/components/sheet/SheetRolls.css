@@ -1,0 +1,72 @@
+.hit-point-rolls {
+  display: grid;
+  gap: 0.75rem;
+}
+.hit-point-roll {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--leather);
+  border-radius: var(--radius-md);
+}
+.hit-point-roll h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.hit-point-roll .btn { justify-self: start; }
+.hit-point-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+}
+.hit-point-field {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+}
+.hit-point-field .number-input { width: 6.5rem; }
+.hit-point-hint,
+.sheet-roll-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+.hit-point-result { margin: 0; font-size: 0.9rem; }
+.hit-point-error { margin: 0; color: var(--danger-text); font-size: 0.85rem; }
+
+.sheet-roll-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+.sheet-roll-history li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.6rem;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px dashed var(--leather);
+  overflow-wrap: anywhere;
+}
+.sheet-roll-time {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.extra-armor-class {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+.extra-armor-class .number-input { width: 5.5rem; }

@@ -1,5 +1,7 @@
 package com.arcana.backend.chat;
 
+import com.arcana.backend.character.RolagemDeFichaPublicadaEvent;
+import com.arcana.backend.chat.dice.ModoRolagem;
 import com.arcana.backend.chat.dice.RolagemDadosService;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.security.LimitadorDeTentativas;
@@ -194,6 +196,36 @@ public class MesaChatHandler extends TextWebSocketHandler {
             ChatMessage alteracao = eventoDaMesa(tableId, ChatMessage.Type.STATUS_MESA);
             alteracao.setContent(evento.status().name());
             broadcast(mesa, alteracao, null);
+        });
+    }
+
+    @TransactionalEventListener(fallbackExecution = true)
+    public void aoRolarNaFicha(RolagemDeFichaPublicadaEvent evento) {
+        gerenciadorMesas.buscar(evento.mesaId()).ifPresent(mesa -> {
+            int somaDosDados = evento.dados().stream().mapToInt(Integer::intValue).sum();
+            ChatMessage.DiceRollResult resultado = new ChatMessage.DiceRollResult();
+            resultado.setExpression(evento.expressao());
+            resultado.setSides(evento.lados());
+            resultado.setQuantity(evento.dados().size());
+            resultado.setMode(ModoRolagem.NORMAL.name());
+            resultado.setRolls(evento.dados());
+            resultado.setKept(somaDosDados);
+            resultado.setModifier(evento.total() - somaDosDados);
+            resultado.setTotal(evento.total());
+            resultado.setLabel(evento.descricao());
+
+            ChatMessage rolagem = new ChatMessage();
+            rolagem.setId(UUID.randomUUID().toString());
+            rolagem.setTableId(String.valueOf(evento.mesaId()));
+            rolagem.setAuthorId(String.valueOf(evento.autorId()));
+            rolagem.setAuthorName(evento.autorNome());
+            rolagem.setType(ChatMessage.Type.ROLAGEM);
+            rolagem.setCanal(Canal.ROLAGENS);
+            rolagem.setDiceResult(resultado);
+            rolagem.setContent(rolagemDadosService.descrever(resultado));
+            rolagem.setCreatedAt(Instant.now().toString());
+            mesa.registrar(rolagem);
+            broadcast(mesa, rolagem, null);
         });
     }
 

@@ -1,4 +1,4 @@
-import { Character } from '../types/character';
+import { Character, SheetRoll } from '../types/character';
 import { GameTable, JoinRequest } from '../types/table';
 import { apiRequest } from './httpClient';
 
@@ -49,6 +49,10 @@ export const tableService = {
 
   participantSheet(tableId: string, characterId: string): Promise<Character> {
     return apiRequest<Character>(`${BASE_PATH}/${tableId}/fichas/${characterId}`);
+  },
+
+  participantSheetRolls(tableId: string, characterId: string): Promise<SheetRoll[]> {
+    return apiRequest<SheetRoll[]>(`${BASE_PATH}/${tableId}/fichas/${characterId}/rolagens`);
   },
 
   changeCharacter(tableId: string, characterId?: string): Promise<GameTable> {

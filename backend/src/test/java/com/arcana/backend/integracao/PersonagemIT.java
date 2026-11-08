@@ -33,6 +33,12 @@ class PersonagemIT extends IntegracaoTest {
         editada.put("inspiracao", true);
         editada.put("sucessosContraMorte", 2);
         editada.put("falhasContraMorte", 1);
+        editada.put("idiomas", List.of("Comum", "Anão"));
+        editada.put("proficienciasArmas", List.of("Machados"));
+        editada.put("antecedente", "Artesão de guilda");
+        editada.put("ideais", "Comunidade");
+        editada.put("deslocamentosAdicionais", List.of(
+                Map.of("tipo", "VOO", "metros", 18, "origem", "Asas", "temporario", false)));
         putComo(dono.token(), "/api/characters/" + id, editada)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Thorn Reforjado"))
@@ -41,10 +47,32 @@ class PersonagemIT extends IntegracaoTest {
                 .andExpect(jsonPath("$.deslocamento").value(12))
                 .andExpect(jsonPath("$.inspiracao").value(true))
                 .andExpect(jsonPath("$.sucessosContraMorte").value(2))
-                .andExpect(jsonPath("$.falhasContraMorte").value(1));
+                .andExpect(jsonPath("$.falhasContraMorte").value(1))
+                .andExpect(jsonPath("$.idiomas[1]").value("Anão"))
+                .andExpect(jsonPath("$.proficienciasArmas[0]").value("Machados"))
+                .andExpect(jsonPath("$.proficienciasArmaduras").isEmpty())
+                .andExpect(jsonPath("$.antecedente").value("Artesão de guilda"))
+                .andExpect(jsonPath("$.ideais").value("Comunidade"))
+                .andExpect(jsonPath("$.percepcaoPassiva").value(12))
+                .andExpect(jsonPath("$.deslocamentosAdicionais[0].tipo").value("VOO"))
+                .andExpect(jsonPath("$.deslocamentosAdicionais[0].metros").value(18));
 
         deleteComo(dono.token(), "/api/characters/" + id).andExpect(status().isNoContent());
         getComo(dono.token(), "/api/characters/" + id).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void devePermitirApenasAoDonoAjustarACaAdicional() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Long id = criarPersonagem(dono, "PLAYER");
+        String url = "/api/characters/" + id + "/ca-adicional";
+
+        patchComo(dono.token(), url, Map.of("valor", 2))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.caAdicional").value(2))
+                .andExpect(jsonPath("$.classeArmaduraTotal").value(14));
+        patchComo(registrar("JOGADOR").token(), url, Map.of("valor", 3)).andExpect(status().isForbidden());
+        patchComo(dono.token(), url, Map.of("valor", 21)).andExpect(status().isBadRequest());
     }
 
     @Test

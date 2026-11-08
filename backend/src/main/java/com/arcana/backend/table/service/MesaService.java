@@ -1,9 +1,11 @@
 package com.arcana.backend.table.service;
 
 import com.arcana.backend.character.PersonagemResponseDto;
+import com.arcana.backend.character.RolagemDeFichaDto;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PersonagemRepository;
+import com.arcana.backend.character.repository.RolagemDeFichaRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.AcessoMesaDto;
@@ -43,19 +45,22 @@ public class MesaService {
     private final Clock clock;
     private final ApplicationEventPublisher eventPublisher;
     private final SessoesAtivasDeMesa sessoesAtivas;
+    private final RolagemDeFichaRepository rolagemDeFichaRepository;
 
     public MesaService(MesaRepository mesaRepository,
                        PersonagemRepository personagemRepository,
                        SolicitacaoEntradaRepository solicitacaoRepository,
                        Clock clock,
                        ApplicationEventPublisher eventPublisher,
-                       SessoesAtivasDeMesa sessoesAtivas) {
+                       SessoesAtivasDeMesa sessoesAtivas,
+                       RolagemDeFichaRepository rolagemDeFichaRepository) {
         this.mesaRepository = mesaRepository;
         this.personagemRepository = personagemRepository;
         this.solicitacaoRepository = solicitacaoRepository;
         this.clock = clock;
         this.eventPublisher = eventPublisher;
         this.sessoesAtivas = sessoesAtivas;
+        this.rolagemDeFichaRepository = rolagemDeFichaRepository;
     }
 
     /** Lista todas as mesas (frontend usa GET /api/tables sem filtro) */
@@ -219,6 +224,17 @@ public class MesaService {
     }
 
     public PersonagemResponseDto buscarFichaDeParticipante(Long mesaId, Long characterId, Long masterId) {
+        return PersonagemResponseDto.from(buscarPersonagemDeParticipante(mesaId, characterId, masterId));
+    }
+
+    public List<RolagemDeFichaDto> buscarRolagensDeFichaDeParticipante(Long mesaId, Long characterId, Long masterId) {
+        Long personagemId = buscarPersonagemDeParticipante(mesaId, characterId, masterId).getId();
+        return rolagemDeFichaRepository.findTop50ByPersonagemIdOrderByCreatedAtDescIdDesc(personagemId).stream()
+                .map(RolagemDeFichaDto::from)
+                .toList();
+    }
+
+    private Personagem buscarPersonagemDeParticipante(Long mesaId, Long characterId, Long masterId) {
         Mesa mesa = findOrThrow(mesaId);
         validarMestreDaMesa(mesa, masterId, "Apenas o mestre da mesa pode ver fichas de outros participantes.");
 
@@ -232,7 +248,7 @@ public class MesaService {
                 .filter(p -> p.getOwner().getId().equals(participante.getUserId()))
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Personagem não encontrado: " + characterId));
 
-        return PersonagemResponseDto.from(personagem);
+        return personagem;
     }
 
     @Transactional

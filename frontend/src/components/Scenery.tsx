@@ -7,7 +7,7 @@ export function sceneryForPath(pathname: string): SceneryVariant {
   if (/^\/mesas\/[^/]+/.test(pathname)) return 'mesa';
   if (pathname.startsWith('/mesas')) return 'mapa';
   if (pathname.startsWith('/fichas')) return 'grimorio';
-  if (pathname.startsWith('/conta')) return 'estalagem';
+  if (pathname.startsWith('/conta') || pathname.startsWith('/notas')) return 'estalagem';
   return 'portal';
 }
 

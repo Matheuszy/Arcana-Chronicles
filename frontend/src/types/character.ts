@@ -49,6 +49,71 @@ export interface ClassEntry {
   classe: string;
   subclasse: string;
   nivel: number;
+  dadoVida?: number;
+  dadosVidaDisponiveis?: number;
+}
+
+export const HIT_DICE = [6, 8, 10, 12] as const;
+export const DEFAULT_HIT_DIE = 8;
+export const MAX_SHEET_ROLL_DICE = 20;
+export const MAX_SHEET_ROLL_MODIFIER = 20;
+
+export type SheetRollType = 'VIDA' | 'DADOS_DE_VIDA' | 'MOEDAS';
+
+export type Coin = 'COBRE' | 'PRATA' | 'ELECTRO' | 'OURO' | 'PLATINA';
+
+export type CoinField = 'moedasCobre' | 'moedasPrata' | 'moedasElectro' | 'moedasOuro' | 'moedasPlatina';
+
+export const COINS: ReadonlyArray<{ coin: Coin; field: CoinField; label: string; short: string }> = [
+  { coin: 'COBRE', field: 'moedasCobre', label: 'Cobre', short: 'PC' },
+  { coin: 'PRATA', field: 'moedasPrata', label: 'Prata', short: 'PP' },
+  { coin: 'ELECTRO', field: 'moedasElectro', label: 'Electro', short: 'PE' },
+  { coin: 'OURO', field: 'moedasOuro', label: 'Ouro', short: 'PO' },
+  { coin: 'PLATINA', field: 'moedasPlatina', label: 'Platina', short: 'PL' },
+];
+
+export const MAX_COINS = 1000000;
+export const MAX_COIN_MULTIPLIER = 1000;
+export const COIN_DICE = [4, 6, 8, 10, 12, 20, 100] as const;
+
+export interface CoinAddRequest {
+  moeda: Coin;
+  quantidade: number;
+}
+
+export interface CoinRollRequest {
+  moeda: Coin;
+  lados: number;
+  quantidade: number;
+  modificador: number;
+  multiplicador: number;
+}
+
+export interface SheetRoll {
+  id: string;
+  tipo: SheetRollType;
+  descricao: string;
+  expressao: string;
+  resultados: number[];
+  total: number;
+  createdAt: string;
+}
+
+export interface SheetRollOutcome {
+  rolagem: SheetRoll;
+  ficha: Character;
+}
+
+export interface HitPointRollRequest {
+  lados: number;
+  quantidade: number;
+  modificador: number;
+}
+
+export interface HitDiceSpendRequest {
+  classe: number;
+  quantidade: number;
+  modificador: number;
 }
 
 export type EquipmentType = 'ARMA' | 'ARMADURA';
@@ -67,6 +132,44 @@ export const EQUIPMENT_TYPE_LABEL: Record<EquipmentType, string> = {
   ARMADURA: 'Armadura',
 };
 
+export type MovementType = 'VOO' | 'NATACAO' | 'ESCALADA' | 'ESCAVACAO' | 'BONUS_CAMINHADA';
+
+export const MOVEMENT_TYPES: MovementType[] = ['VOO', 'NATACAO', 'ESCALADA', 'ESCAVACAO', 'BONUS_CAMINHADA'];
+
+export const MOVEMENT_TYPE_LABEL: Record<MovementType, string> = {
+  VOO: 'Voo',
+  NATACAO: 'Natação',
+  ESCALADA: 'Escalada',
+  ESCAVACAO: 'Escavação',
+  BONUS_CAMINHADA: 'Bônus de caminhada',
+};
+
+export interface AdditionalMovement {
+  tipo: MovementType;
+  metros: number;
+  origem?: string | null;
+  temporario: boolean;
+}
+
+export const MAX_MOVEMENT = 300;
+export const MAX_EXTRA_ARMOR_CLASS = 20;
+
+export function totalArmorClass(character: Character): number {
+  return character.classeArmaduraTotal ?? character.armorClass + (character.caAdicional ?? 0);
+}
+export const MAX_ADDITIONAL_MOVEMENTS = 10;
+export const MAX_MOVEMENT_ORIGIN_LENGTH = 60;
+
+export interface EquipmentPack {
+  chave: string;
+  nome: string;
+  itens: string[];
+}
+
+export function equipmentPackName(chave: string): string {
+  return chave.charAt(0) + chave.slice(1).toLowerCase();
+}
+
 export interface Character {
   id?: string;
   ownerId?: string;
@@ -81,6 +184,27 @@ export interface Character {
   inspiracao?: boolean;
   sucessosContraMorte?: number;
   falhasContraMorte?: number;
+  idiomas?: string[];
+  proficienciasFerramentas?: string[];
+  proficienciasArmas?: string[];
+  proficienciasArmaduras?: string[];
+  antecedente?: string;
+  tracosPersonalidade?: string;
+  ideais?: string;
+  vinculos?: string;
+  defeitos?: string;
+  percepcaoPassiva?: number;
+  deslocamentosAdicionais?: AdditionalMovement[];
+  moedasCobre?: number;
+  moedasPrata?: number;
+  moedasElectro?: number;
+  moedasOuro?: number;
+  moedasPlatina?: number;
+  pacoteEquipamento?: string | null;
+  caAdicional?: number;
+  moedasRoladas?: boolean;
+  classeArmaduraTotal?: number;
+  itensDoPacote?: string[];
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */
@@ -113,7 +237,114 @@ export interface Character {
   items?: string[];
 }
 
+export type SheetSection = 'personagem' | 'atributos' | 'habilidades' | 'equipamento' | 'magias';
+
+export type SheetTab = SheetSection | 'rolagens';
+
+export const SHEET_SECTION_FIELDS: Record<SheetSection, ReadonlyArray<keyof Character>> = {
+  personagem: [
+    'name',
+    'kind',
+    'classes',
+    'raca',
+    'alinhamento',
+    'antecedente',
+    'tracosPersonalidade',
+    'ideais',
+    'vinculos',
+    'defeitos',
+    'backstory',
+    'personalityPrompt',
+    'avatarUrl',
+  ],
+  atributos: [
+    'hpMax',
+    'hpCurrent',
+    'vidaTemporaria',
+    'armorClass',
+    'caAdicional',
+    'deslocamento',
+    'deslocamentosAdicionais',
+    'inspiracao',
+    'sucessosContraMorte',
+    'falhasContraMorte',
+    'proficiencyBonus',
+    'attributes',
+    'savingThrows',
+    'skills',
+  ],
+  habilidades: [
+    'habilidades',
+    'habilidadesRaca',
+    'talentos',
+    'idiomas',
+    'proficienciasFerramentas',
+    'proficienciasArmas',
+    'proficienciasArmaduras',
+  ],
+  equipamento: ['equipamentos', 'items', 'moedasCobre', 'moedasPrata', 'moedasElectro', 'moedasOuro', 'moedasPlatina'],
+  magias: ['spells', 'spellSlots', 'spellSlotsCurrent'],
+};
+
+export const SHEET_SECTIONS = Object.keys(SHEET_SECTION_FIELDS) as SheetSection[];
+
+export const sheetSection = (character: Character, section: SheetSection): Partial<Character> =>
+  Object.fromEntries(SHEET_SECTION_FIELDS[section].map((field) => [field, character[field]]));
+
+export const SHEET_TAB_LABEL: Record<SheetTab, string> = {
+  personagem: 'Personagem',
+  atributos: 'Atributos',
+  habilidades: 'Habilidades',
+  equipamento: 'Equipamento',
+  magias: 'Magias',
+  rolagens: 'Rolagens',
+};
+
+export const SHEET_TABS: SheetTab[] = ['personagem', 'atributos', 'habilidades', 'equipamento', 'magias', 'rolagens'];
+
 export const DEATH_SAVE_MARKS = 3;
+export const MAX_ATTRIBUTE_ROLLS = 3;
+export const MAX_PROFICIENCY_ENTRIES = 30;
+export const MAX_PROFICIENCY_ENTRY_LENGTH = 60;
+export const STANDARD_LANGUAGES = [
+  'Comum',
+  'Anão',
+  'Élfico',
+  'Gigante',
+  'Gnômico',
+  'Goblin',
+  'Halfling',
+  'Orc',
+  'Abissal',
+  'Celestial',
+  'Dracônico',
+  'Dialeto Subterrâneo',
+  'Infernal',
+  'Primordial',
+  'Silvestre',
+  'Subcomum',
+] as const;
+
+export const MAX_BACKGROUND_LENGTH = 60;
+export const MAX_PERSONALITY_LENGTH = 1000;
+
+export type PersonalityKey = 'tracosPersonalidade' | 'ideais' | 'vinculos' | 'defeitos';
+
+export const PERSONALITY_FIELDS: ReadonlyArray<{ key: PersonalityKey; label: string; placeholder: string }> = [
+  { key: 'tracosPersonalidade', label: 'Traços de personalidade', placeholder: 'ex: Sempre tenho uma piada pronta, mesmo nas horas erradas.' },
+  { key: 'ideais', label: 'Ideais', placeholder: 'ex: Liberdade. Correntes foram feitas para ser quebradas.' },
+  { key: 'vinculos', label: 'Vínculos', placeholder: 'ex: Devo minha vida ao sacerdote que me acolheu.' },
+  { key: 'defeitos', label: 'Defeitos', placeholder: 'ex: Não resisto a uma aposta, por pior que seja.' },
+];
+
+export type ProficiencyListKey = 'idiomas' | 'proficienciasFerramentas' | 'proficienciasArmas' | 'proficienciasArmaduras';
+
+export const PROFICIENCY_LISTS: ReadonlyArray<{ key: ProficiencyListKey; label: string; placeholder: string; empty: string }> = [
+  { key: 'idiomas', label: 'Idiomas', placeholder: 'ex: Élfico', empty: 'Nenhum idioma na ficha.' },
+  { key: 'proficienciasFerramentas', label: 'Ferramentas', placeholder: 'ex: Ferramentas de ladrão', empty: 'Nenhuma ferramenta na ficha.' },
+  { key: 'proficienciasArmas', label: 'Armas', placeholder: 'ex: Armas simples', empty: 'Nenhuma arma na ficha.' },
+  { key: 'proficienciasArmaduras', label: 'Armaduras', placeholder: 'ex: Armaduras leves', empty: 'Nenhuma armadura na ficha.' },
+];
 export const MAX_SPELL_SLOTS = 20;
 export const SPELL_CIRCLES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 export const MAX_ITEMS = 50;
@@ -130,8 +361,7 @@ export const MAX_EQUIPMENT_PROPERTIES_LENGTH = 200;
 export const MAX_EQUIPMENT_ARMOR_CLASS = 30;
 export const DAMAGE_DICE_PATTERN = /^([1-9]|1[0-9]|20)d(4|6|8|10|12|20|100)$/;
 export const DEFAULT_PROFICIENCY_BONUS = 2;
-export const PASSIVE_PERCEPTION_BASE = 8;
-export const PASSIVE_PERCEPTION_FIXED_BONUS = 2;
+export const PASSIVE_PERCEPTION_BASE = 10;
 
 export const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
   'forca',
@@ -259,7 +489,11 @@ export function parseDamageDice(dano: string | null | undefined): { quantidade: 
 }
 
 export function passivePerception(character: Character): number {
-  return PASSIVE_PERCEPTION_BASE + PASSIVE_PERCEPTION_FIXED_BONUS + attributeModifier(character.attributes.sabedoria);
+  return (
+    PASSIVE_PERCEPTION_BASE +
+    attributeModifier(character.attributes.sabedoria) +
+    (character.proficiencyBonus ?? DEFAULT_PROFICIENCY_BONUS)
+  );
 }
 
 export function attributeRollModifier(character: Character, attribute: keyof Attributes): number {

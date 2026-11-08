@@ -46,6 +46,9 @@ public class Personagem {
     @Column(name = "vida_temporaria")
     private Integer vidaTemporaria;
 
+    @Column(name = "ca_adicional", nullable = false)
+    private Integer caAdicional = 0;
+
     @Column(nullable = false)
     private Integer deslocamento = 9;
 
@@ -57,6 +60,29 @@ public class Personagem {
 
     @Column(name = "falhas_contra_morte", nullable = false)
     private Integer falhasContraMorte = 0;
+
+    @Column(name = "moedas_cobre", nullable = false)
+    private Integer moedasCobre = 0;
+
+    @Column(name = "moedas_prata", nullable = false)
+    private Integer moedasPrata = 0;
+
+    @Column(name = "moedas_electro", nullable = false)
+    private Integer moedasElectro = 0;
+
+    @Column(name = "moedas_ouro", nullable = false)
+    private Integer moedasOuro = 0;
+
+    @Column(name = "moedas_platina", nullable = false)
+    private Integer moedasPlatina = 0;
+
+    @Column(name = "moedas_roladas", nullable = false)
+    private boolean moedasRoladas;
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_deslocamentos_adicionais", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    private List<DeslocamentoAdicional> deslocamentosAdicionais = new ArrayList<>();
 
     @ElementCollection
     @CollectionTable(name = "personagem_classes", joinColumns = @JoinColumn(name = "personagem_id"))
@@ -78,6 +104,21 @@ public class Personagem {
     @Column(name = "habilidades_raca", columnDefinition = "TEXT")
     private String habilidadesRaca;
 
+    @Column(length = 60)
+    private String antecedente;
+
+    @Column(name = "tracos_personalidade", columnDefinition = "TEXT")
+    private String tracosPersonalidade;
+
+    @Column(columnDefinition = "TEXT")
+    private String ideais;
+
+    @Column(columnDefinition = "TEXT")
+    private String vinculos;
+
+    @Column(columnDefinition = "TEXT")
+    private String defeitos;
+
     @Column(name = "bonus_proficiencia", nullable = false)
     private Integer bonusProficiencia = 2;
 
@@ -97,6 +138,39 @@ public class Personagem {
     @Column(name = "item")
     private List<String> itens = new ArrayList<>();
 
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_idiomas", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "idioma", length = 60, nullable = false)
+    private List<String> idiomas = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_proficiencias_ferramentas", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "ferramenta", length = 60, nullable = false)
+    private List<String> proficienciasFerramentas = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_proficiencias_armas", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "arma", length = 60, nullable = false)
+    private List<String> proficienciasArmas = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_proficiencias_armaduras", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "armadura", length = 60, nullable = false)
+    private List<String> proficienciasArmaduras = new ArrayList<>();
+
+    @Column(name = "pacote_equipamento", length = 30)
+    private String pacoteEquipamento;
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_itens_do_pacote", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "item", nullable = false, length = 100)
+    private List<String> itensDoPacote = new ArrayList<>();
 
     @ElementCollection
     @CollectionTable(name = "personagem_pericias", joinColumns = @JoinColumn(name = "personagem_id"))
@@ -143,4 +217,60 @@ public class Personagem {
     }
 
     public Personagem() {}
+
+    public static final int LIMITE_DE_ITENS = 50;
+    public static final int LIMITE_DE_MOEDAS = 1_000_000;
+
+    public void acrescentarMoedas(Moeda moeda, int quantidade) {
+        int novoValor = moedas(moeda) + quantidade;
+        if (novoValor > LIMITE_DE_MOEDAS) {
+            throw new IllegalStateException("As moedas de " + moeda.getNome().toLowerCase()
+                    + " passariam do limite de 1.000.000.");
+        }
+        definirMoedas(moeda, novoValor);
+    }
+
+    public void aplicarPacote(PacoteEquipamento pacote) {
+        if (pacote.getChave().equals(pacoteEquipamento)) {
+            throw new IllegalStateException("O pacote " + pacote.getNome() + " já está na ficha.");
+        }
+        List<String> novosItens = new ArrayList<>(itens);
+        itensDoPacote.forEach(novosItens::remove);
+        novosItens.addAll(pacote.getItens());
+        if (novosItens.size() > LIMITE_DE_ITENS) {
+            throw new IllegalStateException("Com o pacote " + pacote.getNome() + " a ficha passaria de "
+                    + LIMITE_DE_ITENS + " itens. Remova alguns itens antes.");
+        }
+        itens.clear();
+        itens.addAll(novosItens);
+        itensDoPacote.clear();
+        itensDoPacote.addAll(pacote.getItens());
+        pacoteEquipamento = pacote.getChave();
+    }
+
+    public int moedas(Moeda moeda) {
+        return switch (moeda) {
+            case COBRE -> moedasCobre;
+            case PRATA -> moedasPrata;
+            case ELECTRO -> moedasElectro;
+            case OURO -> moedasOuro;
+            case PLATINA -> moedasPlatina;
+        };
+    }
+
+    public void definirMoedas(Moeda moeda, int quantidade) {
+        switch (moeda) {
+            case COBRE -> moedasCobre = quantidade;
+            case PRATA -> moedasPrata = quantidade;
+            case ELECTRO -> moedasElectro = quantidade;
+            case OURO -> moedasOuro = quantidade;
+            case PLATINA -> moedasPlatina = quantidade;
+        }
+    }
+
+    public int calcularPercepcaoPassiva() {
+        int sabedoria = attributes != null && attributes.getSabedoria() != null ? attributes.getSabedoria() : 10;
+        int proficiencia = bonusProficiencia != null ? bonusProficiencia : 0;
+        return 10 + Math.floorDiv(sabedoria - 10, 2) + proficiencia;
+    }
 }

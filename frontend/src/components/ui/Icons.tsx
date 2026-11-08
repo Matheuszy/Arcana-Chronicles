@@ -55,6 +55,16 @@ export function HelmIcon(props: IconProps) {
   );
 }
 
+export function PosterIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5.5 4h13l-.6 16.5H6.1z" />
+      <circle cx="12" cy="6.8" r="0.9" fill="currentColor" stroke="none" />
+      <path d="M8.5 10h7M8.5 13h7M9.5 16h5" />
+    </Icon>
+  );
+}
+
 export function SwordShieldIcon(props: IconProps) {
   return (
     <Icon {...props}>
