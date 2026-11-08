@@ -238,6 +238,7 @@ export interface Character {
 }
 
 export const DEATH_SAVE_MARKS = 3;
+export const MAX_ATTRIBUTE_ROLLS = 3;
 export const MAX_PROFICIENCY_ENTRIES = 30;
 export const MAX_PROFICIENCY_ENTRY_LENGTH = 60;
 export const STANDARD_LANGUAGES = [

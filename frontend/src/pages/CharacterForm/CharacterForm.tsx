@@ -31,6 +31,7 @@ import {
   MAX_COINS,
   DEFAULT_HIT_DIE,
   HIT_DICE,
+  MAX_ATTRIBUTE_ROLLS,
   MAX_BACKGROUND_LENGTH,
   MAX_EXTRA_ARMOR_CLASS,
   MAX_MOVEMENT,
@@ -277,6 +278,8 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     setField(key, checked ? mark + 1 : mark);
 
   const [lastRollId, setLastRollId] = useState<string | null>(null);
+  const [attributeRollsUsed, setAttributeRollsUsed] = useState(0);
+  const attributeRollsLeft = MAX_ATTRIBUTE_ROLLS - attributeRollsUsed;
 
   const applyRolledCharacter = (rolled: Character, rollId: string) => {
     const merge = (current: Character): Character => ({
@@ -401,8 +404,9 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     addEquipment();
   };
 
-  // Rola todos os atributos de uma vez
   const rollAllAttributes = () => {
+    if (attributeRollsLeft <= 0) return;
+    setAttributeRollsUsed((used) => used + 1);
     const rolled: Attributes = {
       forca: rollAttribute(),
       destreza: rollAttribute(),
@@ -412,11 +416,6 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
       carisma: rollAttribute(),
     };
     setForm((prev) => ({ ...prev, attributes: rolled }));
-  };
-
-  // Rola um atributo individual
-  const rollSingleAttribute = (key: keyof Attributes) => {
-    setAttribute(key, rollAttribute());
   };
 
   // Perícias
@@ -912,13 +911,21 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
               type="button"
               className="btn btn-roll"
               onClick={rollAllAttributes}
+              disabled={attributeRollsLeft <= 0}
               title="Rola 4d6 descartando o menor para cada atributo"
             >
-              🎲 Rolar todos
+              🎲 Rolar todos ({attributeRollsLeft}/{MAX_ATTRIBUTE_ROLLS})
             </button>
           )}
         </div>
         {id && <p className="muted-hint">Os dados de atributo só podem ser rolados na criação da ficha.</p>}
+        {!id && (
+          <p className="muted-hint" aria-live="polite">
+            {attributeRollsLeft > 0
+              ? `Você tem ${attributeRollsLeft} de ${MAX_ATTRIBUTE_ROLLS} rolagens para esta ficha. Cada uma rola os seis atributos.`
+              : 'Você usou as 3 rolagens desta ficha. Fique com os valores rolados ou edite os atributos manualmente.'}
+          </p>
+        )}
 
         <div className="attrs-grid">
           {ATTRIBUTE_KEYS.map((key) => (
@@ -933,17 +940,6 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
                   value={form.attributes[key]}
                   onChange={(score) => setAttribute(key, score)}
                 />
-                {!id && (
-                  <button
-                    type="button"
-                    className="btn-roll-single"
-                    onClick={() => rollSingleAttribute(key)}
-                    title={`Rolar ${ATTRIBUTE_LABEL[key]}`}
-                    aria-label={`Rolar ${ATTRIBUTE_LABEL[key]}`}
-                  >
-                    🎲
-                  </button>
-                )}
               </div>
               <span className="modifier">{modifierFor(key)}</span>
               <label className={`saving-throw ${form.savingThrows?.[key] !== undefined ? 'proficient' : ''}`}>
