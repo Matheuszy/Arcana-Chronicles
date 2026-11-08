@@ -50,7 +50,8 @@ class PersonagemIT extends IntegracaoTest {
                 .andExpect(jsonPath("$.proficienciasArmas[0]").value("Machados"))
                 .andExpect(jsonPath("$.proficienciasArmaduras").isEmpty())
                 .andExpect(jsonPath("$.antecedente").value("Artesão de guilda"))
-                .andExpect(jsonPath("$.ideais").value("Comunidade"));
+                .andExpect(jsonPath("$.ideais").value("Comunidade"))
+                .andExpect(jsonPath("$.percepcaoPassiva").value(12));
 
         deleteComo(dono.token(), "/api/characters/" + id).andExpect(status().isNoContent());
         getComo(dono.token(), "/api/characters/" + id).andExpect(status().isNotFound());

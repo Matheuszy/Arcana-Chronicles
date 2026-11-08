@@ -256,6 +256,26 @@ class PersonagemServiceTest {
         assertEquals(0, resposta.falhasContraMorte());
     }
 
+    @Test
+    void deveCalcularPercepcaoPassivaComModificadorDeSabedoriaEBonusDeProficiencia() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setAttributes(new Atributos(10, 10, 10, 10, 15, 10));
+        personagem.setBonusProficiencia(3);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        assertEquals(15, service.buscarPorId(10L, 1L).percepcaoPassiva());
+    }
+
+    @Test
+    void deveCalcularPercepcaoPassivaComSabedoriaBaixaArredondandoParaBaixo() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setAttributes(new Atributos(10, 10, 10, 10, 7, 10));
+        personagem.setBonusProficiencia(2);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        assertEquals(10, service.buscarPorId(10L, 1L).percepcaoPassiva());
+    }
+
     private PersonagemRequestDto dtoComProficiencias(List<String> idiomas, List<String> ferramentas,
                                                      List<String> armas, List<String> armaduras) {
         return new PersonagemRequestDto(

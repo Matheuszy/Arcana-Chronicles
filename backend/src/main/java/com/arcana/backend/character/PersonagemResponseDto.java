@@ -57,7 +57,8 @@ public record PersonagemResponseDto(
         String tracosPersonalidade,
         String ideais,
         String vinculos,
-        String defeitos
+        String defeitos,
+        int percepcaoPassiva
 
 ) {
     public record ClasseDto(
@@ -165,7 +166,8 @@ public record PersonagemResponseDto(
                 p.getTracosPersonalidade(),
                 p.getIdeais(),
                 p.getVinculos(),
-                p.getDefeitos()
+                p.getDefeitos(),
+                p.calcularPercepcaoPassiva()
         );
     }
 

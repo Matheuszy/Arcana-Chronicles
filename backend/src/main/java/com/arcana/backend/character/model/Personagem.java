@@ -182,4 +182,10 @@ public class Personagem {
     }
 
     public Personagem() {}
+
+    public int calcularPercepcaoPassiva() {
+        int sabedoria = attributes != null && attributes.getSabedoria() != null ? attributes.getSabedoria() : 10;
+        int proficiencia = bonusProficiencia != null ? bonusProficiencia : 0;
+        return 10 + Math.floorDiv(sabedoria - 10, 2) + proficiencia;
+    }
 }

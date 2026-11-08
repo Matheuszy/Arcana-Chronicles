@@ -90,6 +90,7 @@ export interface Character {
   ideais?: string;
   vinculos?: string;
   defeitos?: string;
+  percepcaoPassiva?: number;
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */
@@ -180,8 +181,7 @@ export const MAX_EQUIPMENT_PROPERTIES_LENGTH = 200;
 export const MAX_EQUIPMENT_ARMOR_CLASS = 30;
 export const DAMAGE_DICE_PATTERN = /^([1-9]|1[0-9]|20)d(4|6|8|10|12|20|100)$/;
 export const DEFAULT_PROFICIENCY_BONUS = 2;
-export const PASSIVE_PERCEPTION_BASE = 8;
-export const PASSIVE_PERCEPTION_FIXED_BONUS = 2;
+export const PASSIVE_PERCEPTION_BASE = 10;
 
 export const ATTRIBUTE_KEYS: (keyof Attributes)[] = [
   'forca',
@@ -309,7 +309,11 @@ export function parseDamageDice(dano: string | null | undefined): { quantidade: 
 }
 
 export function passivePerception(character: Character): number {
-  return PASSIVE_PERCEPTION_BASE + PASSIVE_PERCEPTION_FIXED_BONUS + attributeModifier(character.attributes.sabedoria);
+  return (
+    PASSIVE_PERCEPTION_BASE +
+    attributeModifier(character.attributes.sabedoria) +
+    (character.proficiencyBonus ?? DEFAULT_PROFICIENCY_BONUS)
+  );
 }
 
 export function attributeRollModifier(character: Character, attribute: keyof Attributes): number {

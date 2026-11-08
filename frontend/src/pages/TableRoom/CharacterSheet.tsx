@@ -120,7 +120,7 @@ export default function CharacterSheet({
           </div>
           <div className="paper-vital">
             <span className="paper-vital-label">Percepção passiva</span>
-            <strong>{passivePerception(character)}</strong>
+            <strong>{character.percepcaoPassiva ?? passivePerception(character)}</strong>
           </div>
           <div className={`paper-vital ${character.inspiracao ? 'paper-vital--inspired' : ''}`}>
             <span className="paper-vital-label">Inspiração</span>
