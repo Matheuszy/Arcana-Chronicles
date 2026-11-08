@@ -304,3 +304,13 @@
 .paper-coins strong { font-family: var(--font-display); overflow-wrap: anywhere; }
 
 .paper-vital-detail { font-size: 0.72rem; color: #5a4632; }
+
+.paper-tabs { margin-top: 1rem; }
+.paper-tabs .ui-tabs { border-bottom-color: var(--leather); }
+.paper-tabs .ui-tab { color: #5a4632; }
+.paper-tabs .ui-tab:hover { color: var(--paper-ink); }
+.paper-tabs .ui-tab--active { color: #7a3d12; border-bottom-color: #7a3d12; }
+.paper-tabs .swipe-tabs-position { color: #5a4632; }
+.paper-tabs .swipe-tabs-panel { gap: 0; }
+.paper-tabs .swipe-tabs-panel > .paper-title:first-child,
+.paper-tabs .swipe-tabs-panel > .paper-vitals:first-child { margin-top: 0; }

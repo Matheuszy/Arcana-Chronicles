@@ -11,6 +11,17 @@ import com.arcana.backend.character.RolagemDeFichaDto;
 import com.arcana.backend.character.RolagemDeMoedasRequestDto;
 import com.arcana.backend.character.RolagemDeVidaRequestDto;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.secao.SecaoAtributosDto;
+import com.arcana.backend.character.secao.SecaoAtributosRequestDto;
+import com.arcana.backend.character.secao.SecaoEquipamentoDto;
+import com.arcana.backend.character.secao.SecaoEquipamentoRequestDto;
+import com.arcana.backend.character.secao.SecaoHabilidadesDto;
+import com.arcana.backend.character.secao.SecaoHabilidadesRequestDto;
+import com.arcana.backend.character.secao.SecaoMagiasDto;
+import com.arcana.backend.character.secao.SecaoMagiasRequestDto;
+import com.arcana.backend.character.secao.SecaoPersonagemDto;
+import com.arcana.backend.character.secao.SecaoPersonagemRequestDto;
+import com.arcana.backend.character.secao.SecaoRolagensDto;
 import com.arcana.backend.character.service.PacoteEquipamentoService;
 import com.arcana.backend.character.service.PersonagemService;
 import com.arcana.backend.character.service.RolagemDeFichaService;
@@ -36,6 +47,82 @@ public class PersonagemController {
         this.personagemService = personagemService;
         this.rolagemDeFichaService = rolagemDeFichaService;
         this.pacoteEquipamentoService = pacoteEquipamentoService;
+    }
+
+    @GetMapping("/{id}/ficha/personagem")
+    public ResponseEntity<SecaoPersonagemDto> buscarSecaoPersonagem(
+            @PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.buscarSecaoPersonagem(id, usuario.getId()));
+    }
+
+    @PutMapping("/{id}/ficha/personagem")
+    public ResponseEntity<SecaoPersonagemDto> atualizarSecaoPersonagem(
+            @PathVariable Long id,
+            @Valid @RequestBody SecaoPersonagemRequestDto dto,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.atualizarSecaoPersonagem(id, dto, usuario.getId()));
+    }
+
+    @GetMapping("/{id}/ficha/atributos")
+    public ResponseEntity<SecaoAtributosDto> buscarSecaoAtributos(
+            @PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.buscarSecaoAtributos(id, usuario.getId()));
+    }
+
+    @PutMapping("/{id}/ficha/atributos")
+    public ResponseEntity<SecaoAtributosDto> atualizarSecaoAtributos(
+            @PathVariable Long id,
+            @Valid @RequestBody SecaoAtributosRequestDto dto,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.atualizarSecaoAtributos(id, dto, usuario.getId()));
+    }
+
+    @GetMapping("/{id}/ficha/habilidades")
+    public ResponseEntity<SecaoHabilidadesDto> buscarSecaoHabilidades(
+            @PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.buscarSecaoHabilidades(id, usuario.getId()));
+    }
+
+    @PutMapping("/{id}/ficha/habilidades")
+    public ResponseEntity<SecaoHabilidadesDto> atualizarSecaoHabilidades(
+            @PathVariable Long id,
+            @Valid @RequestBody SecaoHabilidadesRequestDto dto,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.atualizarSecaoHabilidades(id, dto, usuario.getId()));
+    }
+
+    @GetMapping("/{id}/ficha/equipamento")
+    public ResponseEntity<SecaoEquipamentoDto> buscarSecaoEquipamento(
+            @PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.buscarSecaoEquipamento(id, usuario.getId()));
+    }
+
+    @PutMapping("/{id}/ficha/equipamento")
+    public ResponseEntity<SecaoEquipamentoDto> atualizarSecaoEquipamento(
+            @PathVariable Long id,
+            @Valid @RequestBody SecaoEquipamentoRequestDto dto,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.atualizarSecaoEquipamento(id, dto, usuario.getId()));
+    }
+
+    @GetMapping("/{id}/ficha/magias")
+    public ResponseEntity<SecaoMagiasDto> buscarSecaoMagias(
+            @PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.buscarSecaoMagias(id, usuario.getId()));
+    }
+
+    @PutMapping("/{id}/ficha/magias")
+    public ResponseEntity<SecaoMagiasDto> atualizarSecaoMagias(
+            @PathVariable Long id,
+            @Valid @RequestBody SecaoMagiasRequestDto dto,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.atualizarSecaoMagias(id, dto, usuario.getId()));
+    }
+
+    @GetMapping("/{id}/ficha/rolagens")
+    public ResponseEntity<SecaoRolagensDto> buscarSecaoRolagens(
+            @PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(personagemService.buscarSecaoRolagens(id, usuario.getId()));
     }
 
     @PostMapping("/{id}/moedas")

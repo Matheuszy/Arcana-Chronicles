@@ -237,6 +237,71 @@ export interface Character {
   items?: string[];
 }
 
+export type SheetSection = 'personagem' | 'atributos' | 'habilidades' | 'equipamento' | 'magias';
+
+export type SheetTab = SheetSection | 'rolagens';
+
+export const SHEET_SECTION_FIELDS: Record<SheetSection, ReadonlyArray<keyof Character>> = {
+  personagem: [
+    'name',
+    'kind',
+    'classes',
+    'raca',
+    'alinhamento',
+    'antecedente',
+    'tracosPersonalidade',
+    'ideais',
+    'vinculos',
+    'defeitos',
+    'backstory',
+    'personalityPrompt',
+    'avatarUrl',
+  ],
+  atributos: [
+    'hpMax',
+    'hpCurrent',
+    'vidaTemporaria',
+    'armorClass',
+    'caAdicional',
+    'deslocamento',
+    'deslocamentosAdicionais',
+    'inspiracao',
+    'sucessosContraMorte',
+    'falhasContraMorte',
+    'proficiencyBonus',
+    'attributes',
+    'savingThrows',
+    'skills',
+  ],
+  habilidades: [
+    'habilidades',
+    'habilidadesRaca',
+    'talentos',
+    'idiomas',
+    'proficienciasFerramentas',
+    'proficienciasArmas',
+    'proficienciasArmaduras',
+  ],
+  equipamento: ['equipamentos', 'items', 'moedasCobre', 'moedasPrata', 'moedasElectro', 'moedasOuro', 'moedasPlatina'],
+  magias: ['spells', 'spellSlots', 'spellSlotsCurrent'],
+};
+
+export const SHEET_SECTIONS = Object.keys(SHEET_SECTION_FIELDS) as SheetSection[];
+
+export const sheetSection = (character: Character, section: SheetSection): Partial<Character> =>
+  Object.fromEntries(SHEET_SECTION_FIELDS[section].map((field) => [field, character[field]]));
+
+export const SHEET_TAB_LABEL: Record<SheetTab, string> = {
+  personagem: 'Personagem',
+  atributos: 'Atributos',
+  habilidades: 'Habilidades',
+  equipamento: 'Equipamento',
+  magias: 'Magias',
+  rolagens: 'Rolagens',
+};
+
+export const SHEET_TABS: SheetTab[] = ['personagem', 'atributos', 'habilidades', 'equipamento', 'magias', 'rolagens'];
+
 export const DEATH_SAVE_MARKS = 3;
 export const MAX_ATTRIBUTE_ROLLS = 3;
 export const MAX_PROFICIENCY_ENTRIES = 30;

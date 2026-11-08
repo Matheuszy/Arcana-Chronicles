@@ -145,7 +145,7 @@ export default function TableRoom() {
   const [statusError, setStatusError] = useState<string | null>(null);
   const [connection, setConnection] = useState<ConnectionStatus>({ state: 'CONECTANDO', attempt: 0 });
   const [sideTab, setSideTab] = useState<SideTab>('MESA');
-  const [editingSheet, setEditingSheet] = useState<{ id?: string } | null>(null);
+  const [editingSheet, setEditingSheet] = useState<{ id?: string; character?: Character } | null>(null);
   const [draft, setDraft] = useState('');
   const [composerError, setComposerError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -634,7 +634,7 @@ export default function TableRoom() {
               ? 'Você ainda não criou personagens ou NPCs.'
               : 'Selecione seu personagem nesta mesa para consultar a ficha.'
           }
-          onEdit={(character) => setEditingSheet({ id: String(character.id) })}
+          onEdit={(character) => setEditingSheet({ id: String(character.id), character })}
           onCreate={isMaster ? () => setEditingSheet({}) : undefined}
           onRoll={sendRoll}
           rollDisabledReason={sheetRollBlockedReason}
@@ -951,6 +951,7 @@ export default function TableRoom() {
           <div className="sheet-editor-dialog">
             <CharacterEditor
               id={editingSheet.id}
+              initialCharacter={editingSheet.character}
               embedded
               onSaved={handleSheetSaved}
               onCancel={() => setEditingSheet(null)}

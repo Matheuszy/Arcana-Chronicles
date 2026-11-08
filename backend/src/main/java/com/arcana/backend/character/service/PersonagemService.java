@@ -15,6 +15,17 @@ import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
+import com.arcana.backend.character.secao.SecaoAtributosDto;
+import com.arcana.backend.character.secao.SecaoAtributosRequestDto;
+import com.arcana.backend.character.secao.SecaoEquipamentoDto;
+import com.arcana.backend.character.secao.SecaoEquipamentoRequestDto;
+import com.arcana.backend.character.secao.SecaoHabilidadesDto;
+import com.arcana.backend.character.secao.SecaoHabilidadesRequestDto;
+import com.arcana.backend.character.secao.SecaoMagiasDto;
+import com.arcana.backend.character.secao.SecaoMagiasRequestDto;
+import com.arcana.backend.character.secao.SecaoPersonagemDto;
+import com.arcana.backend.character.secao.SecaoPersonagemRequestDto;
+import com.arcana.backend.character.secao.SecaoRolagensDto;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.SessoesAtivasDeMesa;
@@ -121,6 +132,74 @@ public class PersonagemService {
         return PersonagemResponseDto.from(personagemRepository.save(personagem));
     }
 
+    @Transactional
+    public SecaoPersonagemDto buscarSecaoPersonagem(Long id, Long ownerId) {
+        return SecaoPersonagemDto.from(findAndValidateOwner(id, ownerId));
+    }
+
+    @Transactional
+    public SecaoAtributosDto buscarSecaoAtributos(Long id, Long ownerId) {
+        return SecaoAtributosDto.from(findAndValidateOwner(id, ownerId));
+    }
+
+    @Transactional
+    public SecaoHabilidadesDto buscarSecaoHabilidades(Long id, Long ownerId) {
+        return SecaoHabilidadesDto.from(findAndValidateOwner(id, ownerId));
+    }
+
+    @Transactional
+    public SecaoEquipamentoDto buscarSecaoEquipamento(Long id, Long ownerId) {
+        return SecaoEquipamentoDto.from(findAndValidateOwner(id, ownerId));
+    }
+
+    @Transactional
+    public SecaoMagiasDto buscarSecaoMagias(Long id, Long ownerId) {
+        return SecaoMagiasDto.from(findAndValidateOwner(id, ownerId));
+    }
+
+    @Transactional
+    public SecaoRolagensDto buscarSecaoRolagens(Long id, Long ownerId) {
+        return SecaoRolagensDto.from(findAndValidateOwner(id, ownerId));
+    }
+
+    @Transactional
+    public SecaoPersonagemDto atualizarSecaoPersonagem(Long id, SecaoPersonagemRequestDto dto, Long ownerId) {
+        Personagem personagem = findAndValidateOwner(id, ownerId);
+        if (dto.kind() != personagem.getKind()) {
+            validarTipoParaPapel(personagem.getOwner(), dto.kind());
+        }
+        aplicarPersonagem(dto, personagem);
+        return SecaoPersonagemDto.from(personagemRepository.save(personagem));
+    }
+
+    @Transactional
+    public SecaoAtributosDto atualizarSecaoAtributos(Long id, SecaoAtributosRequestDto dto, Long ownerId) {
+        Personagem personagem = findAndValidateOwner(id, ownerId);
+        aplicarAtributos(dto, personagem);
+        return SecaoAtributosDto.from(personagemRepository.save(personagem));
+    }
+
+    @Transactional
+    public SecaoHabilidadesDto atualizarSecaoHabilidades(Long id, SecaoHabilidadesRequestDto dto, Long ownerId) {
+        Personagem personagem = findAndValidateOwner(id, ownerId);
+        aplicarHabilidades(dto, personagem);
+        return SecaoHabilidadesDto.from(personagemRepository.save(personagem));
+    }
+
+    @Transactional
+    public SecaoEquipamentoDto atualizarSecaoEquipamento(Long id, SecaoEquipamentoRequestDto dto, Long ownerId) {
+        Personagem personagem = findAndValidateOwner(id, ownerId);
+        aplicarEquipamento(dto, personagem);
+        return SecaoEquipamentoDto.from(personagemRepository.save(personagem));
+    }
+
+    @Transactional
+    public SecaoMagiasDto atualizarSecaoMagias(Long id, SecaoMagiasRequestDto dto, Long ownerId) {
+        Personagem personagem = findAndValidateOwner(id, ownerId);
+        aplicarMagias(dto, personagem);
+        return SecaoMagiasDto.from(personagemRepository.save(personagem));
+    }
+
     /** Remove um personagem */
     @Transactional
     public void deletar(Long id, Long ownerId) {
@@ -151,58 +230,45 @@ public class PersonagemService {
     }
 
     private void mapDtoToEntity(PersonagemRequestDto dto, Personagem personagem) {
+        personagem.setLevel(dto.level());
+        aplicarPersonagem(SecaoPersonagemRequestDto.de(dto), personagem);
+        aplicarAtributos(SecaoAtributosRequestDto.de(dto), personagem);
+        aplicarHabilidades(SecaoHabilidadesRequestDto.de(dto), personagem);
+        aplicarEquipamento(SecaoEquipamentoRequestDto.de(dto), personagem);
+        aplicarMagias(SecaoMagiasRequestDto.de(dto), personagem);
+    }
+
+    private void aplicarPersonagem(SecaoPersonagemRequestDto dto, Personagem personagem) {
         personagem.setName(dto.name());
         personagem.setKind(dto.kind());
-        personagem.setLevel(dto.level());
-        personagem.setHpMax(dto.hpMax());
-        personagem.setHpCurrent(dto.hpCurrent());
-        personagem.setArmorClass(dto.armorClass());
-        personagem.setVidaTemporaria(dto.vidaTemporaria());
-        personagem.setCaAdicional(valorOuZero(dto.caAdicional()));
-        personagem.setDeslocamento(dto.deslocamento());
-        personagem.setInspiracao(Boolean.TRUE.equals(dto.inspiracao()));
-        personagem.setSucessosContraMorte(dto.sucessosContraMorte() != null ? dto.sucessosContraMorte() : 0);
-        personagem.setFalhasContraMorte(dto.falhasContraMorte() != null ? dto.falhasContraMorte() : 0);
-        personagem.setMoedasCobre(valorOuZero(dto.moedasCobre()));
-        personagem.setMoedasPrata(valorOuZero(dto.moedasPrata()));
-        personagem.setMoedasElectro(valorOuZero(dto.moedasElectro()));
-        personagem.setMoedasOuro(valorOuZero(dto.moedasOuro()));
-        personagem.setMoedasPlatina(valorOuZero(dto.moedasPlatina()));
-        personagem.setBackstory(dto.backstory());
-        personagem.setPersonalityPrompt(dto.personalityPrompt());
-        personagem.setAvatarUrl(dto.avatarUrl());
-        mapearEquipamentos(dto, personagem);
-        mapearDeslocamentosAdicionais(dto, personagem);
-        mapearClasses(dto, personagem);
-        personagem.setHabilidades(textoOuNulo(dto.habilidades()));
-        personagem.setTalentos(textoOuNulo(dto.talentos()));
+        personagem.getClasses().clear();
+        if (dto.classes() != null && !dto.classes().isEmpty()) {
+            dto.classes().forEach(classe -> personagem.getClasses().add(paraClasse(classe)));
+            personagem.setLevel(personagem.getClasses().stream().mapToInt(ClassePersonagem::getNivel).sum());
+        }
         personagem.setRaca(textoOuNulo(dto.raca()));
         personagem.setAlinhamento(textoOuNulo(dto.alinhamento()));
-        personagem.setHabilidadesRaca(textoOuNulo(dto.habilidadesRaca()));
         personagem.setAntecedente(textoOuNulo(dto.antecedente()));
         personagem.setTracosPersonalidade(textoOuNulo(dto.tracosPersonalidade()));
         personagem.setIdeais(textoOuNulo(dto.ideais()));
         personagem.setVinculos(textoOuNulo(dto.vinculos()));
         personagem.setDefeitos(textoOuNulo(dto.defeitos()));
+        personagem.setBackstory(dto.backstory());
+        personagem.setPersonalityPrompt(dto.personalityPrompt());
+        personagem.setAvatarUrl(dto.avatarUrl());
+    }
+
+    private void aplicarAtributos(SecaoAtributosRequestDto dto, Personagem personagem) {
+        personagem.setHpMax(dto.hpMax());
+        personagem.setHpCurrent(dto.hpCurrent());
+        personagem.setVidaTemporaria(dto.vidaTemporaria());
+        personagem.setArmorClass(dto.armorClass());
+        personagem.setCaAdicional(valorOuZero(dto.caAdicional()));
+        personagem.setDeslocamento(dto.deslocamento());
+        personagem.setInspiracao(Boolean.TRUE.equals(dto.inspiracao()));
+        personagem.setSucessosContraMorte(valorOuZero(dto.sucessosContraMorte()));
+        personagem.setFalhasContraMorte(valorOuZero(dto.falhasContraMorte()));
         personagem.setBonusProficiencia(dto.proficiencyBonus() != null ? dto.proficiencyBonus() : 2);
-
-        personagem.getSalvaguardas().clear();
-        if (dto.savingThrows() != null) {
-            dto.savingThrows().forEach((chave, bonus) ->
-                    personagem.getSalvaguardas().put(Atributo.daChave(chave), bonus));
-        }
-
-        substituirLista(personagem.getIdiomas(), dto.idiomas(), "Idioma repetido");
-        substituirLista(personagem.getProficienciasFerramentas(), dto.proficienciasFerramentas(), "Proficiência em ferramenta repetida");
-        substituirLista(personagem.getProficienciasArmas(), dto.proficienciasArmas(), "Proficiência em arma repetida");
-        substituirLista(personagem.getProficienciasArmaduras(), dto.proficienciasArmaduras(), "Proficiência em armadura repetida");
-
-        personagem.getItens().clear();
-        if (dto.items() != null) {
-            dto.items().stream().map(String::trim).forEach(personagem.getItens()::add);
-        }
-
-        // Atributos (@Embedded)
         if (dto.attributes() != null) {
             personagem.setAttributes(new Atributos(
                     dto.attributes().forca(),
@@ -214,41 +280,65 @@ public class PersonagemService {
             ));
         }
 
-        // Perícias
+        personagem.getDeslocamentosAdicionais().clear();
+        if (dto.deslocamentosAdicionais() != null) {
+            dto.deslocamentosAdicionais().stream()
+                    .map(d -> new DeslocamentoAdicional(d.tipo(), d.metros(), textoOuNulo(d.origem()),
+                            Boolean.TRUE.equals(d.temporario())))
+                    .forEach(personagem.getDeslocamentosAdicionais()::add);
+        }
+
+        personagem.getSalvaguardas().clear();
+        if (dto.savingThrows() != null) {
+            dto.savingThrows().forEach((chave, bonus) ->
+                    personagem.getSalvaguardas().put(Atributo.daChave(chave), bonus));
+        }
+
         personagem.getSkills().clear();
         if (dto.skills() != null) {
             dto.skills().forEach((chave, bonus) ->
                     personagem.getSkills().put(Pericia.daChave(chave).getChave(), bonus));
         }
+    }
 
-        // Magias — substitui a lista inteira
+    private void aplicarHabilidades(SecaoHabilidadesRequestDto dto, Personagem personagem) {
+        personagem.setHabilidades(textoOuNulo(dto.habilidades()));
+        personagem.setHabilidadesRaca(textoOuNulo(dto.habilidadesRaca()));
+        personagem.setTalentos(textoOuNulo(dto.talentos()));
+        substituirLista(personagem.getIdiomas(), dto.idiomas(), "Idioma repetido");
+        substituirLista(personagem.getProficienciasFerramentas(), dto.proficienciasFerramentas(), "Proficiência em ferramenta repetida");
+        substituirLista(personagem.getProficienciasArmas(), dto.proficienciasArmas(), "Proficiência em arma repetida");
+        substituirLista(personagem.getProficienciasArmaduras(), dto.proficienciasArmaduras(), "Proficiência em armadura repetida");
+    }
+
+    private void aplicarEquipamento(SecaoEquipamentoRequestDto dto, Personagem personagem) {
+        personagem.getEquipamentos().clear();
+        if (dto.equipamentos() != null) {
+            dto.equipamentos().stream()
+                    .map(this::paraEquipamento)
+                    .forEach(personagem.getEquipamentos()::add);
+        }
+        personagem.getItens().clear();
+        if (dto.items() != null) {
+            dto.items().stream().map(String::trim).forEach(personagem.getItens()::add);
+        }
+        personagem.setMoedasCobre(valorOuZero(dto.moedasCobre()));
+        personagem.setMoedasPrata(valorOuZero(dto.moedasPrata()));
+        personagem.setMoedasElectro(valorOuZero(dto.moedasElectro()));
+        personagem.setMoedasOuro(valorOuZero(dto.moedasOuro()));
+        personagem.setMoedasPlatina(valorOuZero(dto.moedasPlatina()));
+    }
+
+    private void aplicarMagias(SecaoMagiasRequestDto dto, Personagem personagem) {
+        validarEspacosDeMagia(dto);
         personagem.getSpells().clear();
         if (dto.spells() != null) {
             dto.spells().stream()
                     .map(s -> new Magia(s.name(), s.level(), s.description()))
                     .forEach(personagem.getSpells()::add);
         }
-
-        validarEspacosDeMagia(dto);
         personagem.setSpellSlots(serializeSlots(dto.spellSlots()));
         personagem.setSpellSlotsCurrent(serializeSlots(dto.spellSlotsCurrent()));
-    }
-
-    private void mapearEquipamentos(PersonagemRequestDto dto, Personagem personagem) {
-        personagem.getEquipamentos().clear();
-        if (dto.equipamentos() == null) return;
-        dto.equipamentos().stream()
-                .map(this::paraEquipamento)
-                .forEach(personagem.getEquipamentos()::add);
-    }
-
-    private void mapearDeslocamentosAdicionais(PersonagemRequestDto dto, Personagem personagem) {
-        personagem.getDeslocamentosAdicionais().clear();
-        if (dto.deslocamentosAdicionais() == null) return;
-        dto.deslocamentosAdicionais().stream()
-                .map(d -> new DeslocamentoAdicional(d.tipo(), d.metros(), textoOuNulo(d.origem()),
-                        Boolean.TRUE.equals(d.temporario())))
-                .forEach(personagem.getDeslocamentosAdicionais()::add);
     }
 
     private Equipamento paraEquipamento(PersonagemRequestDto.EquipamentoDto dto) {
@@ -261,13 +351,6 @@ public class PersonagemService {
                 arma && atributo != null ? Atributo.daChave(atributo) : null,
                 arma ? null : dto.classeArmadura(),
                 textoOuNulo(dto.propriedades()));
-    }
-
-    private void mapearClasses(PersonagemRequestDto dto, Personagem personagem) {
-        personagem.getClasses().clear();
-        if (dto.classes() == null || dto.classes().isEmpty()) return;
-        dto.classes().forEach(classe -> personagem.getClasses().add(paraClasse(classe)));
-        personagem.setLevel(personagem.getClasses().stream().mapToInt(ClassePersonagem::getNivel).sum());
     }
 
     private ClassePersonagem paraClasse(PersonagemRequestDto.ClasseDto dto) {
@@ -284,7 +367,7 @@ public class PersonagemService {
         return new ClassePersonagem(nome, textoOuNulo(dto.subclasse()), dto.nivel(), dadoVida, disponiveis);
     }
 
-    private void validarEspacosDeMagia(PersonagemRequestDto dto) {
+    private void validarEspacosDeMagia(SecaoMagiasRequestDto dto) {
         Map<String, Integer> totais = dto.spellSlots() == null ? Map.of() : dto.spellSlots();
         Map<String, Integer> atuais = dto.spellSlotsCurrent() == null ? Map.of() : dto.spellSlotsCurrent();
         totais.forEach((circulo, total) -> validarEspacosDoCirculo(circulo, total, "Espaços de magia"));

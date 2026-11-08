@@ -8,6 +8,8 @@ import {
   HitPointRollRequest,
   SheetRoll,
   SheetRollOutcome,
+  SheetSection,
+  SheetTab,
 } from '../types/character';
 import { apiRequest } from './httpClient';
 
@@ -21,6 +23,17 @@ export const characterService = {
 
   getById(id: string): Promise<Character> {
     return apiRequest<Character>(`${BASE_PATH}/${id}`);
+  },
+
+  getSection(id: string, tab: SheetTab): Promise<Partial<Character>> {
+    return apiRequest<Partial<Character>>(`${BASE_PATH}/${id}/ficha/${tab}`);
+  },
+
+  saveSection(id: string, section: SheetSection, data: Partial<Character>): Promise<Partial<Character>> {
+    return apiRequest<Partial<Character>>(`${BASE_PATH}/${id}/ficha/${section}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   },
 
   create(character: Character): Promise<Character> {
