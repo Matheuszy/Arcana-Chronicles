@@ -66,7 +66,9 @@ public record PersonagemResponseDto(
     public record ClasseDto(
             String classe,
             String subclasse,
-            Integer nivel
+            Integer nivel,
+            Integer dadoVida,
+            Integer dadosVidaDisponiveis
     ) {}
 
     public record EquipamentoDto(
@@ -152,7 +154,8 @@ public record PersonagemResponseDto(
                 p.getOwner() != null ? p.getOwner().getId() : null,
                 p.getCreatedAt(),
                 p.getClasses().stream()
-                        .map(c -> new ClasseDto(c.getClasse(), c.getSubclasse(), c.getNivel()))
+                        .map(c -> new ClasseDto(c.getClasse(), c.getSubclasse(), c.getNivel(),
+                                c.getDadoVida(), c.getDadosVidaDisponiveis()))
                         .toList(),
                 p.getBonusProficiencia(),
                 salvaguardasEmOrdem(p),

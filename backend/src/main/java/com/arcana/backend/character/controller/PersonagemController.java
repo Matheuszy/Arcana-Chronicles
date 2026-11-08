@@ -1,9 +1,14 @@
 package com.arcana.backend.character.controller;
 
+import com.arcana.backend.character.GastoDeDadosDeVidaRequestDto;
 import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
+import com.arcana.backend.character.ResultadoRolagemDeFichaDto;
+import com.arcana.backend.character.RolagemDeFichaDto;
+import com.arcana.backend.character.RolagemDeVidaRequestDto;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.service.PersonagemService;
+import com.arcana.backend.character.service.RolagemDeFichaService;
 import com.arcana.backend.user.model.Usuario;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -18,9 +23,37 @@ import java.util.List;
 public class PersonagemController {
 
     private final PersonagemService personagemService;
+    private final RolagemDeFichaService rolagemDeFichaService;
 
-    public PersonagemController(PersonagemService personagemService) {
+    public PersonagemController(PersonagemService personagemService, RolagemDeFichaService rolagemDeFichaService) {
         this.personagemService = personagemService;
+        this.rolagemDeFichaService = rolagemDeFichaService;
+    }
+
+    @GetMapping("/{id}/rolagens")
+    public ResponseEntity<List<RolagemDeFichaDto>> listarRolagens(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(rolagemDeFichaService.listar(id, usuario.getId()));
+    }
+
+    @PostMapping("/{id}/rolagens/vida")
+    public ResponseEntity<ResultadoRolagemDeFichaDto> rolarVida(
+            @PathVariable Long id,
+            @Valid @RequestBody RolagemDeVidaRequestDto pedido,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(rolagemDeFichaService.rolarVida(id, usuario.getId(), pedido));
+    }
+
+    @PostMapping("/{id}/rolagens/dados-de-vida")
+    public ResponseEntity<ResultadoRolagemDeFichaDto> gastarDadosDeVida(
+            @PathVariable Long id,
+            @Valid @RequestBody GastoDeDadosDeVidaRequestDto pedido,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(rolagemDeFichaService.gastarDadosDeVida(id, usuario.getId(), pedido));
     }
 
     /** GET /api/characters?kind=PLAYER */

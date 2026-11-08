@@ -35,6 +35,7 @@ import java.util.Set;
 public class PersonagemService {
 
     private static final int LIMITE_ESPACOS_POR_CIRCULO = 20;
+    public static final Set<Integer> DADOS_DE_VIDA = Set.of(6, 8, 10, 12);
 
     private final PersonagemRepository personagemRepository;
     private final UsuarioRepositorie usuarioRepositorie;
@@ -235,9 +236,22 @@ public class PersonagemService {
     private void mapearClasses(PersonagemRequestDto dto, Personagem personagem) {
         personagem.getClasses().clear();
         if (dto.classes() == null || dto.classes().isEmpty()) return;
-        dto.classes().forEach(classe -> personagem.getClasses().add(
-                new ClassePersonagem(classe.classe().trim(), textoOuNulo(classe.subclasse()), classe.nivel())));
+        dto.classes().forEach(classe -> personagem.getClasses().add(paraClasse(classe)));
         personagem.setLevel(personagem.getClasses().stream().mapToInt(ClassePersonagem::getNivel).sum());
+    }
+
+    private ClassePersonagem paraClasse(PersonagemRequestDto.ClasseDto dto) {
+        String nome = dto.classe().trim();
+        int dadoVida = dto.dadoVida() != null ? dto.dadoVida() : ClassePersonagem.DADO_VIDA_PADRAO;
+        if (!DADOS_DE_VIDA.contains(dadoVida)) {
+            throw new IllegalArgumentException("O dado de vida de " + nome + " deve ser d6, d8, d10 ou d12.");
+        }
+        int disponiveis = dto.dadosVidaDisponiveis() != null ? dto.dadosVidaDisponiveis() : dto.nivel();
+        if (disponiveis > dto.nivel()) {
+            throw new IllegalArgumentException("Os dados de vida disponíveis de " + nome
+                    + " não podem passar do nível da classe (" + dto.nivel() + ").");
+        }
+        return new ClassePersonagem(nome, textoOuNulo(dto.subclasse()), dto.nivel(), dadoVida, disponiveis);
     }
 
     private void validarEspacosDeMagia(PersonagemRequestDto dto) {

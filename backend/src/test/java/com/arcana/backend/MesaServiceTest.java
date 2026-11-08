@@ -5,7 +5,10 @@ import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.model.RolagemDeFicha;
+import com.arcana.backend.character.model.TipoRolagemFicha;
 import com.arcana.backend.character.repository.PersonagemRepository;
+import com.arcana.backend.character.repository.RolagemDeFichaRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
 import com.arcana.backend.table.MesaRequestDto;
@@ -54,6 +57,9 @@ class MesaServiceTest {
     @Mock
     private SolicitacaoEntradaRepository solicitacaoRepository;
 
+    @Mock
+    private RolagemDeFichaRepository rolagemDeFichaRepository;
+
     private static final LocalDateTime AGORA = LocalDateTime.of(2026, 10, 29, 15, 0);
 
     private final List<Object> eventosPublicados = new ArrayList<>();
@@ -64,7 +70,7 @@ class MesaServiceTest {
     void setUp() {
         Clock relogio = Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
         service = new MesaService(mesaRepository, personagemRepository, solicitacaoRepository, relogio,
-                eventosPublicados::add, mesasComSessaoAtiva::contains);
+                eventosPublicados::add, mesasComSessaoAtiva::contains, rolagemDeFichaRepository);
     }
 
     private SolicitacaoEntrada solicitacaoRecusadaHa(Duration tempoDesdeARecusa) {
@@ -154,6 +160,33 @@ class MesaServiceTest {
         var ficha = service.buscarFichaDeParticipante(1L, 100L, 1L);
 
         assertEquals("Thorn", ficha.name());
+    }
+
+    @Test
+    void devePermitirMestreVerHistoricoDeRolagensDaFichaDeParticipante() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        Personagem personagem = personagemDoJogador(2L, TipoJogador.PLAYER);
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+        when(personagemRepository.findById(100L)).thenReturn(Optional.of(personagem));
+        when(rolagemDeFichaRepository.findTop50ByPersonagemIdOrderByCreatedAtDescIdDesc(100L)).thenReturn(List.of(
+                new RolagemDeFicha(personagem, TipoRolagemFicha.VIDA, "Vida máxima +7", "1d8+2", "5", 7, AGORA)));
+
+        var historico = service.buscarRolagensDeFichaDeParticipante(1L, 100L, 1L);
+
+        assertEquals(1, historico.size());
+        assertEquals(List.of(5), historico.get(0).resultados());
+        assertEquals(7, historico.get(0).total());
+    }
+
+    @Test
+    void deveNegarJogadorVerHistoricoDeRolagensDeOutroParticipante() {
+        Mesa mesa = mesaAbertaDoMestre(1L);
+        mesa.getParticipants().add(new Participante(2L, "joao", "JOGADOR", 100L));
+        when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+        assertThrows(AccessDeniedException.class, () -> service.buscarRolagensDeFichaDeParticipante(1L, 100L, 2L));
+        verifyNoInteractions(rolagemDeFichaRepository);
     }
 
     @Test

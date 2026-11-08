@@ -12,6 +12,8 @@ import Select from '../../components/ui/Select';
 import NumberInput from '../../components/ui/NumberInput';
 import TextListEditor from './TextListEditor';
 import AdditionalMovementsEditor from './AdditionalMovementsEditor';
+import HitPointRolls from '../../components/sheet/HitPointRolls';
+import SheetRollHistory from '../../components/sheet/SheetRollHistory';
 import {
   attributeModifier,
   attributeRollModifier,
@@ -23,6 +25,8 @@ import {
   ClassEntry,
   DAMAGE_DICE_PATTERN,
   DEATH_SAVE_MARKS,
+  DEFAULT_HIT_DIE,
+  HIT_DICE,
   MAX_BACKGROUND_LENGTH,
   MAX_MOVEMENT,
   MAX_PERSONALITY_LENGTH,
@@ -74,7 +78,13 @@ const NEW_SPELL = { name: '', circle: '', slots: 1, description: '' };
 
 const NEW_CANTRIP = { name: '', description: '' };
 
-const newClassEntry = (nivel = 1): ClassEntry => ({ classe: '', subclasse: '', nivel });
+const newClassEntry = (nivel = 1): ClassEntry => ({
+  classe: '',
+  subclasse: '',
+  nivel,
+  dadoVida: DEFAULT_HIT_DIE,
+  dadosVidaDisponiveis: nivel,
+});
 
 const EQUIPMENT_TYPES: EquipmentType[] = ['ARMA', 'ARMADURA'];
 
@@ -191,6 +201,8 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
   useEffect(loadCharacter, [loadCharacter]);
 
+  const loadRollHistory = useCallback(() => characterService.rollHistory(String(id)), [id]);
+
   const showTableLinks = !embedded && role === 'MESTRE' && form.kind !== 'PLAYER';
 
   useEffect(() => {
@@ -253,6 +265,23 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
   const setDeathSaves = (key: 'sucessosContraMorte' | 'falhasContraMorte', mark: number, checked: boolean) =>
     setField(key, checked ? mark + 1 : mark);
 
+  const [lastRollId, setLastRollId] = useState<string | null>(null);
+
+  const applyRolledCharacter = (rolled: Character, rollId: string) => {
+    const merge = (current: Character): Character => ({
+      ...current,
+      hpMax: rolled.hpMax,
+      hpCurrent: rolled.hpCurrent,
+      classes: (current.classes ?? []).map((entry, index) => ({
+        ...entry,
+        dadosVidaDisponiveis: rolled.classes?.[index]?.dadosVidaDisponiveis ?? entry.dadosVidaDisponiveis,
+      })),
+    });
+    setForm(merge);
+    setSavedSnapshot((snapshot) => JSON.stringify(merge(JSON.parse(snapshot) as Character)));
+    setLastRollId(rollId);
+  };
+
   const clearDeathSaves = () =>
     setForm((prev) => ({ ...prev, sucessosContraMorte: 0, falhasContraMorte: 0 }));
 
@@ -293,6 +322,13 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
   const changeClass = (index: number, changes: Partial<ClassEntry>) =>
     updateClasses(classes.map((entry, i) => (i === index ? { ...entry, ...changes } : entry)));
+
+  const changeClassLevel = (index: number, nivel: number) => {
+    const entry = classes[index];
+    const gained = Math.max(0, nivel - entry.nivel);
+    const available = Math.min(nivel, (entry.dadosVidaDisponiveis ?? entry.nivel) + gained);
+    changeClass(index, { nivel, dadosVidaDisponiveis: available });
+  };
 
   const clampClassLevel = (value: number) => Math.min(MAX_CLASS_LEVEL, Math.max(1, Math.trunc(value) || 1));
 
@@ -596,7 +632,32 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
                 min={1}
                 max={MAX_CLASS_LEVEL}
                 value={entry.nivel}
-                onChange={(nivel) => changeClass(i, { nivel: clampClassLevel(nivel) })}
+                onChange={(nivel) => changeClassLevel(i, clampClassLevel(nivel))}
+              />
+            </div>
+            <div className="field">
+              <Select<string>
+                label="Dado de vida"
+                compact
+                required
+                value={String(entry.dadoVida ?? DEFAULT_HIT_DIE)}
+                onChange={(die) => changeClass(i, { dadoVida: Number(die) })}
+                options={HIT_DICE.map((die) => ({ value: String(die), label: `d${die}` }))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor={`dados-vida-${i}`} title="Dados de vida que ainda podem ser gastos para recuperar vida">
+                Dados disponíveis
+              </label>
+              <NumberInput
+                id={`dados-vida-${i}`}
+                required
+                min={0}
+                max={entry.nivel}
+                value={entry.dadosVidaDisponiveis ?? entry.nivel}
+                onChange={(available) =>
+                  changeClass(i, { dadosVidaDisponiveis: Math.min(entry.nivel, Math.max(0, Math.trunc(available))) })
+                }
               />
             </div>
             <button
@@ -776,6 +837,21 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
             Limpar testes
           </button>
         </div>
+
+        {id && (
+          <details className="sheet-section">
+            <summary>
+              <h3 className="section-title">Rolagens de vida</h3>
+            </summary>
+            <p className="muted-hint">
+              As rolagens valem na hora, sem precisar salvar, e ficam no histórico da ficha. Se a ficha estiver numa mesa com
+              sessão ativa, aparecem também no chat de rolagens.
+            </p>
+            <HitPointRolls character={form} onRolled={(rolled, roll) => applyRolledCharacter(rolled, roll.id)} />
+            <h4 className="sheet-subtitle">Histórico</h4>
+            <SheetRollHistory load={loadRollHistory} refreshKey={lastRollId ?? undefined} />
+          </details>
+        )}
 
         {/* ── Atributos ── */}
         <div className="section-header">

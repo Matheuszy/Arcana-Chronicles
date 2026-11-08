@@ -275,3 +275,12 @@
   color: #5a4632;
 }
 .paper-movement-detail { font-style: italic; }
+
+.paper-hit-dice { margin-top: 0.75rem; }
+.paper-rolls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.paper-rolls .hit-point-roll { background: rgba(255, 250, 240, 0.45); border-color: #b89c6a; }

@@ -49,6 +49,42 @@ export interface ClassEntry {
   classe: string;
   subclasse: string;
   nivel: number;
+  dadoVida?: number;
+  dadosVidaDisponiveis?: number;
+}
+
+export const HIT_DICE = [6, 8, 10, 12] as const;
+export const DEFAULT_HIT_DIE = 8;
+export const MAX_SHEET_ROLL_DICE = 20;
+export const MAX_SHEET_ROLL_MODIFIER = 20;
+
+export type SheetRollType = 'VIDA' | 'DADOS_DE_VIDA';
+
+export interface SheetRoll {
+  id: string;
+  tipo: SheetRollType;
+  descricao: string;
+  expressao: string;
+  resultados: number[];
+  total: number;
+  createdAt: string;
+}
+
+export interface SheetRollOutcome {
+  rolagem: SheetRoll;
+  ficha: Character;
+}
+
+export interface HitPointRollRequest {
+  lados: number;
+  quantidade: number;
+  modificador: number;
+}
+
+export interface HitDiceSpendRequest {
+  classe: number;
+  quantidade: number;
+  modificador: number;
 }
 
 export type EquipmentType = 'ARMA' | 'ARMADURA';

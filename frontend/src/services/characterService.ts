@@ -1,4 +1,11 @@
-import { Character, CharacterKind } from '../types/character';
+import {
+  Character,
+  CharacterKind,
+  HitDiceSpendRequest,
+  HitPointRollRequest,
+  SheetRoll,
+  SheetRollOutcome,
+} from '../types/character';
 import { apiRequest } from './httpClient';
 
 const BASE_PATH = '/characters';
@@ -24,6 +31,24 @@ export const characterService = {
     return apiRequest<Character>(`${BASE_PATH}/${id}`, {
       method: 'PUT',
       body: JSON.stringify(character),
+    });
+  },
+
+  rollHistory(id: string): Promise<SheetRoll[]> {
+    return apiRequest<SheetRoll[]>(`${BASE_PATH}/${id}/rolagens`);
+  },
+
+  rollHitPoints(id: string, request: HitPointRollRequest): Promise<SheetRollOutcome> {
+    return apiRequest<SheetRollOutcome>(`${BASE_PATH}/${id}/rolagens/vida`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  spendHitDice(id: string, request: HitDiceSpendRequest): Promise<SheetRollOutcome> {
+    return apiRequest<SheetRollOutcome>(`${BASE_PATH}/${id}/rolagens/dados-de-vida`, {
+      method: 'POST',
+      body: JSON.stringify(request),
     });
   },
 

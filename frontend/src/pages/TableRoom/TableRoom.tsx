@@ -412,6 +412,9 @@ export default function TableRoom() {
     }
   };
 
+  const replaceCharacter = (updated: Character) =>
+    setCharacters((prev) => prev.map((c) => (String(c.id) === String(updated.id) ? updated : c)));
+
   const handleSheetSaved = (saved: Character) => {
     const created = !editingSheet?.id;
     if (created && isMaster && saved.id && saved.kind !== 'PLAYER') {
@@ -635,6 +638,7 @@ export default function TableRoom() {
           onCreate={isMaster ? () => setEditingSheet({}) : undefined}
           onRoll={sendRoll}
           rollDisabledReason={sheetRollBlockedReason}
+          onCharacterUpdated={replaceCharacter}
           npcLinks={
             isMaster
               ? { linkedIds: table.npcIds.map(String), canChange: connected, onLink: linkNpc, onUnlink: unlinkNpc }

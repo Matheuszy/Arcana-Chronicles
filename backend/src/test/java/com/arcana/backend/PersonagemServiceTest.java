@@ -184,7 +184,7 @@ class PersonagemServiceTest {
 
         var resposta = service.atualizar(10L, dto, 1L);
 
-        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Mago", "Evocação", 6)), resposta.classes());
+        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Mago", "Evocação", 6, 8, 6)), resposta.classes());
         assertEquals(6, resposta.level());
     }
 
@@ -215,8 +215,8 @@ class PersonagemServiceTest {
 
         var resposta = service.atualizar(10L, dto, 1L);
 
-        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Guerreiro", "Campeão", 3),
-                new PersonagemResponseDto.ClasseDto("Artífice", null, 2)), resposta.classes());
+        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Guerreiro", "Campeão", 3, 8, 3),
+                new PersonagemResponseDto.ClasseDto("Artífice", null, 2, 8, 2)), resposta.classes());
         assertEquals(5, resposta.level());
         assertEquals("Atleta: +1 em Força", resposta.talentos());
         assertEquals(3, resposta.proficiencyBonus());
@@ -276,6 +276,49 @@ class PersonagemServiceTest {
         when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
 
         assertEquals(10, service.buscarPorId(10L, 1L).percepcaoPassiva());
+    }
+
+    private PersonagemRequestDto dtoComClasse(PersonagemRequestDto.ClasseDto classe) {
+        return new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                List.of(classe), null, null, null, null, null, null, null, null, null, 9, null, null, null,
+                null, null, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    void deveGravarDadoDeVidaEDadosDisponiveisDaClasse() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resposta = service.atualizar(10L,
+                dtoComClasse(new PersonagemRequestDto.ClasseDto("Bárbaro", null, 4, 12, 1)), 1L);
+
+        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Bárbaro", null, 4, 12, 1)), resposta.classes());
+    }
+
+    @Test
+    void deveRecusarDadoDeVidaForaDeD6AD12() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        var erro = assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L,
+                dtoComClasse(new PersonagemRequestDto.ClasseDto("Mago", null, 2, 4, 2)), 1L));
+
+        assertEquals("O dado de vida de Mago deve ser d6, d8, d10 ou d12.", erro.getMessage());
+    }
+
+    @Test
+    void deveRecusarMaisDadosDeVidaDisponiveisQueONivelDaClasse() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        var erro = assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L,
+                dtoComClasse(new PersonagemRequestDto.ClasseDto("Mago", null, 2, 6, 3)), 1L));
+
+        assertEquals("Os dados de vida disponíveis de Mago não podem passar do nível da classe (2).", erro.getMessage());
     }
 
     private PersonagemRequestDto dtoComDeslocamentos(List<PersonagemRequestDto.DeslocamentoAdicionalDto> deslocamentos) {

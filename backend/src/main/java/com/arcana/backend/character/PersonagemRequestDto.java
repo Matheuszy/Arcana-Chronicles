@@ -158,8 +158,17 @@ public record PersonagemRequestDto(
             @NotNull(message = "O nível da classe é obrigatório")
             @Min(value = 1, message = "O nível da classe deve ser de 1 a 20")
             @Max(value = 20, message = "O nível da classe deve ser de 1 a 20")
-            Integer nivel
-    ) {}
+            Integer nivel,
+
+            Integer dadoVida,
+
+            @Min(value = 0, message = "Os dados de vida disponíveis não podem ser negativos")
+            Integer dadosVidaDisponiveis
+    ) {
+        public ClasseDto(String classe, String subclasse, Integer nivel) {
+            this(classe, subclasse, nivel, null, null);
+        }
+    }
 
     public record EquipamentoDto(
             @NotNull(message = "Escolha se o equipamento é arma ou armadura")

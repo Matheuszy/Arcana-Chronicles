@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import Modal from '../../components/ui/Modal';
 import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABEL,
   Character,
   DEATH_SAVE_MARKS,
+  DEFAULT_HIT_DIE,
+  SheetRoll,
   KIND_LABEL,
   MOVEMENT_TYPE_LABEL,
   PERSONALITY_FIELDS,
@@ -22,6 +25,8 @@ import {
   totalSpellSlots,
 } from '../../types/character';
 import { RollRequest } from '../../types/chat';
+import HitPointRolls from '../../components/sheet/HitPointRolls';
+import SheetRollHistory from '../../components/sheet/SheetRollHistory';
 import SheetWeapon from './SheetWeapon';
 import './CharacterSheet.css';
 
@@ -34,6 +39,8 @@ interface CharacterSheetProps {
   onClose: () => void;
   onRoll?: (request: RollRequest) => void;
   rollDisabledReason?: string | null;
+  onCharacterUpdated?: (character: Character) => void;
+  loadRollHistory?: () => Promise<SheetRoll[]>;
 }
 
 export default function CharacterSheet({
@@ -43,7 +50,11 @@ export default function CharacterSheet({
   onClose,
   onRoll,
   rollDisabledReason = null,
+  onCharacterUpdated,
+  loadRollHistory,
 }: CharacterSheetProps) {
+  const [lastRollId, setLastRollId] = useState<string | null>(null);
+  const hitDiceClasses = (character.classes ?? []).filter((entry) => entry.nivel > 0);
   const classLine = [character.raca, formatClasses(character.classes ?? []), character.alinhamento]
     .filter(Boolean)
     .join(' · ');
@@ -148,6 +159,41 @@ export default function CharacterSheet({
             <DeathSaveMarks label="Falhas" tone="failure" count={character.falhasContraMorte ?? 0} />
           </div>
         </div>
+
+        {hitDiceClasses.length > 0 && (
+          <p className="paper-text paper-hit-dice">
+            <strong>Dados de vida:</strong>{' '}
+            {hitDiceClasses
+              .map(
+                (entry) =>
+                  `${entry.classe} ${entry.dadosVidaDisponiveis ?? entry.nivel}/${entry.nivel} d${entry.dadoVida ?? DEFAULT_HIT_DIE}`,
+              )
+              .join(' · ')}
+          </p>
+        )}
+
+        {(onCharacterUpdated || loadRollHistory) && (
+          <>
+            <h3 className="paper-title">Vida e rolagens</h3>
+            <div className="paper-rolls">
+              {onCharacterUpdated && (
+                <HitPointRolls
+                  character={character}
+                  onRolled={(updated, roll) => {
+                    setLastRollId(roll.id);
+                    onCharacterUpdated(updated);
+                  }}
+                />
+              )}
+              {loadRollHistory && (
+                <section className="paper-inventory-block" aria-labelledby="sheet-roll-history">
+                  <h4 id="sheet-roll-history">Histórico de rolagens</h4>
+                  <SheetRollHistory load={loadRollHistory} refreshKey={`${character.id}-${lastRollId ?? ""}`} />
+                </section>
+              )}
+            </div>
+          </>
+        )}
 
         <h3 className="paper-title">Atributos</h3>
         <div className="paper-attributes">
