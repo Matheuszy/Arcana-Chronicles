@@ -4,6 +4,7 @@ import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Atributos;
+import com.arcana.backend.character.model.Moeda;
 import com.arcana.backend.character.model.PacoteEquipamento;
 import com.arcana.backend.character.model.DeslocamentoAdicional;
 import com.arcana.backend.character.model.TipoDeslocamento;
@@ -345,6 +346,33 @@ class PersonagemServiceTest {
 
         assertThrows(AccessDeniedException.class, () -> service.definirCaAdicional(10L, 2L, 2));
         verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveAcrescentarMoedasNarradasNaMesa() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setMoedasOuro(10);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertEquals(35, service.acrescentarMoedas(10L, 1L, Moeda.OURO, 25).moedasOuro());
+    }
+
+    @Test
+    void deveRecusarAcrescimoQuePassaDoLimiteDeMoedas() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setMoedasCobre(999_999);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        assertThrows(IllegalStateException.class, () -> service.acrescentarMoedas(10L, 1L, Moeda.COBRE, 2));
+        verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarAcrescimoDeMoedasNaFichaDeOutroUsuario() {
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagemDeAlice()));
+
+        assertThrows(AccessDeniedException.class, () -> service.acrescentarMoedas(10L, 2L, Moeda.OURO, 5));
     }
 
     private PersonagemRequestDto dtoComClasse(PersonagemRequestDto.ClasseDto classe) {

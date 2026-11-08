@@ -283,6 +283,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
       ...current,
       hpMax: rolled.hpMax,
       hpCurrent: rolled.hpCurrent,
+      moedasRoladas: rolled.moedasRoladas,
       ...Object.fromEntries(COINS.map(({ field }) => [field, rolled[field] ?? 0])),
       classes: (current.classes ?? []).map((entry, index) => ({
         ...entry,
@@ -888,7 +889,15 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
             </p>
             <div className="sheet-rolls-grid">
               <HitPointRolls character={form} onRolled={(rolled, roll) => applyRolledCharacter(rolled, roll.id)} />
-              <CoinRolls character={form} onRolled={(rolled, roll) => applyRolledCharacter(rolled, roll.id)} />
+              {!form.moedasRoladas && !embedded ? (
+                <CoinRolls character={form} onRolled={(rolled, roll) => applyRolledCharacter(rolled, roll.id)} />
+              ) : (
+                <p className="muted-hint">
+                  {form.moedasRoladas
+                    ? 'As moedas desta ficha já foram roladas. A partir de agora, acrescente moedas conforme a história.'
+                    : 'Durante a mesa não se rolam moedas. Acrescente as moedas conforme a história.'}
+                </p>
+              )}
             </div>
             <h4 className="sheet-subtitle">Histórico</h4>
             <SheetRollHistory load={loadRollHistory} refreshKey={lastRollId ?? undefined} />

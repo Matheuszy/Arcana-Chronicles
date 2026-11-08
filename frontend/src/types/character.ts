@@ -76,6 +76,11 @@ export const MAX_COINS = 1000000;
 export const MAX_COIN_MULTIPLIER = 1000;
 export const COIN_DICE = [4, 6, 8, 10, 12, 20, 100] as const;
 
+export interface CoinAddRequest {
+  moeda: Coin;
+  quantidade: number;
+}
+
 export interface CoinRollRequest {
   moeda: Coin;
   lados: number;
@@ -197,6 +202,7 @@ export interface Character {
   moedasPlatina?: number;
   pacoteEquipamento?: string | null;
   caAdicional?: number;
+  moedasRoladas?: boolean;
   classeArmaduraTotal?: number;
   itensDoPacote?: string[];
   attributes: Attributes;

@@ -1,6 +1,7 @@
 import {
   Character,
   CharacterKind,
+  CoinAddRequest,
   CoinRollRequest,
   EquipmentPack,
   HitDiceSpendRequest,
@@ -33,6 +34,13 @@ export const characterService = {
     return apiRequest<Character>(`${BASE_PATH}/${id}`, {
       method: 'PUT',
       body: JSON.stringify(character),
+    });
+  },
+
+  addCoins(id: string, request: CoinAddRequest): Promise<Character> {
+    return apiRequest<Character>(`${BASE_PATH}/${id}/moedas`, {
+      method: 'POST',
+      body: JSON.stringify(request),
     });
   },
 

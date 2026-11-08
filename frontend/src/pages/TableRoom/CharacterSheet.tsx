@@ -30,7 +30,7 @@ import {
 import { RollRequest } from '../../types/chat';
 import HitPointRolls from '../../components/sheet/HitPointRolls';
 import ExtraArmorClass from '../../components/sheet/ExtraArmorClass';
-import CoinRolls from '../../components/sheet/CoinRolls';
+import CoinAdder from '../../components/sheet/CoinAdder';
 import SheetRollHistory from '../../components/sheet/SheetRollHistory';
 import SheetWeapon from './SheetWeapon';
 import './CharacterSheet.css';
@@ -198,13 +198,7 @@ export default function CharacterSheet({
                       onCharacterUpdated(updated);
                     }}
                   />
-                  <CoinRolls
-                    character={character}
-                    onRolled={(updated, roll) => {
-                      setLastRollId(roll.id);
-                      onCharacterUpdated(updated);
-                    }}
-                  />
+                  <CoinAdder character={character} onUpdated={onCharacterUpdated} />
                 </>
               )}
               {loadRollHistory && (

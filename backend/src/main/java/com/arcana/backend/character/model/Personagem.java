@@ -76,6 +76,9 @@ public class Personagem {
     @Column(name = "moedas_platina", nullable = false)
     private Integer moedasPlatina = 0;
 
+    @Column(name = "moedas_roladas", nullable = false)
+    private boolean moedasRoladas;
+
     @ElementCollection
     @CollectionTable(name = "personagem_deslocamentos_adicionais", joinColumns = @JoinColumn(name = "personagem_id"))
     @OrderColumn(name = "posicao")
@@ -216,6 +219,16 @@ public class Personagem {
     public Personagem() {}
 
     public static final int LIMITE_DE_ITENS = 50;
+    public static final int LIMITE_DE_MOEDAS = 1_000_000;
+
+    public void acrescentarMoedas(Moeda moeda, int quantidade) {
+        int novoValor = moedas(moeda) + quantidade;
+        if (novoValor > LIMITE_DE_MOEDAS) {
+            throw new IllegalStateException("As moedas de " + moeda.getNome().toLowerCase()
+                    + " passariam do limite de 1.000.000.");
+        }
+        definirMoedas(moeda, novoValor);
+    }
 
     public void aplicarPacote(PacoteEquipamento pacote) {
         if (pacote.getChave().equals(pacoteEquipamento)) {

@@ -95,7 +95,13 @@ class RolagemDeFichaIT extends IntegracaoTest {
         assertEquals(total, resultado.get("ficha").get("moedasPrata").asInt());
 
         postComo(outro.token(), url, pedido).andExpect(status().isForbidden());
-        postComo(dono.token(), url, Map.of("moeda", "OURO", "lados", 7, "quantidade", 1)).andExpect(status().isBadRequest());
+        postComo(dono.token(), url, pedido).andExpect(status().isConflict());
+
+        postComo(dono.token(), "/api/characters/" + fichaId + "/moedas", Map.of("moeda", "PRATA", "quantidade", 5))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.moedasPrata").value(total + 5));
+        postComo(outro.token(), "/api/characters/" + fichaId + "/moedas", Map.of("moeda", "PRATA", "quantidade", 5))
+                .andExpect(status().isForbidden());
     }
 
     @Test

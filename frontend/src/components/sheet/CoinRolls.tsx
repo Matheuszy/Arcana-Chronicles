@@ -55,7 +55,10 @@ export default function CoinRolls({ character, onRolled }: CoinRollsProps) {
   return (
     <section className="hit-point-roll" aria-labelledby="roll-coins">
       <h4 id="roll-coins">Rolar moedas</h4>
-      <p className="hit-point-hint">Soma ao valor atual da moeda, como 5d4 × 10 de ouro.</p>
+      <p className="hit-point-hint">
+        Rolagem única da ficha: soma ao valor atual da moeda, como 5d4 × 10 de ouro. Depois dela, as moedas só são
+        acrescentadas conforme a história.
+      </p>
       <div className="hit-point-fields">
         <Select<Coin>
           label="Moeda"

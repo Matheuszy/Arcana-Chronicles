@@ -19,6 +19,7 @@ import com.arcana.backend.chat.dice.PedidoRolagem;
 import com.arcana.backend.chat.dice.RolagemDadosService;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
+import com.arcana.backend.table.SessoesAtivasDeMesa;
 import com.arcana.backend.table.repository.MesaRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
@@ -34,7 +35,6 @@ import java.util.stream.Collectors;
 public class RolagemDeFichaService {
 
     private static final int RESULTADO_MINIMO_POR_DADO = 1;
-    private static final int LIMITE_DE_MOEDAS = 1_000_000;
     public static final int LIMITE_DO_HISTORICO = 50;
 
     private final PersonagemRepository personagemRepository;
@@ -43,19 +43,22 @@ public class RolagemDeFichaService {
     private final RolagemDadosService rolagemDadosService;
     private final ApplicationEventPublisher eventos;
     private final Clock clock;
+    private final SessoesAtivasDeMesa sessoesAtivas;
 
     public RolagemDeFichaService(PersonagemRepository personagemRepository,
                                  RolagemDeFichaRepository rolagemRepository,
                                  MesaRepository mesaRepository,
                                  RolagemDadosService rolagemDadosService,
                                  ApplicationEventPublisher eventos,
-                                 Clock clock) {
+                                 Clock clock,
+                                 SessoesAtivasDeMesa sessoesAtivas) {
         this.personagemRepository = personagemRepository;
         this.rolagemRepository = rolagemRepository;
         this.mesaRepository = mesaRepository;
         this.rolagemDadosService = rolagemDadosService;
         this.eventos = eventos;
         this.clock = clock;
+        this.sessoesAtivas = sessoesAtivas;
     }
 
     @Transactional
@@ -109,6 +112,14 @@ public class RolagemDeFichaService {
     @Transactional
     public ResultadoRolagemDeFichaDto rolarMoedas(Long personagemId, Long donoId, RolagemDeMoedasRequestDto pedido) {
         Personagem personagem = buscarDoDono(personagemId, donoId);
+        if (personagem.isMoedasRoladas()) {
+            throw new RegraDeNegocioException(
+                    "As moedas desta ficha já foram roladas. Acrescente moedas conforme a história.");
+        }
+        if (sessoesAtivas.usuarioEmSessao(donoId)) {
+            throw new RegraDeNegocioException(
+                    "Durante a mesa não se rolam moedas. Acrescente as moedas conforme a história.");
+        }
         Moeda moeda = pedido.moeda();
         int modificador = valorOuZero(pedido.modificador());
         int multiplicador = pedido.multiplicador() != null ? pedido.multiplicador() : 1;
@@ -116,12 +127,8 @@ public class RolagemDeFichaService {
         List<Integer> dados = rolar(pedido.lados(), pedido.quantidade());
         int soma = dados.stream().mapToInt(Integer::intValue).sum();
         int total = Math.max(0, (soma + modificador) * multiplicador);
-        int novoValor = personagem.moedas(moeda) + total;
-        if (novoValor > LIMITE_DE_MOEDAS) {
-            throw new RegraDeNegocioException("As moedas de " + moeda.getNome().toLowerCase()
-                    + " passariam do limite de 1.000.000.");
-        }
-        personagem.definirMoedas(moeda, novoValor);
+        personagem.acrescentarMoedas(moeda, total);
+        personagem.setMoedasRoladas(true);
 
         String expressao = expressaoDeMoedas(pedido.quantidade(), pedido.lados(), modificador, multiplicador);
         return registrar(personagem, donoId, TipoRolagemFicha.MOEDAS, moeda.getNome() + " +" + total,

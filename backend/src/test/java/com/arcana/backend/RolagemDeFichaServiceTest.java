@@ -16,6 +16,7 @@ import com.arcana.backend.character.repository.RolagemDeFichaRepository;
 import com.arcana.backend.character.service.RolagemDeFichaService;
 import com.arcana.backend.chat.dice.RolagemDadosService;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
+import com.arcana.backend.table.SessoesAtivasDeMesa;
 import com.arcana.backend.table.model.Mesa;
 import com.arcana.backend.table.model.Participante;
 import com.arcana.backend.table.repository.MesaRepository;
@@ -32,9 +33,11 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.random.RandomGenerator;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -55,6 +58,7 @@ class RolagemDeFichaServiceTest {
 
     private final LinkedList<Integer> faces = new LinkedList<>();
     private final List<Object> eventos = new ArrayList<>();
+    private final Set<Long> usuariosEmSessao = new HashSet<>();
     private RolagemDeFichaService service;
 
     @BeforeEach
@@ -72,7 +76,17 @@ class RolagemDeFichaServiceTest {
         };
         Clock relogio = Clock.fixed(Instant.parse("2026-11-08T12:00:00Z"), ZoneOffset.UTC);
         service = new RolagemDeFichaService(personagemRepository, rolagemRepository, mesaRepository,
-                new RolagemDadosService(dados), eventos::add, relogio);
+                new RolagemDadosService(dados), eventos::add, relogio, new SessoesAtivasDeMesa() {
+                    @Override
+                    public boolean possuiSessaoAtiva(Long mesaId) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean usuarioEmSessao(Long userId) {
+                        return usuariosEmSessao.contains(userId);
+                    }
+                });
     }
 
     private Personagem fichaDeAlice() {
@@ -181,6 +195,7 @@ class RolagemDeFichaServiceTest {
         assertEquals("5d4×10", resultado.rolagem().expressao());
         assertEquals("Ouro +140", resultado.rolagem().descricao());
         assertEquals(155, resultado.ficha().moedasOuro());
+        assertTrue(resultado.ficha().moedasRoladas());
         assertEquals(TipoRolagemFicha.MOEDAS, resultado.rolagem().tipo());
     }
 
@@ -205,10 +220,33 @@ class RolagemDeFichaServiceTest {
         prepararFicha(personagem);
         faces.add(6);
 
-        var erro = assertThrows(RegraDeNegocioException.class,
+        var erro = assertThrows(IllegalStateException.class,
                 () -> service.rolarMoedas(10L, 1L, new RolagemDeMoedasRequestDto(Moeda.PLATINA, 6, 1, 0, 10)));
 
         assertEquals("As moedas de platina passariam do limite de 1.000.000.", erro.getMessage());
+        verify(rolagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRecusarRolarMoedasUmaSegundaVez() {
+        Personagem personagem = fichaDeAlice();
+        personagem.setMoedasRoladas(true);
+        prepararFicha(personagem);
+
+        var erro = assertThrows(RegraDeNegocioException.class,
+                () -> service.rolarMoedas(10L, 1L, new RolagemDeMoedasRequestDto(Moeda.OURO, 4, 5, null, 10)));
+
+        assertEquals("As moedas desta ficha já foram roladas. Acrescente moedas conforme a história.", erro.getMessage());
+        verify(rolagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRecusarRolarMoedasDuranteAMesa() {
+        prepararFicha(fichaDeAlice());
+        usuariosEmSessao.add(1L);
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.rolarMoedas(10L, 1L, new RolagemDeMoedasRequestDto(Moeda.OURO, 4, 5, null, 10)));
         verify(rolagemRepository, never()).save(any());
     }
 

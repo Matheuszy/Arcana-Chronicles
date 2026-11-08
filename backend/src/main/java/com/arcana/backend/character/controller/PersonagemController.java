@@ -1,5 +1,6 @@
 package com.arcana.backend.character.controller;
 
+import com.arcana.backend.character.AcrescimoDeMoedasRequestDto;
 import com.arcana.backend.character.AplicarPacoteRequestDto;
 import com.arcana.backend.character.CaAdicionalRequestDto;
 import com.arcana.backend.character.GastoDeDadosDeVidaRequestDto;
@@ -35,6 +36,16 @@ public class PersonagemController {
         this.personagemService = personagemService;
         this.rolagemDeFichaService = rolagemDeFichaService;
         this.pacoteEquipamentoService = pacoteEquipamentoService;
+    }
+
+    @PostMapping("/{id}/moedas")
+    public ResponseEntity<PersonagemResponseDto> acrescentarMoedas(
+            @PathVariable Long id,
+            @Valid @RequestBody AcrescimoDeMoedasRequestDto pedido,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(personagemService.acrescentarMoedas(id, usuario.getId(), pedido.moeda(),
+                pedido.quantidade()));
     }
 
     @PatchMapping("/{id}/ca-adicional")

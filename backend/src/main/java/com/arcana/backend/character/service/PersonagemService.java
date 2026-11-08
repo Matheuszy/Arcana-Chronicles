@@ -8,6 +8,7 @@ import com.arcana.backend.character.model.ClassePersonagem;
 import com.arcana.backend.character.model.DeslocamentoAdicional;
 import com.arcana.backend.character.model.Equipamento;
 import com.arcana.backend.character.model.Magia;
+import com.arcana.backend.character.model.Moeda;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
@@ -110,6 +111,13 @@ public class PersonagemService {
     public PersonagemResponseDto definirCaAdicional(Long id, Long ownerId, int valor) {
         Personagem personagem = findAndValidateOwner(id, ownerId);
         personagem.setCaAdicional(valor);
+        return PersonagemResponseDto.from(personagemRepository.save(personagem));
+    }
+
+    @Transactional
+    public PersonagemResponseDto acrescentarMoedas(Long id, Long ownerId, Moeda moeda, int quantidade) {
+        Personagem personagem = findAndValidateOwner(id, ownerId);
+        personagem.acrescentarMoedas(moeda, quantidade);
         return PersonagemResponseDto.from(personagemRepository.save(personagem));
     }
 
