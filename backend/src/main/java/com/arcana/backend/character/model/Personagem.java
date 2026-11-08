@@ -78,6 +78,21 @@ public class Personagem {
     @Column(name = "habilidades_raca", columnDefinition = "TEXT")
     private String habilidadesRaca;
 
+    @Column(length = 60)
+    private String antecedente;
+
+    @Column(name = "tracos_personalidade", columnDefinition = "TEXT")
+    private String tracosPersonalidade;
+
+    @Column(columnDefinition = "TEXT")
+    private String ideais;
+
+    @Column(columnDefinition = "TEXT")
+    private String vinculos;
+
+    @Column(columnDefinition = "TEXT")
+    private String defeitos;
+
     @Column(name = "bonus_proficiencia", nullable = false)
     private Integer bonusProficiencia = 2;
 

@@ -5,6 +5,7 @@ import {
   Character,
   DEATH_SAVE_MARKS,
   KIND_LABEL,
+  PERSONALITY_FIELDS,
   PROFICIENCY_LISTS,
   SKILL_ATTRIBUTE,
   SKILL_LABEL,
@@ -308,6 +309,25 @@ export default function CharacterSheet({
           <>
             <h3 className="paper-title">Talentos</h3>
             <p className="paper-text paper-abilities">{character.talentos}</p>
+          </>
+        )}
+
+        {(character.antecedente || PERSONALITY_FIELDS.some(({ key }) => character[key])) && (
+          <>
+            <h3 className="paper-title">Antecedente e personalidade</h3>
+            {character.antecedente && (
+              <p className="paper-text">
+                <strong>Antecedente:</strong> {character.antecedente}
+              </p>
+            )}
+            <dl className="paper-personality">
+              {PERSONALITY_FIELDS.filter(({ key }) => character[key]).map(({ key, label }) => (
+                <div key={key}>
+                  <dt>{label}</dt>
+                  <dd className="paper-text">{character[key]}</dd>
+                </div>
+              ))}
+            </dl>
           </>
         )}
 

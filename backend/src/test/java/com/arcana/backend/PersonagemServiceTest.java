@@ -77,7 +77,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null
-        , 9, null, null, null, null, null, null, null);
+        , 9, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private Usuario contaComPapel(Long id, PapelUsuario papel) {
@@ -178,7 +178,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", "Evocação", 6)),
-                null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -208,7 +208,8 @@ class PersonagemServiceTest {
                         new PersonagemRequestDto.ClasseDto("Artífice", "  ", 2)), 3, Map.of("constituicao", 3, "forca", 6),
                 List.of(" Corda de 15 m ", "Tocha"), "  Fúria: dobra o dano  ",
                 " Elfo ", "Neutro e Bom", "  Visão no escuro até 18 m  ",
-                "  Atleta: +1 em Força  ", 5, 12, true, 2, 1, null, null, null, null);
+                "  Atleta: +1 em Força  ", 5, 12, true, 2, 1, null, null, null, null,
+                " Soldado ", "  Sempre fico de olho nas saídas  ", "Honra", "Minha companhia", "   ");
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -231,6 +232,11 @@ class PersonagemServiceTest {
         assertTrue(resposta.inspiracao());
         assertEquals(2, resposta.sucessosContraMorte());
         assertEquals(1, resposta.falhasContraMorte());
+        assertEquals("Soldado", resposta.antecedente());
+        assertEquals("Sempre fico de olho nas saídas", resposta.tracosPersonalidade());
+        assertEquals("Honra", resposta.ideais());
+        assertEquals("Minha companhia", resposta.vinculos());
+        assertNull(resposta.defeitos());
         assertEquals(6, personagem.getSalvaguardas().get(Atributo.FORCA));
     }
 
@@ -257,7 +263,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, 9, null, null, null,
-                idiomas, ferramentas, armas, armaduras);
+                idiomas, ferramentas, armas, armaduras, null, null, null, null, null);
     }
 
     @Test
@@ -304,7 +310,7 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, equipamentos, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -370,12 +376,12 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 Map.of("voar", 2), null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null);
         PersonagemRequestDto comAtributoInvalido = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
-                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
+                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comPericiaInvalida, 1L));
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comAtributoInvalido, 1L));
@@ -388,7 +394,7 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, magias, espacos, restantes, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test

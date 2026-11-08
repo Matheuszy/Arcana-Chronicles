@@ -85,6 +85,11 @@ export interface Character {
   proficienciasFerramentas?: string[];
   proficienciasArmas?: string[];
   proficienciasArmaduras?: string[];
+  antecedente?: string;
+  tracosPersonalidade?: string;
+  ideais?: string;
+  vinculos?: string;
+  defeitos?: string;
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */
@@ -138,6 +143,18 @@ export const STANDARD_LANGUAGES = [
   'Silvestre',
   'Subcomum',
 ] as const;
+
+export const MAX_BACKGROUND_LENGTH = 60;
+export const MAX_PERSONALITY_LENGTH = 1000;
+
+export type PersonalityKey = 'tracosPersonalidade' | 'ideais' | 'vinculos' | 'defeitos';
+
+export const PERSONALITY_FIELDS: ReadonlyArray<{ key: PersonalityKey; label: string; placeholder: string }> = [
+  { key: 'tracosPersonalidade', label: 'Traços de personalidade', placeholder: 'ex: Sempre tenho uma piada pronta, mesmo nas horas erradas.' },
+  { key: 'ideais', label: 'Ideais', placeholder: 'ex: Liberdade. Correntes foram feitas para ser quebradas.' },
+  { key: 'vinculos', label: 'Vínculos', placeholder: 'ex: Devo minha vida ao sacerdote que me acolheu.' },
+  { key: 'defeitos', label: 'Defeitos', placeholder: 'ex: Não resisto a uma aposta, por pior que seja.' },
+];
 
 export type ProficiencyListKey = 'idiomas' | 'proficienciasFerramentas' | 'proficienciasArmas' | 'proficienciasArmaduras';
 

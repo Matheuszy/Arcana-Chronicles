@@ -146,6 +146,11 @@ public class PersonagemService {
         personagem.setRaca(textoOuNulo(dto.raca()));
         personagem.setAlinhamento(textoOuNulo(dto.alinhamento()));
         personagem.setHabilidadesRaca(textoOuNulo(dto.habilidadesRaca()));
+        personagem.setAntecedente(textoOuNulo(dto.antecedente()));
+        personagem.setTracosPersonalidade(textoOuNulo(dto.tracosPersonalidade()));
+        personagem.setIdeais(textoOuNulo(dto.ideais()));
+        personagem.setVinculos(textoOuNulo(dto.vinculos()));
+        personagem.setDefeitos(textoOuNulo(dto.defeitos()));
         personagem.setBonusProficiencia(dto.proficiencyBonus() != null ? dto.proficiencyBonus() : 2);
 
         personagem.getSalvaguardas().clear();

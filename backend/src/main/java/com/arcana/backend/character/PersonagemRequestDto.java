@@ -125,7 +125,22 @@ public record PersonagemRequestDto(
 
         @Size(max = 30, message = "A ficha pode ter no máximo 30 proficiências em armaduras")
         List<@NotBlank(message = "Proficiência em armadura não pode ser vazia")
-             @Size(max = 60, message = "Proficiência em armadura não pode ter mais de 60 caracteres") String> proficienciasArmaduras
+             @Size(max = 60, message = "Proficiência em armadura não pode ter mais de 60 caracteres") String> proficienciasArmaduras,
+
+        @Size(max = 60, message = "Antecedente não pode ter mais de 60 caracteres")
+        String antecedente,
+
+        @Size(max = 1000, message = "Traços de personalidade não podem ter mais de 1000 caracteres")
+        String tracosPersonalidade,
+
+        @Size(max = 1000, message = "Ideais não podem ter mais de 1000 caracteres")
+        String ideais,
+
+        @Size(max = 1000, message = "Vínculos não podem ter mais de 1000 caracteres")
+        String vinculos,
+
+        @Size(max = 1000, message = "Defeitos não podem ter mais de 1000 caracteres")
+        String defeitos
 
 ) {
     public record ClasseDto(

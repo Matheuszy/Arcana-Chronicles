@@ -22,7 +22,10 @@ import {
   ClassEntry,
   DAMAGE_DICE_PATTERN,
   DEATH_SAVE_MARKS,
+  MAX_BACKGROUND_LENGTH,
+  MAX_PERSONALITY_LENGTH,
   MAX_PROFICIENCY_ENTRIES,
+  PERSONALITY_FIELDS,
   MAX_PROFICIENCY_ENTRY_LENGTH,
   PROFICIENCY_LISTS,
   STANDARD_LANGUAGES,
@@ -114,6 +117,11 @@ const EMPTY_CHARACTER: Character = {
   proficienciasFerramentas: [],
   proficienciasArmas: [],
   proficienciasArmaduras: [],
+  antecedente: '',
+  tracosPersonalidade: '',
+  ideais: '',
+  vinculos: '',
+  defeitos: '',
 };
 
 interface CharacterEditorProps {
@@ -165,6 +173,11 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           raca: char.raca ?? '',
           alinhamento: char.alinhamento ?? '',
           habilidadesRaca: char.habilidadesRaca ?? '',
+          antecedente: char.antecedente ?? '',
+          tracosPersonalidade: char.tracosPersonalidade ?? '',
+          ideais: char.ideais ?? '',
+          vinculos: char.vinculos ?? '',
+          defeitos: char.defeitos ?? '',
           spellSlots: { ...EMPTY_SPELL_SLOTS, ...(char.spellSlots ?? {}) },
         };
         setForm(loaded);
@@ -1302,6 +1315,37 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           <span className="muted">
             {(form.talentos ?? '').length}/{MAX_ABILITIES_LENGTH}
           </span>
+        </div>
+
+        <h3 className="section-title">Antecedente e personalidade</h3>
+        <div className="field">
+          <label htmlFor="antecedente">Antecedente</label>
+          <input
+            id="antecedente"
+            type="text"
+            maxLength={MAX_BACKGROUND_LENGTH}
+            value={form.antecedente ?? ''}
+            onChange={(e) => setField('antecedente', e.target.value)}
+            placeholder="ex: Acólito, Criminoso, Soldado"
+          />
+        </div>
+        <div className="personality-grid">
+          {PERSONALITY_FIELDS.map(({ key, label, placeholder }) => (
+            <div key={key} className="field">
+              <label htmlFor={key}>{label}</label>
+              <textarea
+                id={key}
+                rows={3}
+                maxLength={MAX_PERSONALITY_LENGTH}
+                value={form[key] ?? ''}
+                onChange={(e) => setField(key, e.target.value)}
+                placeholder={placeholder}
+              />
+              <span className="muted">
+                {(form[key] ?? '').length}/{MAX_PERSONALITY_LENGTH}
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* ── História ── */}

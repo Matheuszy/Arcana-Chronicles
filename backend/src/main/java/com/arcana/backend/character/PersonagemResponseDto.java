@@ -52,7 +52,12 @@ public record PersonagemResponseDto(
         List<String> idiomas,
         List<String> proficienciasFerramentas,
         List<String> proficienciasArmas,
-        List<String> proficienciasArmaduras
+        List<String> proficienciasArmaduras,
+        String antecedente,
+        String tracosPersonalidade,
+        String ideais,
+        String vinculos,
+        String defeitos
 
 ) {
     public record ClasseDto(
@@ -155,7 +160,12 @@ public record PersonagemResponseDto(
                 List.copyOf(p.getIdiomas()),
                 List.copyOf(p.getProficienciasFerramentas()),
                 List.copyOf(p.getProficienciasArmas()),
-                List.copyOf(p.getProficienciasArmaduras())
+                List.copyOf(p.getProficienciasArmaduras()),
+                p.getAntecedente(),
+                p.getTracosPersonalidade(),
+                p.getIdeais(),
+                p.getVinculos(),
+                p.getDefeitos()
         );
     }
 

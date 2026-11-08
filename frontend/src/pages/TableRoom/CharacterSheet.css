@@ -251,3 +251,17 @@
   font-size: 1.35rem;
   line-height: 1;
 }
+
+.paper-personality {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+}
+.paper-personality dt {
+  color: #5a3a1f;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.paper-personality dd { margin: 0.2rem 0 0.6rem; }
