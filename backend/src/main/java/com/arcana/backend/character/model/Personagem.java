@@ -49,6 +49,15 @@ public class Personagem {
     @Column(nullable = false)
     private Integer deslocamento = 9;
 
+    @Column(nullable = false)
+    private boolean inspiracao;
+
+    @Column(name = "sucessos_contra_morte", nullable = false)
+    private Integer sucessosContraMorte = 0;
+
+    @Column(name = "falhas_contra_morte", nullable = false)
+    private Integer falhasContraMorte = 0;
+
     @ElementCollection
     @CollectionTable(name = "personagem_classes", joinColumns = @JoinColumn(name = "personagem_id"))
     @OrderColumn(name = "posicao")

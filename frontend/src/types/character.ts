@@ -78,6 +78,9 @@ export interface Character {
   armorClass: number;
   vidaTemporaria?: number;
   deslocamento?: number;
+  inspiracao?: boolean;
+  sucessosContraMorte?: number;
+  falhasContraMorte?: number;
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */
@@ -110,6 +113,7 @@ export interface Character {
   items?: string[];
 }
 
+export const DEATH_SAVE_MARKS = 3;
 export const MAX_SPELL_SLOTS = 20;
 export const SPELL_CIRCLES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 export const MAX_ITEMS = 50;

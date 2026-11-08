@@ -130,6 +130,9 @@ public class PersonagemService {
         personagem.setArmorClass(dto.armorClass());
         personagem.setVidaTemporaria(dto.vidaTemporaria());
         personagem.setDeslocamento(dto.deslocamento());
+        personagem.setInspiracao(Boolean.TRUE.equals(dto.inspiracao()));
+        personagem.setSucessosContraMorte(dto.sucessosContraMorte() != null ? dto.sucessosContraMorte() : 0);
+        personagem.setFalhasContraMorte(dto.falhasContraMorte() != null ? dto.falhasContraMorte() : 0);
         personagem.setBackstory(dto.backstory());
         personagem.setPersonalityPrompt(dto.personalityPrompt());
         personagem.setAvatarUrl(dto.avatarUrl());

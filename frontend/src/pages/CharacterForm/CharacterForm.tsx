@@ -20,6 +20,7 @@ import {
   CharacterKind,
   ClassEntry,
   DAMAGE_DICE_PATTERN,
+  DEATH_SAVE_MARKS,
   DEFAULT_PROFICIENCY_BONUS,
   EMPTY_ATTRIBUTES,
   EMPTY_SPELL_SLOTS,
@@ -101,6 +102,9 @@ const EMPTY_CHARACTER: Character = {
   proficiencyBonus: DEFAULT_PROFICIENCY_BONUS,
   savingThrows: {},
   items: [],
+  inspiracao: false,
+  sucessosContraMorte: 0,
+  falhasContraMorte: 0,
 };
 
 interface CharacterEditorProps {
@@ -221,6 +225,12 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
   const setField = <K extends keyof Character>(key: K, value: Character[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const setDeathSaves = (key: 'sucessosContraMorte' | 'falhasContraMorte', mark: number, checked: boolean) =>
+    setField(key, checked ? mark + 1 : mark);
+
+  const clearDeathSaves = () =>
+    setForm((prev) => ({ ...prev, sucessosContraMorte: 0, falhasContraMorte: 0 }));
 
   const setAttribute = (key: keyof Attributes, value: number) =>
     setForm((prev) => ({ ...prev, attributes: { ...prev.attributes, [key]: value } }));
@@ -698,6 +708,44 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
               {passivePerception(form)}
             </output>
           </div>
+        </div>
+
+        <div className="death-saves">
+          <label className={`inspiration-toggle ${form.inspiracao ? 'active' : ''}`}>
+            <input
+              type="checkbox"
+              checked={Boolean(form.inspiracao)}
+              onChange={(e) => setField('inspiracao', e.target.checked)}
+            />
+            Inspiração
+          </label>
+          {(
+            [
+              ['sucessosContraMorte', 'Sucessos', 'success'],
+              ['falhasContraMorte', 'Falhas', 'failure'],
+            ] as const
+          ).map(([key, label, tone]) => (
+            <fieldset key={key} className={`death-save-group death-save-group--${tone}`}>
+              <legend>{label} contra a morte</legend>
+              {Array.from({ length: DEATH_SAVE_MARKS }, (_, mark) => (
+                <input
+                  key={mark}
+                  type="checkbox"
+                  aria-label={`${label} contra a morte: ${mark + 1} de ${DEATH_SAVE_MARKS}`}
+                  checked={mark < (form[key] ?? 0)}
+                  onChange={(e) => setDeathSaves(key, mark, e.target.checked)}
+                />
+              ))}
+            </fieldset>
+          ))}
+          <button
+            type="button"
+            className="btn btn-ghost death-saves-clear"
+            onClick={clearDeathSaves}
+            disabled={!form.sucessosContraMorte && !form.falhasContraMorte}
+          >
+            Limpar testes
+          </button>
         </div>
 
         {/* ── Atributos ── */}
