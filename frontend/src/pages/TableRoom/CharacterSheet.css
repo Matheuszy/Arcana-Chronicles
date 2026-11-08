@@ -40,6 +40,24 @@
 }
 .paper-vital-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #5a4632; }
 .paper-vital strong { font-size: 1.5rem; font-family: var(--font-display); }
+.paper-vital--inspired { border-color: var(--ember); box-shadow: 0 0 10px rgba(200, 75, 0, 0.35); }
+.paper-death-saves {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: #5a4632;
+}
+.paper-death-saves > span:first-child { min-width: 4.5em; }
+.paper-death-mark {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--leather);
+  border-radius: 50%;
+}
+.paper-death-saves--success .paper-death-mark.filled { background: var(--positive); border-color: var(--positive); }
+.paper-death-saves--failure .paper-death-mark.filled { background: var(--seal); border-color: var(--seal); }
 
 .paper-title {
   margin: 1.5rem 0 0.75rem;

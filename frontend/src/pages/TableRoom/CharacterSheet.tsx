@@ -3,6 +3,7 @@ import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABEL,
   Character,
+  DEATH_SAVE_MARKS,
   KIND_LABEL,
   SKILL_ATTRIBUTE,
   SKILL_LABEL,
@@ -118,6 +119,15 @@ export default function CharacterSheet({
           <div className="paper-vital">
             <span className="paper-vital-label">Percepção passiva</span>
             <strong>{passivePerception(character)}</strong>
+          </div>
+          <div className={`paper-vital ${character.inspiracao ? 'paper-vital--inspired' : ''}`}>
+            <span className="paper-vital-label">Inspiração</span>
+            <strong>{character.inspiracao ? 'Sim' : 'Não'}</strong>
+          </div>
+          <div className="paper-vital">
+            <span className="paper-vital-label">Contra a morte</span>
+            <DeathSaveMarks label="Sucessos" tone="success" count={character.sucessosContraMorte ?? 0} />
+            <DeathSaveMarks label="Falhas" tone="failure" count={character.falhasContraMorte ?? 0} />
           </div>
         </div>
 
@@ -287,5 +297,16 @@ export default function CharacterSheet({
         <p className="paper-text">{character.backstory || 'Nenhuma história registrada.'}</p>
       </article>
     </Modal>
+  );
+}
+
+function DeathSaveMarks({ label, tone, count }: { label: string; tone: 'success' | 'failure'; count: number }) {
+  return (
+    <span className={`paper-death-saves paper-death-saves--${tone}`} aria-label={`${label}: ${count} de ${DEATH_SAVE_MARKS}`}>
+      <span aria-hidden="true">{label}</span>
+      {Array.from({ length: DEATH_SAVE_MARKS }, (_, mark) => (
+        <span key={mark} aria-hidden="true" className={`paper-death-mark ${mark < count ? 'filled' : ''}`} />
+      ))}
+    </span>
   );
 }

@@ -396,3 +396,48 @@
 }
 .attr-input-row,
 .attr-input-row > * { min-width: 0; }
+
+.death-saves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin: 0.5rem 0 1rem;
+}
+.inspiration-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--leather);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.inspiration-toggle.active {
+  border-color: var(--ember-bright);
+  color: var(--ember-bright);
+}
+.inspiration-toggle input[type="checkbox"] { accent-color: var(--ember-bright); }
+.death-save-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.3rem 0.7rem 0.4rem;
+  border: 1px solid var(--leather);
+  border-radius: 6px;
+}
+.death-save-group legend {
+  padding: 0 0.3rem;
+  font-size: 0.75rem;
+  color: var(--parchment-dim);
+}
+.death-save-group input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+}
+.death-save-group--success input[type="checkbox"] { accent-color: var(--positive); }
+.death-save-group--failure input[type="checkbox"] { accent-color: var(--seal); }
+.death-saves-clear { padding: 0.35rem 0.8rem; font-size: 0.85rem; }

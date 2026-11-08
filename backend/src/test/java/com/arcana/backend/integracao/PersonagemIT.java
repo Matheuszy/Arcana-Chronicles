@@ -30,12 +30,18 @@ class PersonagemIT extends IntegracaoTest {
         editada.put("classes", List.of(Map.of("classe", "Guerreiro", "nivel", 5)));
         editada.put("vidaTemporaria", 7);
         editada.put("deslocamento", 12);
+        editada.put("inspiracao", true);
+        editada.put("sucessosContraMorte", 2);
+        editada.put("falhasContraMorte", 1);
         putComo(dono.token(), "/api/characters/" + id, editada)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Thorn Reforjado"))
                 .andExpect(jsonPath("$.level").value(5))
                 .andExpect(jsonPath("$.vidaTemporaria").value(7))
-                .andExpect(jsonPath("$.deslocamento").value(12));
+                .andExpect(jsonPath("$.deslocamento").value(12))
+                .andExpect(jsonPath("$.inspiracao").value(true))
+                .andExpect(jsonPath("$.sucessosContraMorte").value(2))
+                .andExpect(jsonPath("$.falhasContraMorte").value(1));
 
         deleteComo(dono.token(), "/api/characters/" + id).andExpect(status().isNoContent());
         getComo(dono.token(), "/api/characters/" + id).andExpect(status().isNotFound());
