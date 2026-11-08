@@ -2,9 +2,11 @@ package com.arcana.backend;
 
 import com.arcana.backend.character.GastoDeDadosDeVidaRequestDto;
 import com.arcana.backend.character.RolagemDeFichaPublicadaEvent;
+import com.arcana.backend.character.RolagemDeMoedasRequestDto;
 import com.arcana.backend.character.RolagemDeVidaRequestDto;
 import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.ClassePersonagem;
+import com.arcana.backend.character.model.Moeda;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.RolagemDeFicha;
 import com.arcana.backend.character.model.TipoJogador;
@@ -164,6 +166,58 @@ class RolagemDeFichaServiceTest {
         assertThrows(RegraDeNegocioException.class,
                 () -> service.gastarDadosDeVida(10L, 1L, new GastoDeDadosDeVidaRequestDto(0, 1, 0)));
         assertEquals(2, personagem.getClasses().get(0).getDadosVidaDisponiveis());
+    }
+
+    @Test
+    void deveRolarMoedasComMultiplicadorESomarAoValorAtual() {
+        Personagem personagem = fichaDeAlice();
+        personagem.setMoedasOuro(15);
+        prepararFicha(personagem);
+        faces.addAll(List.of(1, 2, 3, 4, 4));
+
+        var resultado = service.rolarMoedas(10L, 1L, new RolagemDeMoedasRequestDto(Moeda.OURO, 4, 5, null, 10));
+
+        assertEquals(140, resultado.rolagem().total());
+        assertEquals("5d4×10", resultado.rolagem().expressao());
+        assertEquals("Ouro +140", resultado.rolagem().descricao());
+        assertEquals(155, resultado.ficha().moedasOuro());
+        assertEquals(TipoRolagemFicha.MOEDAS, resultado.rolagem().tipo());
+    }
+
+    @Test
+    void naoDeveTirarMoedasQuandoOModificadorDeixaOResultadoNegativo() {
+        Personagem personagem = fichaDeAlice();
+        personagem.setMoedasCobre(8);
+        prepararFicha(personagem);
+        faces.add(2);
+
+        var resultado = service.rolarMoedas(10L, 1L, new RolagemDeMoedasRequestDto(Moeda.COBRE, 6, 1, -5, null));
+
+        assertEquals(0, resultado.rolagem().total());
+        assertEquals("1d6-5", resultado.rolagem().expressao());
+        assertEquals(8, resultado.ficha().moedasCobre());
+    }
+
+    @Test
+    void deveRecusarRolagemDeMoedasQuePassaDoLimite() {
+        Personagem personagem = fichaDeAlice();
+        personagem.setMoedasPlatina(999_990);
+        prepararFicha(personagem);
+        faces.add(6);
+
+        var erro = assertThrows(RegraDeNegocioException.class,
+                () -> service.rolarMoedas(10L, 1L, new RolagemDeMoedasRequestDto(Moeda.PLATINA, 6, 1, 0, 10)));
+
+        assertEquals("As moedas de platina passariam do limite de 1.000.000.", erro.getMessage());
+        verify(rolagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarRolagemDeMoedasEmFichaDeOutroUsuario() {
+        prepararFicha(fichaDeAlice());
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.rolarMoedas(10L, 2L, new RolagemDeMoedasRequestDto(Moeda.OURO, 6, 1, 0, 1)));
     }
 
     @Test

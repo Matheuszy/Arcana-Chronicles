@@ -5,8 +5,10 @@ import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.ResultadoRolagemDeFichaDto;
 import com.arcana.backend.character.RolagemDeFichaDto;
 import com.arcana.backend.character.RolagemDeFichaPublicadaEvent;
+import com.arcana.backend.character.RolagemDeMoedasRequestDto;
 import com.arcana.backend.character.RolagemDeVidaRequestDto;
 import com.arcana.backend.character.model.ClassePersonagem;
+import com.arcana.backend.character.model.Moeda;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.RolagemDeFicha;
 import com.arcana.backend.character.model.TipoRolagemFicha;
@@ -32,6 +34,7 @@ import java.util.stream.Collectors;
 public class RolagemDeFichaService {
 
     private static final int RESULTADO_MINIMO_POR_DADO = 1;
+    private static final int LIMITE_DE_MOEDAS = 1_000_000;
 
     private final PersonagemRepository personagemRepository;
     private final RolagemDeFichaRepository rolagemRepository;
@@ -102,6 +105,28 @@ public class RolagemDeFichaService {
                 expressao(quantidade, classe.getDadoVida(), modificador), classe.getDadoVida(), dados, total);
     }
 
+    @Transactional
+    public ResultadoRolagemDeFichaDto rolarMoedas(Long personagemId, Long donoId, RolagemDeMoedasRequestDto pedido) {
+        Personagem personagem = buscarDoDono(personagemId, donoId);
+        Moeda moeda = pedido.moeda();
+        int modificador = valorOuZero(pedido.modificador());
+        int multiplicador = pedido.multiplicador() != null ? pedido.multiplicador() : 1;
+
+        List<Integer> dados = rolar(pedido.lados(), pedido.quantidade());
+        int soma = dados.stream().mapToInt(Integer::intValue).sum();
+        int total = Math.max(0, (soma + modificador) * multiplicador);
+        int novoValor = personagem.moedas(moeda) + total;
+        if (novoValor > LIMITE_DE_MOEDAS) {
+            throw new RegraDeNegocioException("As moedas de " + moeda.getNome().toLowerCase()
+                    + " passariam do limite de 1.000.000.");
+        }
+        personagem.definirMoedas(moeda, novoValor);
+
+        String expressao = expressaoDeMoedas(pedido.quantidade(), pedido.lados(), modificador, multiplicador);
+        return registrar(personagem, donoId, TipoRolagemFicha.MOEDAS, moeda.getNome() + " +" + total,
+                expressao, pedido.lados(), dados, total);
+    }
+
     @Transactional(readOnly = true)
     public List<RolagemDeFichaDto> listar(Long personagemId, Long donoId) {
         buscarDoDono(personagemId, donoId);
@@ -158,6 +183,15 @@ public class RolagemDeFichaService {
         String dado = "1d" + lados + (modificador > 0 ? "+" + modificador : modificador < 0 ? String.valueOf(modificador) : "");
         if (quantidade == 1) return dado;
         return modificador == 0 ? quantidade + "d" + lados : quantidade + "×(" + dado + ")";
+    }
+
+    private String expressaoDeMoedas(int quantidade, int lados, int modificador, int multiplicador) {
+        String dados = quantidade + "d" + lados;
+        if (modificador != 0) {
+            dados += modificador > 0 ? "+" + modificador : String.valueOf(modificador);
+        }
+        if (multiplicador == 1) return dados;
+        return (modificador != 0 ? "(" + dados + ")" : dados) + "×" + multiplicador;
     }
 
     private int valorOuZero(Integer valor) {

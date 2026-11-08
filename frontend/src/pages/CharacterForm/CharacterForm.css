@@ -503,3 +503,13 @@
   cursor: pointer;
 }
 .movement-temporary input[type="checkbox"] { accent-color: var(--ember); }
+
+.coins-row { flex-wrap: wrap; gap: 0.5rem 0.75rem; }
+.coins-row .field { flex: 1 1 7rem; min-width: 7rem; }
+.sheet-rolls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}

@@ -284,3 +284,21 @@
   align-items: start;
 }
 .paper-rolls .hit-point-roll { background: rgba(255, 250, 240, 0.45); border-color: #b89c6a; }
+
+.paper-coins {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.4rem;
+  text-align: center;
+}
+.paper-coins li {
+  display: grid;
+  padding: 0.3rem 0.2rem;
+  border: 1px solid #b89c6a;
+  border-radius: var(--radius-sm);
+}
+.paper-coins span { font-size: 0.7rem; letter-spacing: 0.08em; color: #5a4632; }
+.paper-coins strong { font-family: var(--font-display); overflow-wrap: anywhere; }

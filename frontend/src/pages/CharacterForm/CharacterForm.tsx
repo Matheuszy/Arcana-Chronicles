@@ -13,6 +13,7 @@ import NumberInput from '../../components/ui/NumberInput';
 import TextListEditor from './TextListEditor';
 import AdditionalMovementsEditor from './AdditionalMovementsEditor';
 import HitPointRolls from '../../components/sheet/HitPointRolls';
+import CoinRolls from '../../components/sheet/CoinRolls';
 import SheetRollHistory from '../../components/sheet/SheetRollHistory';
 import {
   attributeModifier,
@@ -24,7 +25,9 @@ import {
   CharacterKind,
   ClassEntry,
   DAMAGE_DICE_PATTERN,
+  COINS,
   DEATH_SAVE_MARKS,
+  MAX_COINS,
   DEFAULT_HIT_DIE,
   HIT_DICE,
   MAX_BACKGROUND_LENGTH,
@@ -134,6 +137,11 @@ const EMPTY_CHARACTER: Character = {
   vinculos: '',
   defeitos: '',
   deslocamentosAdicionais: [],
+  moedasCobre: 0,
+  moedasPrata: 0,
+  moedasElectro: 0,
+  moedasOuro: 0,
+  moedasPlatina: 0,
 };
 
 interface CharacterEditorProps {
@@ -272,6 +280,7 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
       ...current,
       hpMax: rolled.hpMax,
       hpCurrent: rolled.hpCurrent,
+      ...Object.fromEntries(COINS.map(({ field }) => [field, rolled[field] ?? 0])),
       classes: (current.classes ?? []).map((entry, index) => ({
         ...entry,
         dadosVidaDisponiveis: rolled.classes?.[index]?.dadosVidaDisponiveis ?? entry.dadosVidaDisponiveis,
@@ -841,13 +850,16 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
         {id && (
           <details className="sheet-section">
             <summary>
-              <h3 className="section-title">Rolagens de vida</h3>
+              <h3 className="section-title">Rolagens da ficha</h3>
             </summary>
             <p className="muted-hint">
               As rolagens valem na hora, sem precisar salvar, e ficam no histórico da ficha. Se a ficha estiver numa mesa com
               sessão ativa, aparecem também no chat de rolagens.
             </p>
-            <HitPointRolls character={form} onRolled={(rolled, roll) => applyRolledCharacter(rolled, roll.id)} />
+            <div className="sheet-rolls-grid">
+              <HitPointRolls character={form} onRolled={(rolled, roll) => applyRolledCharacter(rolled, roll.id)} />
+              <CoinRolls character={form} onRolled={(rolled, roll) => applyRolledCharacter(rolled, roll.id)} />
+            </div>
             <h4 className="sheet-subtitle">Histórico</h4>
             <SheetRollHistory load={loadRollHistory} refreshKey={lastRollId ?? undefined} />
           </details>
@@ -1104,6 +1116,26 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           <button type="button" className="btn btn-ghost" onClick={addEquipment} disabled={!canAddEquipment}>
             + Adicionar {newEquipmentIsWeapon ? 'arma' : 'armadura'}
           </button>
+        </div>
+
+        <h4 className="sheet-subtitle">Moedas</h4>
+        <div className="row coins-row">
+          {COINS.map(({ field, label, short }) => (
+            <div key={field} className="field">
+              <label htmlFor={field}>
+                {label} ({short})
+              </label>
+              <NumberInput
+                id={field}
+                required
+                min={0}
+                max={MAX_COINS}
+                step={1}
+                value={form[field] ?? 0}
+                onChange={(value) => setField(field, Math.min(MAX_COINS, Math.max(0, Math.trunc(value) || 0)))}
+              />
+            </div>
+          ))}
         </div>
 
         <h4 className="sheet-subtitle">Itens</h4>

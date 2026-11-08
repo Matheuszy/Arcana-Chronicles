@@ -58,7 +58,31 @@ export const DEFAULT_HIT_DIE = 8;
 export const MAX_SHEET_ROLL_DICE = 20;
 export const MAX_SHEET_ROLL_MODIFIER = 20;
 
-export type SheetRollType = 'VIDA' | 'DADOS_DE_VIDA';
+export type SheetRollType = 'VIDA' | 'DADOS_DE_VIDA' | 'MOEDAS';
+
+export type Coin = 'COBRE' | 'PRATA' | 'ELECTRO' | 'OURO' | 'PLATINA';
+
+export type CoinField = 'moedasCobre' | 'moedasPrata' | 'moedasElectro' | 'moedasOuro' | 'moedasPlatina';
+
+export const COINS: ReadonlyArray<{ coin: Coin; field: CoinField; label: string; short: string }> = [
+  { coin: 'COBRE', field: 'moedasCobre', label: 'Cobre', short: 'PC' },
+  { coin: 'PRATA', field: 'moedasPrata', label: 'Prata', short: 'PP' },
+  { coin: 'ELECTRO', field: 'moedasElectro', label: 'Electro', short: 'PE' },
+  { coin: 'OURO', field: 'moedasOuro', label: 'Ouro', short: 'PO' },
+  { coin: 'PLATINA', field: 'moedasPlatina', label: 'Platina', short: 'PL' },
+];
+
+export const MAX_COINS = 1000000;
+export const MAX_COIN_MULTIPLIER = 1000;
+export const COIN_DICE = [4, 6, 8, 10, 12, 20, 100] as const;
+
+export interface CoinRollRequest {
+  moeda: Coin;
+  lados: number;
+  quantidade: number;
+  modificador: number;
+  multiplicador: number;
+}
 
 export interface SheetRoll {
   id: string;
@@ -151,6 +175,11 @@ export interface Character {
   defeitos?: string;
   percepcaoPassiva?: number;
   deslocamentosAdicionais?: AdditionalMovement[];
+  moedasCobre?: number;
+  moedasPrata?: number;
+  moedasElectro?: number;
+  moedasOuro?: number;
+  moedasPlatina?: number;
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */

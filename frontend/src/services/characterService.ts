@@ -1,6 +1,7 @@
 import {
   Character,
   CharacterKind,
+  CoinRollRequest,
   HitDiceSpendRequest,
   HitPointRollRequest,
   SheetRoll,
@@ -40,6 +41,13 @@ export const characterService = {
 
   rollHitPoints(id: string, request: HitPointRollRequest): Promise<SheetRollOutcome> {
     return apiRequest<SheetRollOutcome>(`${BASE_PATH}/${id}/rolagens/vida`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  rollCoins(id: string, request: CoinRollRequest): Promise<SheetRollOutcome> {
+    return apiRequest<SheetRollOutcome>(`${BASE_PATH}/${id}/rolagens/moedas`, {
       method: 'POST',
       body: JSON.stringify(request),
     });

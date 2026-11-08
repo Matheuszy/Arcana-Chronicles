@@ -144,7 +144,27 @@ public record PersonagemRequestDto(
         String defeitos,
 
         @Size(max = 10, message = "A ficha pode ter no máximo 10 deslocamentos adicionais")
-        List<@Valid DeslocamentoAdicionalDto> deslocamentosAdicionais
+        List<@Valid DeslocamentoAdicionalDto> deslocamentosAdicionais,
+
+        @Min(value = 0, message = "Moedas de cobre não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de cobre não podem passar de 1.000.000")
+        Integer moedasCobre,
+
+        @Min(value = 0, message = "Moedas de prata não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de prata não podem passar de 1.000.000")
+        Integer moedasPrata,
+
+        @Min(value = 0, message = "Moedas de electro não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de electro não podem passar de 1.000.000")
+        Integer moedasElectro,
+
+        @Min(value = 0, message = "Moedas de ouro não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de ouro não podem passar de 1.000.000")
+        Integer moedasOuro,
+
+        @Min(value = 0, message = "Moedas de platina não podem ser negativas")
+        @Max(value = 1000000, message = "Moedas de platina não podem passar de 1.000.000")
+        Integer moedasPlatina
 
 ) {
     public record ClasseDto(

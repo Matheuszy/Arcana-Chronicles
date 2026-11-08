@@ -60,7 +60,12 @@ public record PersonagemResponseDto(
         String vinculos,
         String defeitos,
         int percepcaoPassiva,
-        List<DeslocamentoAdicionalDto> deslocamentosAdicionais
+        List<DeslocamentoAdicionalDto> deslocamentosAdicionais,
+        Integer moedasCobre,
+        Integer moedasPrata,
+        Integer moedasElectro,
+        Integer moedasOuro,
+        Integer moedasPlatina
 
 ) {
     public record ClasseDto(
@@ -182,7 +187,12 @@ public record PersonagemResponseDto(
                 p.calcularPercepcaoPassiva(),
                 p.getDeslocamentosAdicionais().stream()
                         .map(d -> new DeslocamentoAdicionalDto(d.getTipo(), d.getMetros(), d.getOrigem(), d.isTemporario()))
-                        .toList()
+                        .toList(),
+                p.getMoedasCobre(),
+                p.getMoedasPrata(),
+                p.getMoedasElectro(),
+                p.getMoedasOuro(),
+                p.getMoedasPlatina()
         );
     }
 

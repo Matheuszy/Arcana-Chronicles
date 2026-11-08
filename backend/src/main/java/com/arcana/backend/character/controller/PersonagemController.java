@@ -5,6 +5,7 @@ import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.ResultadoRolagemDeFichaDto;
 import com.arcana.backend.character.RolagemDeFichaDto;
+import com.arcana.backend.character.RolagemDeMoedasRequestDto;
 import com.arcana.backend.character.RolagemDeVidaRequestDto;
 import com.arcana.backend.character.model.TipoJogador;
 import com.arcana.backend.character.service.PersonagemService;
@@ -45,6 +46,15 @@ public class PersonagemController {
             @AuthenticationPrincipal Usuario usuario) {
 
         return ResponseEntity.ok(rolagemDeFichaService.rolarVida(id, usuario.getId(), pedido));
+    }
+
+    @PostMapping("/{id}/rolagens/moedas")
+    public ResponseEntity<ResultadoRolagemDeFichaDto> rolarMoedas(
+            @PathVariable Long id,
+            @Valid @RequestBody RolagemDeMoedasRequestDto pedido,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(rolagemDeFichaService.rolarMoedas(id, usuario.getId(), pedido));
     }
 
     @PostMapping("/{id}/rolagens/dados-de-vida")

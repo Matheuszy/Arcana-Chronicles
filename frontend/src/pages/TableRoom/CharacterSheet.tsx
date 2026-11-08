@@ -4,6 +4,7 @@ import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABEL,
   Character,
+  COINS,
   DEATH_SAVE_MARKS,
   DEFAULT_HIT_DIE,
   SheetRoll,
@@ -26,6 +27,7 @@ import {
 } from '../../types/character';
 import { RollRequest } from '../../types/chat';
 import HitPointRolls from '../../components/sheet/HitPointRolls';
+import CoinRolls from '../../components/sheet/CoinRolls';
 import SheetRollHistory from '../../components/sheet/SheetRollHistory';
 import SheetWeapon from './SheetWeapon';
 import './CharacterSheet.css';
@@ -177,13 +179,22 @@ export default function CharacterSheet({
             <h3 className="paper-title">Vida e rolagens</h3>
             <div className="paper-rolls">
               {onCharacterUpdated && (
-                <HitPointRolls
-                  character={character}
-                  onRolled={(updated, roll) => {
-                    setLastRollId(roll.id);
-                    onCharacterUpdated(updated);
-                  }}
-                />
+                <>
+                  <HitPointRolls
+                    character={character}
+                    onRolled={(updated, roll) => {
+                      setLastRollId(roll.id);
+                      onCharacterUpdated(updated);
+                    }}
+                  />
+                  <CoinRolls
+                    character={character}
+                    onRolled={(updated, roll) => {
+                      setLastRollId(roll.id);
+                      onCharacterUpdated(updated);
+                    }}
+                  />
+                </>
               )}
               {loadRollHistory && (
                 <section className="paper-inventory-block" aria-labelledby="sheet-roll-history">
@@ -291,6 +302,18 @@ export default function CharacterSheet({
             ) : (
               <p className="paper-text paper-empty">Nenhuma armadura na ficha.</p>
             )}
+          </section>
+
+          <section className="paper-inventory-block" aria-labelledby="sheet-coins">
+            <h4 id="sheet-coins">Moedas</h4>
+            <ul className="paper-coins">
+              {COINS.map(({ field, label, short }) => (
+                <li key={field}>
+                  <span title={label}>{short}</span>
+                  <strong>{character[field] ?? 0}</strong>
+                </li>
+              ))}
+            </ul>
           </section>
 
           <section className="paper-inventory-block" aria-labelledby="sheet-items">

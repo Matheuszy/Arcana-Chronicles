@@ -58,6 +58,21 @@ public class Personagem {
     @Column(name = "falhas_contra_morte", nullable = false)
     private Integer falhasContraMorte = 0;
 
+    @Column(name = "moedas_cobre", nullable = false)
+    private Integer moedasCobre = 0;
+
+    @Column(name = "moedas_prata", nullable = false)
+    private Integer moedasPrata = 0;
+
+    @Column(name = "moedas_electro", nullable = false)
+    private Integer moedasElectro = 0;
+
+    @Column(name = "moedas_ouro", nullable = false)
+    private Integer moedasOuro = 0;
+
+    @Column(name = "moedas_platina", nullable = false)
+    private Integer moedasPlatina = 0;
+
     @ElementCollection
     @CollectionTable(name = "personagem_deslocamentos_adicionais", joinColumns = @JoinColumn(name = "personagem_id"))
     @OrderColumn(name = "posicao")
@@ -187,6 +202,26 @@ public class Personagem {
     }
 
     public Personagem() {}
+
+    public int moedas(Moeda moeda) {
+        return switch (moeda) {
+            case COBRE -> moedasCobre;
+            case PRATA -> moedasPrata;
+            case ELECTRO -> moedasElectro;
+            case OURO -> moedasOuro;
+            case PLATINA -> moedasPlatina;
+        };
+    }
+
+    public void definirMoedas(Moeda moeda, int quantidade) {
+        switch (moeda) {
+            case COBRE -> moedasCobre = quantidade;
+            case PRATA -> moedasPrata = quantidade;
+            case ELECTRO -> moedasElectro = quantidade;
+            case OURO -> moedasOuro = quantidade;
+            case PLATINA -> moedasPlatina = quantidade;
+        }
+    }
 
     public int calcularPercepcaoPassiva() {
         int sabedoria = attributes != null && attributes.getSabedoria() != null ? attributes.getSabedoria() : 10;

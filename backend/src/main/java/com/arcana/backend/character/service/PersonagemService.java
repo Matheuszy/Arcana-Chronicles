@@ -138,6 +138,11 @@ public class PersonagemService {
         personagem.setInspiracao(Boolean.TRUE.equals(dto.inspiracao()));
         personagem.setSucessosContraMorte(dto.sucessosContraMorte() != null ? dto.sucessosContraMorte() : 0);
         personagem.setFalhasContraMorte(dto.falhasContraMorte() != null ? dto.falhasContraMorte() : 0);
+        personagem.setMoedasCobre(valorOuZero(dto.moedasCobre()));
+        personagem.setMoedasPrata(valorOuZero(dto.moedasPrata()));
+        personagem.setMoedasElectro(valorOuZero(dto.moedasElectro()));
+        personagem.setMoedasOuro(valorOuZero(dto.moedasOuro()));
+        personagem.setMoedasPlatina(valorOuZero(dto.moedasPlatina()));
         personagem.setBackstory(dto.backstory());
         personagem.setPersonalityPrompt(dto.personalityPrompt());
         personagem.setAvatarUrl(dto.avatarUrl());
@@ -297,6 +302,10 @@ public class PersonagemService {
             }
             atual.add(valor);
         }
+    }
+
+    private int valorOuZero(Integer valor) {
+        return valor != null ? valor : 0;
     }
 
     private String textoOuNulo(String texto) {

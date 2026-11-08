@@ -63,6 +63,23 @@ class RolagemDeFichaIT extends IntegracaoTest {
     }
 
     @Test
+    void deveRolarMoedasApenasNaFichaDoDono() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Conta outro = registrar("JOGADOR");
+        Long fichaId = criarPersonagem(dono, "PLAYER");
+        String url = "/api/characters/" + fichaId + "/rolagens/moedas";
+        Map<String, Object> pedido = Map.of("moeda", "PRATA", "lados", 6, "quantidade", 2, "multiplicador", 10);
+
+        JsonNode resultado = corpo(postComo(dono.token(), url, pedido).andExpect(status().isOk()));
+        int total = resultado.get("rolagem").get("total").asInt();
+        assertTrue(total >= 20 && total <= 120 && total % 10 == 0);
+        assertEquals(total, resultado.get("ficha").get("moedasPrata").asInt());
+
+        postComo(outro.token(), url, pedido).andExpect(status().isForbidden());
+        postComo(dono.token(), url, Map.of("moeda", "OURO", "lados", 7, "quantidade", 1)).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void deveLiberarOHistoricoDaFichaDeParticipanteApenasAoMestre() throws Exception {
         Conta mestre = registrar("MESTRE");
         Long mesaId = criarMesa(mestre);
