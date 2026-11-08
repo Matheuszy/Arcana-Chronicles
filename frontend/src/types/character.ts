@@ -150,6 +150,16 @@ export const MAX_MOVEMENT = 300;
 export const MAX_ADDITIONAL_MOVEMENTS = 10;
 export const MAX_MOVEMENT_ORIGIN_LENGTH = 60;
 
+export interface EquipmentPack {
+  chave: string;
+  nome: string;
+  itens: string[];
+}
+
+export function equipmentPackName(chave: string): string {
+  return chave.charAt(0) + chave.slice(1).toLowerCase();
+}
+
 export interface Character {
   id?: string;
   ownerId?: string;
@@ -180,6 +190,8 @@ export interface Character {
   moedasElectro?: number;
   moedasOuro?: number;
   moedasPlatina?: number;
+  pacoteEquipamento?: string | null;
+  itensDoPacote?: string[];
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */

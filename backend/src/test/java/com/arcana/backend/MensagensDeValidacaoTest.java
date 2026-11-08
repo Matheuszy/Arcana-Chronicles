@@ -40,7 +40,7 @@ class MensagensDeValidacaoTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
-                List.of(), null, null, null, null, " ", null, null, null, -1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                List.of(), null, null, null, null, " ", null, null, null, -1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertEquals(List.of("A ficha precisa de ao menos uma classe", "Alinhamento é obrigatório",
                 "Bônus de proficiência é obrigatório", "Deslocamento é obrigatório", "Raça é obrigatória",
@@ -54,7 +54,7 @@ class MensagensDeValidacaoTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
-                "Elfo", "Neutro e Bom", null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                "Elfo", "Neutro e Bom", null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertEquals(List.of(), mensagens(validador.validate(ficha)));
     }
@@ -66,7 +66,7 @@ class MensagensDeValidacaoTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
-                "Elfo", "Neutro e Bom", null, null, null, 9, true, 4, -1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                "Elfo", "Neutro e Bom", null, null, null, 9, true, 4, -1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertEquals(List.of("Falhas nos testes contra a morte devem ser de 0 a 3",
                 "Sucessos nos testes contra a morte devem ser de 0 a 3"), mensagens(validador.validate(ficha)));
@@ -80,7 +80,7 @@ class MensagensDeValidacaoTest {
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
                 "Elfo", "Neutro e Bom", null, null, null, 9, null, null, null,
-                List.of(" "), List.of("x".repeat(61)), null, null, null, null, null, null, null, null, null, null, null, null, null);
+                List.of(" "), List.of("x".repeat(61)), null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertEquals(List.of("Idioma não pode ser vazio",
                 "Proficiência em ferramenta não pode ter mais de 60 caracteres"), mensagens(validador.validate(ficha)));
@@ -94,7 +94,7 @@ class MensagensDeValidacaoTest {
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
                 "Elfo", "Neutro e Bom", null, null, null, 9, null, null, null, null, null, null, null,
-                "a".repeat(61), "t".repeat(1001), "i".repeat(1001), "v".repeat(1001), "d".repeat(1001), null, null, null, null, null, null);
+                "a".repeat(61), "t".repeat(1001), "i".repeat(1001), "v".repeat(1001), "d".repeat(1001), null, null, null, null, null, null, null);
 
         assertEquals(List.of("Antecedente não pode ter mais de 60 caracteres",
                 "Defeitos não podem ter mais de 1000 caracteres", "Ideais não podem ter mais de 1000 caracteres",
@@ -119,7 +119,7 @@ class MensagensDeValidacaoTest {
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
                 "Elfo", "Neutro e Bom", null, null, null, 9, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, -1, null, null, 1000001, null);
+                null, null, null, null, null, null, -1, null, null, 1000001, null, null);
 
         assertEquals(List.of("Moedas de cobre não podem ser negativas",
                 "Moedas de ouro não podem passar de 1.000.000"), mensagens(validador.validate(ficha)));

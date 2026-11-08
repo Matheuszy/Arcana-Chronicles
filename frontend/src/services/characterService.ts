@@ -2,6 +2,7 @@ import {
   Character,
   CharacterKind,
   CoinRollRequest,
+  EquipmentPack,
   HitDiceSpendRequest,
   HitPointRollRequest,
   SheetRoll,
@@ -32,6 +33,17 @@ export const characterService = {
     return apiRequest<Character>(`${BASE_PATH}/${id}`, {
       method: 'PUT',
       body: JSON.stringify(character),
+    });
+  },
+
+  listPacks(): Promise<EquipmentPack[]> {
+    return apiRequest<EquipmentPack[]>('/pacotes-equipamento');
+  },
+
+  applyPack(id: string, pacote: string): Promise<Character> {
+    return apiRequest<Character>(`${BASE_PATH}/${id}/pacote-equipamento`, {
+      method: 'PUT',
+      body: JSON.stringify({ pacote }),
     });
   },
 

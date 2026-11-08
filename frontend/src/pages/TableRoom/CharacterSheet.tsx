@@ -7,6 +7,7 @@ import {
   COINS,
   DEATH_SAVE_MARKS,
   DEFAULT_HIT_DIE,
+  equipmentPackName,
   SheetRoll,
   KIND_LABEL,
   MOVEMENT_TYPE_LABEL,
@@ -318,6 +319,9 @@ export default function CharacterSheet({
 
           <section className="paper-inventory-block" aria-labelledby="sheet-items">
             <h4 id="sheet-items">Itens</h4>
+            {character.pacoteEquipamento && (
+              <p className="paper-text paper-hint">Pacote: {equipmentPackName(character.pacoteEquipamento)}</p>
+            )}
             {items.length > 0 ? (
               <ul className="paper-items">
                 {items.map((item, index) => (

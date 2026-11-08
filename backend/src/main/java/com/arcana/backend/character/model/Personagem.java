@@ -157,6 +157,15 @@ public class Personagem {
     @Column(name = "armadura", length = 60, nullable = false)
     private List<String> proficienciasArmaduras = new ArrayList<>();
 
+    @Column(name = "pacote_equipamento", length = 30)
+    private String pacoteEquipamento;
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_itens_do_pacote", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "item", nullable = false, length = 100)
+    private List<String> itensDoPacote = new ArrayList<>();
+
     @ElementCollection
     @CollectionTable(name = "personagem_pericias", joinColumns = @JoinColumn(name = "personagem_id"))
     @MapKeyColumn(name = "pericia")
@@ -202,6 +211,26 @@ public class Personagem {
     }
 
     public Personagem() {}
+
+    public static final int LIMITE_DE_ITENS = 50;
+
+    public void aplicarPacote(PacoteEquipamento pacote) {
+        if (pacote.getChave().equals(pacoteEquipamento)) {
+            throw new IllegalStateException("O pacote " + pacote.getNome() + " já está na ficha.");
+        }
+        List<String> novosItens = new ArrayList<>(itens);
+        itensDoPacote.forEach(novosItens::remove);
+        novosItens.addAll(pacote.getItens());
+        if (novosItens.size() > LIMITE_DE_ITENS) {
+            throw new IllegalStateException("Com o pacote " + pacote.getNome() + " a ficha passaria de "
+                    + LIMITE_DE_ITENS + " itens. Remova alguns itens antes.");
+        }
+        itens.clear();
+        itens.addAll(novosItens);
+        itensDoPacote.clear();
+        itensDoPacote.addAll(pacote.getItens());
+        pacoteEquipamento = pacote.getChave();
+    }
 
     public int moedas(Moeda moeda) {
         return switch (moeda) {

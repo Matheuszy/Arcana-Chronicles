@@ -17,6 +17,8 @@ public interface SolicitacaoEntradaRepository extends JpaRepository<SolicitacaoE
 
     boolean existsByMesaIdAndUserIdAndStatus(Long mesaId, Long userId, StatusSolicitacao status);
 
+    boolean existsByCharacterIdAndStatus(Long characterId, StatusSolicitacao status);
+
     Optional<SolicitacaoEntrada> findFirstByMesaIdAndUserIdOrderByCreatedAtDesc(Long mesaId, Long userId);
 
     List<SolicitacaoEntrada> findByMesaIdAndStatusOrderByCreatedAtAsc(Long mesaId, StatusSolicitacao status);

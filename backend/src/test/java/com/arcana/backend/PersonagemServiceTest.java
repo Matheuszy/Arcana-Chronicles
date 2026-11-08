@@ -4,6 +4,7 @@ import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Atributos;
+import com.arcana.backend.character.model.PacoteEquipamento;
 import com.arcana.backend.character.model.DeslocamentoAdicional;
 import com.arcana.backend.character.model.TipoDeslocamento;
 import com.arcana.backend.character.model.ClassePersonagem;
@@ -11,6 +12,7 @@ import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.character.service.PersonagemService;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
@@ -43,13 +45,17 @@ class PersonagemServiceTest {
     @Mock
     private UsuarioRepositorie usuarioRepositorie;
 
+    @Mock
+    private PacoteEquipamentoRepository pacoteRepository;
+
     private PersonagemService service;
     private SessoesAtivasDeMesa sessoesAtivas;
 
     @BeforeEach
     void setUp() {
         sessoesAtivas = mock(SessoesAtivasDeMesa.class);
-        service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper(), sessoesAtivas);
+        service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper(), sessoesAtivas,
+                pacoteRepository);
     }
 
     private Personagem personagemDeAlice() {
@@ -79,7 +85,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null
-        , 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        , 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private Usuario contaComPapel(Long id, PapelUsuario papel) {
@@ -180,7 +186,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", "Evocação", 6)),
-                null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -211,7 +217,7 @@ class PersonagemServiceTest {
                 List.of(" Corda de 15 m ", "Tocha"), "  Fúria: dobra o dano  ",
                 " Elfo ", "Neutro e Bom", "  Visão no escuro até 18 m  ",
                 "  Atleta: +1 em Força  ", 5, 12, true, 2, 1, null, null, null, null,
-                " Soldado ", "  Sempre fico de olho nas saídas  ", "Honra", "Minha companhia", "   ", null, null, null, null, null, null);
+                " Soldado ", "  Sempre fico de olho nas saídas  ", "Honra", "Minha companhia", "   ", null, null, null, null, null, null, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -290,7 +296,7 @@ class PersonagemServiceTest {
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, 9, null, null, null,
                 null, null, null, null, null, null, null, null, null, null,
-                12, null, 0, 150, 3);
+                12, null, 0, 150, 3, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -300,13 +306,34 @@ class PersonagemServiceTest {
         assertEquals(3, resposta.moedasPlatina());
     }
 
+    @Test
+    void deveAplicarPacoteEscolhidoNaCriacaoDaFicha() {
+        contaComPapel(1L, PapelUsuario.JOGADOR);
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pacoteRepository.findById("ARTISTA")).thenReturn(Optional.of(
+                new PacoteEquipamento("ARTISTA", "Artista", 3, List.of("Mochila", "Kit de disfarce"))));
+        PersonagemRequestDto dto = new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                null, null, null, List.of("Alaúde"), null, null, null, null, null, null, 9, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "artista");
+
+        var resposta = service.criar(dto, 1L);
+
+        assertEquals(List.of("Alaúde", "Mochila", "Kit de disfarce"), resposta.items());
+        assertEquals("ARTISTA", resposta.pacoteEquipamento());
+        assertEquals(List.of("Mochila", "Kit de disfarce"), resposta.itensDoPacote());
+    }
+
     private PersonagemRequestDto dtoComClasse(PersonagemRequestDto.ClasseDto classe) {
         return new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(classe), null, null, null, null, null, null, null, null, null, 9, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -349,7 +376,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, 9, null, null, null,
-                null, null, null, null, null, null, null, null, null, deslocamentos, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, deslocamentos, null, null, null, null, null, null);
     }
 
     @Test
@@ -388,7 +415,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, 9, null, null, null,
-                idiomas, ferramentas, armas, armaduras, null, null, null, null, null, null, null, null, null, null, null);
+                idiomas, ferramentas, armas, armaduras, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -435,7 +462,7 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, equipamentos, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -501,12 +528,12 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 Map.of("voar", 2), null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         PersonagemRequestDto comAtributoInvalido = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
-                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comPericiaInvalida, 1L));
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comAtributoInvalido, 1L));
@@ -519,7 +546,7 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, magias, espacos, restantes, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test

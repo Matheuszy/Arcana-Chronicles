@@ -1,5 +1,6 @@
 package com.arcana.backend.character.controller;
 
+import com.arcana.backend.character.AplicarPacoteRequestDto;
 import com.arcana.backend.character.GastoDeDadosDeVidaRequestDto;
 import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
@@ -8,6 +9,7 @@ import com.arcana.backend.character.RolagemDeFichaDto;
 import com.arcana.backend.character.RolagemDeMoedasRequestDto;
 import com.arcana.backend.character.RolagemDeVidaRequestDto;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.service.PacoteEquipamentoService;
 import com.arcana.backend.character.service.PersonagemService;
 import com.arcana.backend.character.service.RolagemDeFichaService;
 import com.arcana.backend.user.model.Usuario;
@@ -25,10 +27,22 @@ public class PersonagemController {
 
     private final PersonagemService personagemService;
     private final RolagemDeFichaService rolagemDeFichaService;
+    private final PacoteEquipamentoService pacoteEquipamentoService;
 
-    public PersonagemController(PersonagemService personagemService, RolagemDeFichaService rolagemDeFichaService) {
+    public PersonagemController(PersonagemService personagemService, RolagemDeFichaService rolagemDeFichaService,
+                                PacoteEquipamentoService pacoteEquipamentoService) {
         this.personagemService = personagemService;
         this.rolagemDeFichaService = rolagemDeFichaService;
+        this.pacoteEquipamentoService = pacoteEquipamentoService;
+    }
+
+    @PutMapping("/{id}/pacote-equipamento")
+    public ResponseEntity<PersonagemResponseDto> aplicarPacote(
+            @PathVariable Long id,
+            @Valid @RequestBody AplicarPacoteRequestDto pedido,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(pacoteEquipamentoService.aplicar(id, usuario.getId(), pedido.pacote()));
     }
 
     @GetMapping("/{id}/rolagens")

@@ -164,7 +164,10 @@ public record PersonagemRequestDto(
 
         @Min(value = 0, message = "Moedas de platina não podem ser negativas")
         @Max(value = 1000000, message = "Moedas de platina não podem passar de 1.000.000")
-        Integer moedasPlatina
+        Integer moedasPlatina,
+
+        @Size(max = 30, message = "Pacote de equipamento inválido")
+        String pacoteEquipamento
 
 ) {
     public record ClasseDto(

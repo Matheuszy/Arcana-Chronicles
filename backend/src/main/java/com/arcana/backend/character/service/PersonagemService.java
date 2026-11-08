@@ -12,6 +12,7 @@ import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
@@ -41,15 +42,18 @@ public class PersonagemService {
     private final UsuarioRepositorie usuarioRepositorie;
     private final ObjectMapper objectMapper;
     private final SessoesAtivasDeMesa sessoesAtivas;
+    private final PacoteEquipamentoRepository pacoteRepository;
 
     public PersonagemService(PersonagemRepository personagemRepository,
                              UsuarioRepositorie usuarioRepositorie,
                              ObjectMapper objectMapper,
-                             SessoesAtivasDeMesa sessoesAtivas) {
+                             SessoesAtivasDeMesa sessoesAtivas,
+                             PacoteEquipamentoRepository pacoteRepository) {
         this.personagemRepository = personagemRepository;
         this.usuarioRepositorie = usuarioRepositorie;
         this.objectMapper = objectMapper;
         this.sessoesAtivas = sessoesAtivas;
+        this.pacoteRepository = pacoteRepository;
     }
 
     /** Lista todos os personagens de um usuário, opcionalmente filtrados por tipo */
@@ -82,6 +86,11 @@ public class PersonagemService {
         Personagem personagem = new Personagem();
         mapDtoToEntity(dto, personagem);
         personagem.setOwner(owner);
+        if (dto.pacoteEquipamento() != null && !dto.pacoteEquipamento().isBlank()) {
+            String chave = dto.pacoteEquipamento().trim().toUpperCase();
+            personagem.aplicarPacote(pacoteRepository.findById(chave)
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Pacote de equipamento não encontrado: " + chave)));
+        }
 
         return PersonagemResponseDto.from(personagemRepository.save(personagem));
     }

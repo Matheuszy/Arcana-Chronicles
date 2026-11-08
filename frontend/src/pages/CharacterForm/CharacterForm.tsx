@@ -12,6 +12,7 @@ import Select from '../../components/ui/Select';
 import NumberInput from '../../components/ui/NumberInput';
 import TextListEditor from './TextListEditor';
 import AdditionalMovementsEditor from './AdditionalMovementsEditor';
+import EquipmentPackPicker from './EquipmentPackPicker';
 import HitPointRolls from '../../components/sheet/HitPointRolls';
 import CoinRolls from '../../components/sheet/CoinRolls';
 import SheetRollHistory from '../../components/sheet/SheetRollHistory';
@@ -289,6 +290,18 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     setForm(merge);
     setSavedSnapshot((snapshot) => JSON.stringify(merge(JSON.parse(snapshot) as Character)));
     setLastRollId(rollId);
+  };
+
+  const applyPackResult = (updated: Character) => {
+    const merge = (current: Character): Character => ({
+      ...current,
+      items: updated.items ?? [],
+      pacoteEquipamento: updated.pacoteEquipamento ?? null,
+      itensDoPacote: updated.itensDoPacote ?? [],
+    });
+    setForm(merge);
+    setSavedSnapshot((snapshot) => JSON.stringify(merge(JSON.parse(snapshot) as Character)));
+    notify('Pacote aplicado na ficha.', 'success');
   };
 
   const clearDeathSaves = () =>
@@ -1138,12 +1151,24 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
           ))}
         </div>
 
+        <EquipmentPackPicker
+          characterId={id}
+          appliedPack={form.pacoteEquipamento}
+          pendingPack={id ? null : form.pacoteEquipamento}
+          dirty={dirty}
+          onPendingChange={(pack) => setField('pacoteEquipamento', pack)}
+          onApplied={applyPackResult}
+        />
+
         <h4 className="sheet-subtitle">Itens</h4>
         {items.length > 0 ? (
           <ul className="items-list">
             {items.map((item, i) => (
               <li key={`${item}-${i}`} className="item-row">
-                <span>{item}</span>
+                <span>
+                  {item}
+                  {(form.itensDoPacote ?? []).includes(item) && <span className="item-from-pack">do pacote</span>}
+                </span>
                 <button
                   type="button"
                   className="btn-remove"
