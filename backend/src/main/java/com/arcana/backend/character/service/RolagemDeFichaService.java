@@ -35,6 +35,7 @@ public class RolagemDeFichaService {
 
     private static final int RESULTADO_MINIMO_POR_DADO = 1;
     private static final int LIMITE_DE_MOEDAS = 1_000_000;
+    public static final int LIMITE_DO_HISTORICO = 50;
 
     private final PersonagemRepository personagemRepository;
     private final RolagemDeFichaRepository rolagemRepository;
@@ -146,6 +147,7 @@ public class RolagemDeFichaService {
         String resultados = dados.stream().map(String::valueOf).collect(Collectors.joining(","));
         RolagemDeFicha rolagem = rolagemRepository.save(new RolagemDeFicha(personagem, tipo, descricao, expressao,
                 resultados, total, LocalDateTime.now(clock)));
+        rolagemRepository.manterApenasAsMaisRecentes(personagem.getId(), LIMITE_DO_HISTORICO);
         Personagem salvo = personagemRepository.save(personagem);
         publicarNasMesas(salvo, donoId, expressao, lados, dados, total, descricao);
         return new ResultadoRolagemDeFichaDto(RolagemDeFichaDto.from(rolagem), PersonagemResponseDto.from(salvo));

@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -42,6 +43,24 @@ class RolagemDeFichaIT extends IntegracaoTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].tipo").value("VIDA"))
                 .andExpect(jsonPath("$[0].total").value(total));
+    }
+
+    @Test
+    void deveGuardarApenasAsCinquentaRolagensMaisRecentesDaFicha() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Long fichaId = criarPersonagem(dono, "PLAYER");
+        String url = "/api/characters/" + fichaId + "/rolagens";
+
+        for (int i = 0; i < 52; i++) {
+            postComo(dono.token(), url + "/vida", Map.of("lados", 6, "quantidade", 1)).andExpect(status().isOk());
+        }
+
+        getComo(dono.token(), url).andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(50)));
+        assertEquals(50L, rolagensGuardadas(fichaId));
+    }
+
+    private long rolagensGuardadas(Long fichaId) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM ficha_rolagens WHERE personagem_id = ?", Long.class, fichaId);
     }
 
     @Test

@@ -235,6 +235,7 @@ class RolagemDeFichaServiceTest {
         ArgumentCaptor<RolagemDeFicha> salva = ArgumentCaptor.forClass(RolagemDeFicha.class);
         verify(rolagemRepository).save(salva.capture());
         assertEquals("4", salva.getValue().getResultados());
+        verify(rolagemRepository).manterApenasAsMaisRecentes(10L, 50);
         assertEquals(7, salva.getValue().getTotal());
         assertEquals(List.of(new RolagemDeFichaPublicadaEvent(5L, 1L, "alice", "1d10+3", 10, List.of(4), 7,
                 "Lyra: Vida máxima +7")), eventos);
