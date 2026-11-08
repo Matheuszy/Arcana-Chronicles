@@ -153,6 +153,7 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+.paper-proficiencies .paper-inventory-block:first-child { grid-column: auto; }
 .paper-inventory-block .paper-items { columns: 1; }
 .paper-inventory-block .paper-text { margin: 0; }
 
@@ -250,3 +251,66 @@
   font-size: 1.35rem;
   line-height: 1;
 }
+
+.paper-personality {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+}
+.paper-personality dt {
+  color: #5a3a1f;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.paper-personality dd { margin: 0.2rem 0 0.6rem; }
+
+.paper-movements {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  font-size: 0.78rem;
+  text-align: center;
+  color: #5a4632;
+}
+.paper-movement-detail { font-style: italic; }
+
+.paper-hit-dice { margin-top: 0.75rem; }
+.paper-rolls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.paper-rolls .hit-point-roll { background: rgba(255, 250, 240, 0.45); border-color: #b89c6a; }
+
+.paper-coins {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.4rem;
+  text-align: center;
+}
+.paper-coins li {
+  display: grid;
+  padding: 0.3rem 0.2rem;
+  border: 1px solid #b89c6a;
+  border-radius: var(--radius-sm);
+}
+.paper-coins span { font-size: 0.7rem; letter-spacing: 0.08em; color: #5a4632; }
+.paper-coins strong { font-family: var(--font-display); overflow-wrap: anywhere; }
+
+.paper-vital-detail { font-size: 0.72rem; color: #5a4632; }
+
+.paper-tabs { margin-top: 1rem; }
+.paper-tabs .ui-tabs { border-bottom-color: var(--leather); }
+.paper-tabs .ui-tab { color: #5a4632; }
+.paper-tabs .ui-tab:hover { color: var(--paper-ink); }
+.paper-tabs .ui-tab--active { color: #7a3d12; border-bottom-color: #7a3d12; }
+.paper-tabs .swipe-tabs-position { color: #5a4632; }
+.paper-tabs .swipe-tabs-panel { gap: 0; }
+.paper-tabs .swipe-tabs-panel > .paper-title:first-child,
+.paper-tabs .swipe-tabs-panel > .paper-vitals:first-child { margin-top: 0; }

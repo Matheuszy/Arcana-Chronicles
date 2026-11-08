@@ -40,6 +40,9 @@ public class Usuario implements UserDetails {
     @Column(name = "codigo_amigo", nullable = false, unique = true, length = CodigoAmigo.TAMANHO)
     private String codigoAmigo;
 
+    @Column(name = "ultima_nota_vista", length = 20)
+    private String ultimaNotaVista;
+
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<Personagem> personagens = new ArrayList<>();

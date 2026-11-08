@@ -15,6 +15,8 @@ public interface MesaRepository extends JpaRepository<Mesa, Long> {
 
     List<Mesa> findByParticipantsUserId(Long userId);
 
+    List<Mesa> findByParticipantsCharacterId(Long characterId);
+
     /** Mesas por status (ex: só as ABERTAS) */
     List<Mesa> findByStatus(StatusMesa status);
 }

@@ -1,0 +1,16 @@
+.release-notes-page { max-width: 46rem; display: flex; flex-direction: column; gap: 1.25rem; }
+.release-notes-page .page-head { margin-bottom: 0; }
+.release-notes-board {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1.25rem 0.75rem;
+  border: 2px solid var(--leather);
+  border-radius: var(--radius-md);
+  background:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0) 0 46px, rgba(0, 0, 0, 0.3) 46px 48px),
+    linear-gradient(90deg, var(--wood-800), var(--wood-700), var(--wood-800));
+}
+@media (min-width: 640px) {
+  .release-notes-board { padding: 2rem 1.5rem; }
+}

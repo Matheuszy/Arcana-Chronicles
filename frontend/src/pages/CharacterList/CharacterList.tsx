@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
 import { useSession } from '../../context/SessionContext';
-import { Character, CharacterKind, KIND_LABEL, KINDS_BY_ROLE } from '../../types/character';
+import { Character, CharacterKind, KIND_LABEL, KINDS_BY_ROLE, totalArmorClass } from '../../types/character';
 import Badge from '../../components/ui/Badge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States';
@@ -134,7 +134,7 @@ export default function CharacterList() {
               <h3>{c.name}</h3>
               <div className="stats-row">
                 <span>❤ {c.hpCurrent}/{c.hpMax}</span>
-                <span>🛡 CA {c.armorClass}</span>
+                <span>🛡 CA {totalArmorClass(c)}</span>
               </div>
               <div className="attrs">
                 <span>FOR {c.attributes.forca}</span>

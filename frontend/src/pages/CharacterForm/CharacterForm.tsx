@@ -1,4 +1,4 @@
-import { FormEvent, KeyboardEvent, useCallback, useEffect, useState } from 'react';
+import { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { characterService } from '../../services/characterService';
 import { tableService } from '../../services/tableService';
@@ -10,6 +10,13 @@ import { useConfirm } from '../../components/ui/Confirm';
 import { useToast } from '../../components/ui/Toast';
 import Select from '../../components/ui/Select';
 import NumberInput from '../../components/ui/NumberInput';
+import SwipeTabs from '../../components/ui/SwipeTabs';
+import TextListEditor from './TextListEditor';
+import AdditionalMovementsEditor from './AdditionalMovementsEditor';
+import EquipmentPackPicker from './EquipmentPackPicker';
+import HitPointRolls from '../../components/sheet/HitPointRolls';
+import CoinRolls from '../../components/sheet/CoinRolls';
+import SheetRollHistory from '../../components/sheet/SheetRollHistory';
 import {
   attributeModifier,
   attributeRollModifier,
@@ -17,10 +24,23 @@ import {
   ATTRIBUTE_LABEL,
   Attributes,
   Character,
-  CharacterKind,
   ClassEntry,
   DAMAGE_DICE_PATTERN,
+  COINS,
   DEATH_SAVE_MARKS,
+  MAX_COINS,
+  DEFAULT_HIT_DIE,
+  HIT_DICE,
+  MAX_ATTRIBUTE_ROLLS,
+  MAX_BACKGROUND_LENGTH,
+  MAX_EXTRA_ARMOR_CLASS,
+  MAX_MOVEMENT,
+  MAX_PERSONALITY_LENGTH,
+  MAX_PROFICIENCY_ENTRIES,
+  PERSONALITY_FIELDS,
+  MAX_PROFICIENCY_ENTRY_LENGTH,
+  PROFICIENCY_LISTS,
+  STANDARD_LANGUAGES,
   DEFAULT_PROFICIENCY_BONUS,
   EMPTY_ATTRIBUTES,
   EMPTY_SPELL_SLOTS,
@@ -49,6 +69,12 @@ import {
   remainingSpellSlots,
   rollAttribute,
   totalClassLevel,
+  SHEET_SECTIONS,
+  SHEET_TAB_LABEL,
+  SHEET_TABS,
+  sheetSection,
+  SheetSection,
+  SheetTab,
   SKILL_ATTRIBUTE,
   SKILL_LABEL,
   skillRollModifier,
@@ -64,7 +90,13 @@ const NEW_SPELL = { name: '', circle: '', slots: 1, description: '' };
 
 const NEW_CANTRIP = { name: '', description: '' };
 
-const newClassEntry = (nivel = 1): ClassEntry => ({ classe: '', subclasse: '', nivel });
+const newClassEntry = (nivel = 1): ClassEntry => ({
+  classe: '',
+  subclasse: '',
+  nivel,
+  dadoVida: DEFAULT_HIT_DIE,
+  dadosVidaDisponiveis: nivel,
+});
 
 const EQUIPMENT_TYPES: EquipmentType[] = ['ARMA', 'ARMADURA'];
 
@@ -76,8 +108,6 @@ const NEW_EQUIPMENT: Equipment = {
   classeArmadura: null,
   propriedades: '',
 };
-
-const MAX_MOVEMENT = 300;
 
 const EMPTY_CHARACTER: Character = {
   name: '',
@@ -105,25 +135,89 @@ const EMPTY_CHARACTER: Character = {
   inspiracao: false,
   sucessosContraMorte: 0,
   falhasContraMorte: 0,
+  idiomas: [],
+  proficienciasFerramentas: [],
+  proficienciasArmas: [],
+  proficienciasArmaduras: [],
+  antecedente: '',
+  tracosPersonalidade: '',
+  ideais: '',
+  vinculos: '',
+  defeitos: '',
+  deslocamentosAdicionais: [],
+  caAdicional: 0,
+  moedasCobre: 0,
+  moedasPrata: 0,
+  moedasElectro: 0,
+  moedasOuro: 0,
+  moedasPlatina: 0,
 };
+
+const TEXT_FIELDS = [
+  'habilidades',
+  'talentos',
+  'raca',
+  'alinhamento',
+  'habilidadesRaca',
+  'antecedente',
+  'tracosPersonalidade',
+  'ideais',
+  'vinculos',
+  'defeitos',
+  'backstory',
+  'personalityPrompt',
+] as const;
+
+const normalizeSheet = (data: Partial<Character>): Partial<Character> => {
+  const normalized: Partial<Character> = { ...data };
+  if ('vidaTemporaria' in data) normalized.vidaTemporaria = data.vidaTemporaria ?? undefined;
+  if ('deslocamento' in data) normalized.deslocamento = data.deslocamento ?? undefined;
+  TEXT_FIELDS.forEach((field) => {
+    if (field in data) normalized[field] = data[field] ?? '';
+  });
+  if ('classes' in data) {
+    const loaded = (data.classes ?? []).map((entry) => ({ ...entry, subclasse: entry.subclasse ?? '' }));
+    normalized.classes = loaded.length > 0 ? loaded : [newClassEntry(Math.min(MAX_CLASS_LEVEL, data.level ?? 1))];
+  }
+  if ('equipamentos' in data) normalized.equipamentos = data.equipamentos ?? [];
+  if ('spellSlots' in data) normalized.spellSlots = { ...EMPTY_SPELL_SLOTS, ...(data.spellSlots ?? {}) };
+  return normalized;
+};
+
+const sectionJson = (character: Character, section: SheetSection) => JSON.stringify(sheetSection(character, section));
+
+type TabStatus = 'loading' | 'loaded' | 'error';
+
+const allTabsLoaded = (): Partial<Record<SheetTab, TabStatus>> =>
+  Object.fromEntries(SHEET_TABS.map((tab) => [tab, 'loaded']));
 
 interface CharacterEditorProps {
   id?: string;
+  initialCharacter?: Character;
   embedded?: boolean;
   onSaved: (saved: Character) => void;
   onCancel: () => void;
 }
 
-export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: CharacterEditorProps) {
+export function CharacterEditor({ id, initialCharacter, embedded = false, onSaved, onCancel }: CharacterEditorProps) {
   const { role, userId } = useSession();
   const confirm = useConfirm();
   const allowedKinds = KINDS_BY_ROLE[role === 'MESTRE' ? 'MESTRE' : 'JOGADOR'];
-  const initialCharacter: Character = { ...EMPTY_CHARACTER, kind: allowedKinds[0] };
-  const [form, setForm] = useState<Character>(initialCharacter);
-  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(initialCharacter));
+  const preloaded = !id || Boolean(initialCharacter);
+  const [form, setForm] = useState<Character>(() =>
+    initialCharacter
+      ? ({ ...EMPTY_CHARACTER, ...normalizeSheet(initialCharacter) } as Character)
+      : { ...EMPTY_CHARACTER, kind: allowedKinds[0] },
+  );
+  const [baseline, setBaseline] = useState<Character>(form);
+  const [tab, setTab] = useState<SheetTab>('personagem');
+  const [tabStatus, setTabStatus] = useState<Partial<Record<SheetTab, TabStatus>>>(() =>
+    preloaded ? allTabsLoaded() : {},
+  );
+  const [tabErrors, setTabErrors] = useState<Partial<Record<SheetTab, string>>>({});
+  const [rollData, setRollData] = useState<Partial<Character> | null>(null);
+  const requestedTabs = useRef(new Set<SheetTab>());
   const [newItem, setNewItem] = useState('');
-  const [loading, setLoading] = useState(Boolean(id));
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [newSpell, setNewSpell] = useState({ ...NEW_SPELL });
@@ -134,38 +228,45 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);
   const [tablesError, setTablesError] = useState<string | null>(null);
+  const [lastRollId, setLastRollId] = useState<string | null>(null);
+  const [attributeRollsUsed, setAttributeRollsUsed] = useState(0);
+  const attributeRollsLeft = MAX_ATTRIBUTE_ROLLS - attributeRollsUsed;
   const { notify } = useToast();
 
-  const loadCharacter = useCallback(() => {
-    if (!id) return;
-    setLoading(true);
-    setLoadError(null);
-    characterService
-      .getById(id)
-      .then((char) => {
-        const loadedClasses = (char.classes ?? []).map((entry) => ({ ...entry, subclasse: entry.subclasse ?? '' }));
-        const loaded: Character = {
-          ...EMPTY_CHARACTER,
-          ...char,
-          vidaTemporaria: char.vidaTemporaria ?? undefined,
-          deslocamento: char.deslocamento ?? undefined,
-          equipamentos: char.equipamentos ?? [],
-          classes: loadedClasses.length > 0 ? loadedClasses : [newClassEntry(Math.min(MAX_CLASS_LEVEL, char.level))],
-          habilidades: char.habilidades ?? '',
-          talentos: char.talentos ?? '',
-          raca: char.raca ?? '',
-          alinhamento: char.alinhamento ?? '',
-          habilidadesRaca: char.habilidadesRaca ?? '',
-          spellSlots: { ...EMPTY_SPELL_SLOTS, ...(char.spellSlots ?? {}) },
-        };
-        setForm(loaded);
-        setSavedSnapshot(JSON.stringify(loaded));
-      })
-      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Erro ao carregar a ficha.'))
-      .finally(() => setLoading(false));
-  }, [id]);
+  const absorb = useCallback((data: Partial<Character>) => {
+    const normalized = normalizeSheet(data);
+    setForm((current) => ({ ...current, ...normalized }));
+    setBaseline((current) => ({ ...current, ...normalized }));
+  }, []);
 
-  useEffect(loadCharacter, [loadCharacter]);
+  const loadTab = useCallback(
+    (target: SheetTab, retry = false) => {
+      if (!id || preloaded) return;
+      if (requestedTabs.current.has(target) && !retry) return;
+      requestedTabs.current.add(target);
+      setTabStatus((current) => ({ ...current, [target]: 'loading' }));
+      characterService
+        .getSection(id, target)
+        .then((data) => {
+          if (target === 'rolagens') setRollData(data);
+          else absorb(data);
+          setTabStatus((current) => ({ ...current, [target]: 'loaded' }));
+        })
+        .catch((e: unknown) => {
+          requestedTabs.current.delete(target);
+          setTabErrors((current) => ({
+            ...current,
+            [target]: e instanceof Error ? e.message : 'Erro ao carregar esta aba da ficha.',
+          }));
+          setTabStatus((current) => ({ ...current, [target]: 'error' }));
+        });
+    },
+    [id, preloaded, absorb],
+  );
+
+  useEffect(() => loadTab(tab), [tab, loadTab]);
+
+  const loadRollHistory = useCallback(() => characterService.rollHistory(String(id)), [id]);
 
   const showTableLinks = !embedded && role === 'MESTRE' && form.kind !== 'PLAYER';
 
@@ -188,10 +289,13 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
       .finally(() => setTablesLoading(false));
   }, [embedded, role, userId, id]);
 
+  const dirtySections = SHEET_SECTIONS.filter(
+    (section) => tabStatus[section] === 'loaded' && sectionJson(form, section) !== sectionJson(baseline, section),
+  );
   const linksChanged =
     showTableLinks &&
     (selectedTableIds.length !== linkedTableIds.length || selectedTableIds.some((t) => !linkedTableIds.includes(t)));
-  const dirty = JSON.stringify(form) !== savedSnapshot || linksChanged;
+  const dirty = dirtySections.length > 0 || linksChanged;
 
   useEffect(() => {
     if (!dirty || saving) return;
@@ -222,12 +326,53 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
   const items = form.items ?? [];
   const trimmedNewItem = newItem.trim();
   const canAddItem = trimmedNewItem.length > 0 && items.length < MAX_ITEMS;
+  const rollCharacter: Character = rollData ? { ...form, ...rollData } : form;
 
   const setField = <K extends keyof Character>(key: K, value: Character[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const setDeathSaves = (key: 'sucessosContraMorte' | 'falhasContraMorte', mark: number, checked: boolean) =>
     setField(key, checked ? mark + 1 : mark);
+
+  const applyRolledCharacter = (rolled: Character, rollId: string) => {
+    const merge = (current: Character): Character => ({
+      ...current,
+      hpMax: rolled.hpMax,
+      hpCurrent: rolled.hpCurrent,
+      moedasRoladas: rolled.moedasRoladas,
+      ...Object.fromEntries(COINS.map(({ field }) => [field, rolled[field] ?? 0])),
+      classes: (current.classes ?? []).map((entry, index) => ({
+        ...entry,
+        dadosVidaDisponiveis: rolled.classes?.[index]?.dadosVidaDisponiveis ?? entry.dadosVidaDisponiveis,
+      })),
+    });
+    setForm(merge);
+    setBaseline(merge);
+    setRollData((current) =>
+      current
+        ? {
+            ...current,
+            hpMax: rolled.hpMax,
+            hpCurrent: rolled.hpCurrent,
+            classes: rolled.classes,
+            moedasRoladas: rolled.moedasRoladas,
+          }
+        : current,
+    );
+    setLastRollId(rollId);
+  };
+
+  const applyPackResult = (updated: Character) => {
+    const merge = (current: Character): Character => ({
+      ...current,
+      items: updated.items ?? [],
+      pacoteEquipamento: updated.pacoteEquipamento ?? null,
+      itensDoPacote: updated.itensDoPacote ?? [],
+    });
+    setForm(merge);
+    setBaseline(merge);
+    notify('Pacote aplicado na ficha.', 'success');
+  };
 
   const clearDeathSaves = () =>
     setForm((prev) => ({ ...prev, sucessosContraMorte: 0, falhasContraMorte: 0 }));
@@ -269,6 +414,13 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
   const changeClass = (index: number, changes: Partial<ClassEntry>) =>
     updateClasses(classes.map((entry, i) => (i === index ? { ...entry, ...changes } : entry)));
+
+  const changeClassLevel = (index: number, nivel: number) => {
+    const entry = classes[index];
+    const gained = Math.max(0, nivel - entry.nivel);
+    const available = Math.min(nivel, (entry.dadosVidaDisponiveis ?? entry.nivel) + gained);
+    changeClass(index, { nivel, dadosVidaDisponiveis: available });
+  };
 
   const clampClassLevel = (value: number) => Math.min(MAX_CLASS_LEVEL, Math.max(1, Math.trunc(value) || 1));
 
@@ -316,8 +468,9 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     addEquipment();
   };
 
-  // Rola todos os atributos de uma vez
   const rollAllAttributes = () => {
+    if (attributeRollsLeft <= 0) return;
+    setAttributeRollsUsed((used) => used + 1);
     const rolled: Attributes = {
       forca: rollAttribute(),
       destreza: rollAttribute(),
@@ -329,12 +482,6 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     setForm((prev) => ({ ...prev, attributes: rolled }));
   };
 
-  // Rola um atributo individual
-  const rollSingleAttribute = (key: keyof Attributes) => {
-    setAttribute(key, rollAttribute());
-  };
-
-  // Perícias
   const toggleSkill = (skill: SkillKey) => setField('skills', toggleBonus(form.skills ?? {}, skill));
 
   const setSkillBonus = (skill: SkillKey, value: number) =>
@@ -413,11 +560,6 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     }));
   };
 
-  const openInvalidSection = (event: FormEvent<HTMLFormElement>) => {
-    const section = (event.target as HTMLElement).closest('details');
-    if (section) section.open = true;
-  };
-
   const syncTableLinks = async (characterId: string) => {
     const changes = myTables.flatMap((table) => {
       if (!table.id) return [];
@@ -438,32 +580,47 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     }
   };
 
+  const findProblem = (sections: SheetSection[]): { message: string; tab: SheetTab } | null => {
+    if (sections.includes('personagem')) {
+      if (!form.name.trim()) return { message: 'Dê um nome ao personagem antes de salvar.', tab: 'personagem' };
+      if (classes.length === 0) return { message: 'Adicione ao menos uma classe à ficha.', tab: 'personagem' };
+      if (classes.some((entry) => !entry.classe.trim())) {
+        return { message: 'Preencha o nome de todas as classes ou remova as linhas vazias.', tab: 'personagem' };
+      }
+      if (!form.raca?.trim() || !form.alinhamento?.trim()) {
+        return { message: 'Preencha a raça e o alinhamento antes de salvar.', tab: 'personagem' };
+      }
+    }
+    if (sections.includes('atributos') && (form.deslocamento == null || !Number.isInteger(form.deslocamento))) {
+      return { message: 'Informe o deslocamento em metros, só com números inteiros.', tab: 'atributos' };
+    }
+    return null;
+  };
+
+  const saveSections = async (characterId: string): Promise<Character> => {
+    let current = form;
+    for (const section of dirtySections) {
+      const saved = normalizeSheet(await characterService.saveSection(characterId, section, sheetSection(current, section)));
+      current = { ...current, ...saved };
+      setForm((state) => ({ ...state, ...saved }));
+      setBaseline((state) => ({ ...state, ...saved }));
+    }
+    return current;
+  };
+
   const save = async () => {
-    if (!form.name.trim()) {
-      setSaveError('Dê um nome ao personagem antes de salvar.');
-      return;
-    }
-    if (classes.length === 0) {
-      setSaveError('Adicione ao menos uma classe à ficha.');
-      return;
-    }
-    if (classes.some((entry) => !entry.classe.trim())) {
-      setSaveError('Preencha o nome de todas as classes ou remova as linhas vazias.');
-      return;
-    }
-    if (!form.raca?.trim() || !form.alinhamento?.trim()) {
-      setSaveError('Preencha a raça e o alinhamento antes de salvar.');
-      return;
-    }
-    if (form.deslocamento == null || !Number.isInteger(form.deslocamento)) {
-      setSaveError('Informe o deslocamento em metros, só com números inteiros.');
+    const problem = findProblem(id ? dirtySections : SHEET_SECTIONS);
+    if (problem) {
+      setSaveError(problem.message);
+      setTab(problem.tab);
       return;
     }
     setSaving(true);
     setSaveError(null);
     try {
-      const saved = id ? await characterService.update(id, form) : await characterService.create(form);
-      if (showTableLinks && saved.id) await syncTableLinks(saved.id);
+      const saved = id ? await saveSections(id) : await characterService.create(form);
+      const savedId = id ?? saved.id;
+      if (showTableLinks && savedId) await syncTableLinks(String(savedId));
       onSaved(saved);
     } catch (e: unknown) {
       setSaveError(e instanceof Error ? e.message : 'Erro ao salvar a ficha.');
@@ -471,24 +628,963 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
     }
   };
 
-  if (loading) {
-    return (
-      <section className={embedded ? 'character-editor' : 'page'}>
-        <p className="muted">Abrindo a ficha...</p>
-      </section>
-    );
-  }
+  const tabs = SHEET_TABS.filter((entry) => entry !== 'rolagens' || Boolean(id)).map((entry) => ({
+    id: entry,
+    label: SHEET_TAB_LABEL[entry],
+  }));
 
-  if (loadError) {
-    return (
-      <section className={embedded ? 'character-editor' : 'page'}>
-        <LoadError title="Não foi possível abrir a ficha" message={loadError} onRetry={loadCharacter} />
-        <button type="button" className="btn btn-ghost back-to-list" onClick={onCancel}>
-          Voltar para as fichas
+  const renderPersonagem = () => (
+    <>
+      <div className="row">
+        <div className="field grow">
+          <label htmlFor="name" className="required-mark">Nome</label>
+          <input
+            id="name"
+            type="text"
+            required
+            value={form.name}
+            onChange={(e) => setField('name', e.target.value)}
+            placeholder="ex: Arannis, o Feiticeiro"
+          />
+        </div>
+        <Select
+          label="Tipo"
+          required
+          value={form.kind}
+          onChange={(kind) => setField('kind', kind)}
+          disabled={kindOptions.length === 1}
+          options={kindOptions.map((kind) => ({
+            value: kind,
+            label: KIND_LABEL[kind],
+            disabled: !allowedKinds.includes(kind),
+          }))}
+        />
+      </div>
+
+      <div className="row">
+        <div className="field grow">
+          <label htmlFor="raca" className="required-mark">Raça</label>
+          <input
+            id="raca"
+            type="text"
+            required
+            maxLength={MAX_RACE_LENGTH}
+            value={form.raca ?? ''}
+            onChange={(e) => setField('raca', e.target.value)}
+            placeholder="ex: Elfo"
+          />
+        </div>
+        <div className="field grow">
+          <label htmlFor="alinhamento" className="required-mark">Alinhamento</label>
+          <input
+            id="alinhamento"
+            type="text"
+            required
+            maxLength={MAX_ALIGNMENT_LENGTH}
+            value={form.alinhamento ?? ''}
+            onChange={(e) => setField('alinhamento', e.target.value)}
+            placeholder="ex: Neutro e Bom"
+          />
+        </div>
+      </div>
+
+      <div className="section-header">
+        <h3 className="section-title">Classes</h3>
+        <output className="computed-value" aria-live="polite" title="Soma dos níveis das classes">
+          Nível {hasClasses ? totalClassLevel(classes) : form.level}
+        </output>
+      </div>
+      {classes.map((entry, i) => (
+        <div className="row class-row" key={i}>
+          <div className="field grow">
+            <label htmlFor={`classe-${i}`} className="required-mark">Classe</label>
+            <input
+              id={`classe-${i}`}
+              type="text"
+              required
+              maxLength={MAX_CLASS_LENGTH}
+              value={entry.classe}
+              onChange={(e) => changeClass(i, { classe: e.target.value })}
+              placeholder="ex: Guerreiro"
+            />
+          </div>
+          <div className="field grow">
+            <label htmlFor={`subclasse-${i}`}>Subclasse</label>
+            <input
+              id={`subclasse-${i}`}
+              type="text"
+              maxLength={MAX_CLASS_LENGTH}
+              value={entry.subclasse}
+              onChange={(e) => changeClass(i, { subclasse: e.target.value })}
+              placeholder="ex: Campeão"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor={`nivel-${i}`} className="required-mark">Nível</label>
+            <NumberInput
+              id={`nivel-${i}`}
+              required
+              min={1}
+              max={MAX_CLASS_LEVEL}
+              value={entry.nivel}
+              onChange={(nivel) => changeClassLevel(i, clampClassLevel(nivel))}
+            />
+          </div>
+          <div className="field">
+            <Select<string>
+              label="Dado de vida"
+              compact
+              required
+              value={String(entry.dadoVida ?? DEFAULT_HIT_DIE)}
+              onChange={(die) => changeClass(i, { dadoVida: Number(die) })}
+              options={HIT_DICE.map((die) => ({ value: String(die), label: `d${die}` }))}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor={`dados-vida-${i}`} title="Dados de vida que ainda podem ser gastos para recuperar vida">
+              Dados disponíveis
+            </label>
+            <NumberInput
+              id={`dados-vida-${i}`}
+              required
+              min={0}
+              max={entry.nivel}
+              value={entry.dadosVidaDisponiveis ?? entry.nivel}
+              onChange={(available) =>
+                changeClass(i, { dadosVidaDisponiveis: Math.min(entry.nivel, Math.max(0, Math.trunc(available))) })
+              }
+            />
+          </div>
+          <button
+            type="button"
+            className="btn-remove"
+            onClick={() => removeClass(i)}
+            disabled={classes.length === 1}
+            aria-label={`Remover classe ${entry.classe || i + 1}`}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <button type="button" className="btn btn-ghost add-class" onClick={addClass} disabled={classes.length >= MAX_CLASSES}>
+        + Adicionar classe
+      </button>
+
+      <h3 className="section-title">Antecedente e personalidade</h3>
+      <div className="field">
+        <label htmlFor="antecedente">Antecedente</label>
+        <input
+          id="antecedente"
+          type="text"
+          maxLength={MAX_BACKGROUND_LENGTH}
+          value={form.antecedente ?? ''}
+          onChange={(e) => setField('antecedente', e.target.value)}
+          placeholder="ex: Acólito, Criminoso, Soldado"
+        />
+      </div>
+      <div className="personality-grid">
+        {PERSONALITY_FIELDS.map(({ key, label, placeholder }) => (
+          <div key={key} className="field">
+            <label htmlFor={key}>{label}</label>
+            <textarea
+              id={key}
+              rows={3}
+              maxLength={MAX_PERSONALITY_LENGTH}
+              value={form[key] ?? ''}
+              onChange={(e) => setField(key, e.target.value)}
+              placeholder={placeholder}
+            />
+            <span className="muted">
+              {(form[key] ?? '').length}/{MAX_PERSONALITY_LENGTH}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="section-title">História</h3>
+      <div className="field">
+        <label htmlFor="backstory">História / descrição</label>
+        <textarea
+          id="backstory"
+          rows={4}
+          value={form.backstory ?? ''}
+          onChange={(e) => setField('backstory', e.target.value)}
+          placeholder="Quem é esse personagem?"
+        />
+      </div>
+
+      {isNpcOrMonster && (
+        <div className="field">
+          <label htmlFor="personalityPrompt">Personalidade para a IA</label>
+          <textarea
+            id="personalityPrompt"
+            rows={3}
+            value={form.personalityPrompt ?? ''}
+            onChange={(e) => setField('personalityPrompt', e.target.value)}
+            placeholder="ex: Fale como um anão rabugento, desconfiado de forasteiros, que só ajuda por moedas de ouro."
+          />
+        </div>
+      )}
+
+      {showTableLinks && (
+        <CheckList
+          legend="Vincular às mesas (opcional)"
+          hint="Nas mesas marcadas, a ficha aparece na aba Fichas e fica disponível para o combate."
+          items={myTables.flatMap((table) =>
+            table.id ? [{ id: table.id, label: table.name, detail: TABLE_STATUS_LABEL[table.status] }] : [],
+          )}
+          selected={selectedTableIds}
+          emptyText="Você ainda não tem mesas abertas. Dá para vincular depois, ao criar a mesa ou dentro dela."
+          loading={tablesLoading}
+          error={tablesError}
+          onChange={setSelectedTableIds}
+        />
+      )}
+    </>
+  );
+
+  const renderAtributos = () => (
+    <>
+      <h3 className="section-title">Vida e defesa</h3>
+      <div className="row row--aligned">
+        <div className="field">
+          <label htmlFor="hpMax" className="required-mark">HP máximo</label>
+          <NumberInput id="hpMax" required min={1} value={form.hpMax} onChange={(hpMax) => setField('hpMax', hpMax)} />
+        </div>
+        <div className="field">
+          <label htmlFor="hpCurrent" className="required-mark">HP atual</label>
+          <NumberInput
+            id="hpCurrent"
+            required
+            min={0}
+            value={form.hpCurrent}
+            onChange={(hpCurrent) => setField('hpCurrent', hpCurrent)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="vidaTemporaria">Vida temporária</label>
+          <NumberInput
+            id="vidaTemporaria"
+            min={0}
+            value={form.vidaTemporaria}
+            onChange={(vida) => setField('vidaTemporaria', vida)}
+            onClear={() => setField('vidaTemporaria', undefined)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="armorClass" className="required-mark">Classe de Armadura</label>
+          <NumberInput
+            id="armorClass"
+            required
+            min={0}
+            value={form.armorClass}
+            onChange={(armorClass) => setField('armorClass', armorClass)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="caAdicional" title="Bônus de magias e equipamentos, como Escudo da Fé">
+            CA adicional
+          </label>
+          <NumberInput
+            id="caAdicional"
+            min={0}
+            max={MAX_EXTRA_ARMOR_CLASS}
+            step={1}
+            value={form.caAdicional ?? 0}
+            onChange={(value) =>
+              setField('caAdicional', Math.min(MAX_EXTRA_ARMOR_CLASS, Math.max(0, Math.trunc(value) || 0)))
+            }
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="deslocamento" className="required-mark">Deslocamento (metros)</label>
+          <NumberInput
+            id="deslocamento"
+            required
+            min={0}
+            max={MAX_MOVEMENT}
+            step={1}
+            placeholder="ex: 9"
+            value={form.deslocamento}
+            onChange={(deslocamento) => setField('deslocamento', deslocamento)}
+            onClear={() => setField('deslocamento', undefined)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="passivePerception" title="10 + modificador de Sabedoria + bônus de proficiência">
+            Percepção passiva
+          </label>
+          <output id="passivePerception" className="computed-value" aria-live="polite">
+            {passivePerception(form)}
+          </output>
+        </div>
+      </div>
+
+      <AdditionalMovementsEditor
+        movements={form.deslocamentosAdicionais ?? []}
+        onChange={(movements) => setField('deslocamentosAdicionais', movements)}
+      />
+
+      <div className="death-saves">
+        <label className={`inspiration-toggle ${form.inspiracao ? 'active' : ''}`}>
+          <input
+            type="checkbox"
+            checked={Boolean(form.inspiracao)}
+            onChange={(e) => setField('inspiracao', e.target.checked)}
+          />
+          Inspiração
+        </label>
+        {(
+          [
+            ['sucessosContraMorte', 'Sucessos', 'success'],
+            ['falhasContraMorte', 'Falhas', 'failure'],
+          ] as const
+        ).map(([key, label, tone]) => (
+          <fieldset key={key} className={`death-save-group death-save-group--${tone}`}>
+            <legend>{label} contra a morte</legend>
+            {Array.from({ length: DEATH_SAVE_MARKS }, (_, mark) => (
+              <input
+                key={mark}
+                type="checkbox"
+                aria-label={`${label} contra a morte: ${mark + 1} de ${DEATH_SAVE_MARKS}`}
+                checked={mark < (form[key] ?? 0)}
+                onChange={(e) => setDeathSaves(key, mark, e.target.checked)}
+              />
+            ))}
+          </fieldset>
+        ))}
+        <button
+          type="button"
+          className="btn btn-ghost death-saves-clear"
+          onClick={clearDeathSaves}
+          disabled={!form.sucessosContraMorte && !form.falhasContraMorte}
+        >
+          Limpar testes
         </button>
-      </section>
-    );
-  }
+      </div>
+
+      <div className="section-header">
+        <h3 className="section-title">Atributos</h3>
+        {!id && (
+          <button
+            type="button"
+            className="btn btn-roll"
+            onClick={rollAllAttributes}
+            disabled={attributeRollsLeft <= 0}
+            title="Rola 4d6 descartando o menor para cada atributo"
+          >
+            🎲 Rolar todos ({attributeRollsLeft}/{MAX_ATTRIBUTE_ROLLS})
+          </button>
+        )}
+      </div>
+      {id && <p className="muted-hint">Os dados de atributo só podem ser rolados na criação da ficha.</p>}
+      {!id && (
+        <p className="muted-hint" aria-live="polite">
+          {attributeRollsLeft > 0
+            ? `Você tem ${attributeRollsLeft} de ${MAX_ATTRIBUTE_ROLLS} rolagens para esta ficha. Cada uma rola os seis atributos.`
+            : 'Você usou as 3 rolagens desta ficha. Fique com os valores rolados ou edite os atributos manualmente.'}
+        </p>
+      )}
+      <div className="field proficiency-default">
+        <label htmlFor="proficiencyBonus" className="required-mark" title="Valor sugerido ao marcar um atributo ou perícia">
+          Bônus de proficiência
+        </label>
+        <NumberInput
+          id="proficiencyBonus"
+          required
+          min={0}
+          max={10}
+          value={form.proficiencyBonus ?? DEFAULT_PROFICIENCY_BONUS}
+          onChange={(bonus) => setField('proficiencyBonus', bonus)}
+        />
+      </div>
+
+      <div className="attrs-grid">
+        {ATTRIBUTE_KEYS.map((key) => (
+          <div className="field attr-field" key={key}>
+            <label htmlFor={key} className="required-mark">{ATTRIBUTE_LABEL[key]}</label>
+            <div className="attr-input-row">
+              <NumberInput
+                id={key}
+                required
+                min={8}
+                max={20}
+                value={form.attributes[key]}
+                onChange={(score) => setAttribute(key, score)}
+              />
+            </div>
+            <span className="modifier">{modifierFor(key)}</span>
+            <label className={`saving-throw ${form.savingThrows?.[key] !== undefined ? 'proficient' : ''}`}>
+              <input
+                type="checkbox"
+                checked={form.savingThrows?.[key] !== undefined}
+                onChange={() => toggleSavingThrow(key)}
+              />
+              Proficiente ({formatModifier(attributeRollModifier(form, key))})
+            </label>
+            {form.savingThrows?.[key] !== undefined && (
+              <div className="bonus-input">
+                <label htmlFor={`bonus-${key}`} className="required-mark">Bônus</label>
+                <NumberInput
+                  id={`bonus-${key}`}
+                  required
+                  min={0}
+                  max={MAX_PROFICIENCY_BONUS}
+                  value={form.savingThrows[key]}
+                  onChange={(bonus) => setSavingThrowBonus(key, bonus)}
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <h3 className="section-title">Perícias</h3>
+      <p className="muted-hint">
+        Cada perícia usa o modificador do seu atributo. Marque as perícias com proficiência e ajuste o bônus de cada uma
+        (por exemplo, dobrado para especialização). A proficiência no atributo não passa para as perícias.
+      </p>
+      <div className="skills-grid">
+        {ALL_SKILLS.map((skill) => {
+          const bonus = form.skills?.[skill];
+          const active = bonus !== undefined;
+          return (
+            <div key={skill} className={`skill-row ${active ? 'proficient' : ''}`}>
+              <input id={`skill-${skill}`} type="checkbox" checked={active} onChange={() => toggleSkill(skill)} />
+              <span className="skill-mod">{skillModifier(skill)}</span>
+              <label htmlFor={`skill-${skill}`} className="skill-name">{SKILL_LABEL[skill]}</label>
+              <span className="skill-attr">({ATTRIBUTE_LABEL[SKILL_ATTRIBUTE[skill]].slice(0, 3)})</span>
+              {active && (
+                <NumberInput
+                  className="skill-bonus"
+                  required
+                  min={0}
+                  max={MAX_PROFICIENCY_BONUS}
+                  value={bonus}
+                  onChange={(value) => setSkillBonus(skill, value)}
+                  aria-label={`Bônus de ${SKILL_LABEL[skill]}`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+
+  const renderHabilidades = () => (
+    <>
+      <h3 className="section-title">Habilidades de classe e subclasse</h3>
+      <div className="field">
+        <label htmlFor="habilidades">Habilidades</label>
+        <textarea
+          id="habilidades"
+          rows={5}
+          maxLength={MAX_ABILITIES_LENGTH}
+          value={form.habilidades ?? ''}
+          onChange={(e) => setField('habilidades', e.target.value)}
+          placeholder="Escreva livremente as habilidades da classe e da subclasse, com nível, efeito e usos."
+        />
+        <span className="muted">
+          {(form.habilidades ?? '').length}/{MAX_ABILITIES_LENGTH}
+        </span>
+      </div>
+
+      <h3 className="section-title">Habilidades de raça</h3>
+      <div className="field">
+        <label htmlFor="habilidadesRaca">Habilidades de raça</label>
+        <textarea
+          id="habilidadesRaca"
+          rows={4}
+          maxLength={MAX_ABILITIES_LENGTH}
+          value={form.habilidadesRaca ?? ''}
+          onChange={(e) => setField('habilidadesRaca', e.target.value)}
+          placeholder="Escreva livremente as habilidades da raça, com efeito e usos."
+        />
+        <span className="muted">
+          {(form.habilidadesRaca ?? '').length}/{MAX_ABILITIES_LENGTH}
+        </span>
+      </div>
+
+      <h3 className="section-title">Talentos</h3>
+      <div className="field">
+        <label htmlFor="talentos">Talentos</label>
+        <textarea
+          id="talentos"
+          rows={4}
+          maxLength={MAX_ABILITIES_LENGTH}
+          value={form.talentos ?? ''}
+          onChange={(e) => setField('talentos', e.target.value)}
+          placeholder="Escreva livremente os talentos do personagem, com efeito e usos."
+        />
+        <span className="muted">
+          {(form.talentos ?? '').length}/{MAX_ABILITIES_LENGTH}
+        </span>
+      </div>
+
+      <h3 className="section-title">Idiomas e proficiências</h3>
+      <div className="proficiency-lists">
+        {PROFICIENCY_LISTS.map(({ key, label, placeholder, empty }) => (
+          <TextListEditor
+            key={key}
+            id={`new-${key}`}
+            label={label}
+            values={form[key] ?? []}
+            onChange={(values) => setField(key, values)}
+            max={MAX_PROFICIENCY_ENTRIES}
+            maxLength={MAX_PROFICIENCY_ENTRY_LENGTH}
+            placeholder={placeholder}
+            emptyText={empty}
+            suggestions={key === 'idiomas' ? STANDARD_LANGUAGES : undefined}
+          />
+        ))}
+      </div>
+    </>
+  );
+
+  const renderEquipamento = () => (
+    <>
+      <h3 className="section-title">Moedas</h3>
+      <div className="row coins-row">
+        {COINS.map(({ field, label, short }) => (
+          <div key={field} className="field">
+            <label htmlFor={field}>
+              {label} ({short})
+            </label>
+            <NumberInput
+              id={field}
+              required
+              min={0}
+              max={MAX_COINS}
+              step={1}
+              value={form[field] ?? 0}
+              onChange={(value) => setField(field, Math.min(MAX_COINS, Math.max(0, Math.trunc(value) || 0)))}
+            />
+          </div>
+        ))}
+      </div>
+
+      <h3 className="section-title">Armas e armaduras</h3>
+      {equipamentos.length > 0 ? (
+        <ul className="items-list">
+          {equipamentos.map((equipment, i) => {
+            const details = equipmentDetails(equipment);
+            return (
+              <li key={`${equipment.nome}-${i}`} className="item-row equipment-row">
+                <span className="equipment-summary">
+                  <span className={`equipment-type equipment-type--${equipment.tipo.toLowerCase()}`}>
+                    {EQUIPMENT_TYPE_LABEL[equipment.tipo]}
+                  </span>
+                  <strong>{equipment.nome}</strong>
+                  {details.length > 0 && <span className="equipment-details">{details.join(' · ')}</span>}
+                </span>
+                <button
+                  type="button"
+                  className="btn-remove"
+                  onClick={() => removeEquipment(i)}
+                  aria-label={`Remover ${equipment.nome}`}
+                >
+                  ✕
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="muted-hint">Nenhuma arma ou armadura na ficha.</p>
+      )}
+
+      <div className="add-spell card-inner add-equipment">
+        <h4>
+          Adicionar arma ou armadura ({equipamentos.length}/{MAX_EQUIPMENT})
+        </h4>
+        <div className="choice-toggle" role="radiogroup" aria-label="Tipo do equipamento">
+          {EQUIPMENT_TYPES.map((type) => (
+            <button
+              key={type}
+              type="button"
+              role="radio"
+              aria-checked={newEquipment.tipo === type}
+              className={`btn btn-ghost choice-toggle-option ${newEquipment.tipo === type ? 'choice-toggle-option--active' : ''}`}
+              onClick={() => changeNewEquipment({ tipo: type })}
+            >
+              {EQUIPMENT_TYPE_LABEL[type]}
+            </button>
+          ))}
+        </div>
+        <div className="field">
+          <label htmlFor="equipment-name">Nome</label>
+          <input
+            id="equipment-name"
+            type="text"
+            maxLength={MAX_EQUIPMENT_NAME_LENGTH}
+            value={newEquipment.nome}
+            onChange={(e) => changeNewEquipment({ nome: e.target.value })}
+            onKeyDown={addEquipmentOnEnter}
+            placeholder={newEquipmentIsWeapon ? 'ex: Espada longa' : 'ex: Cota de malha'}
+            disabled={equipamentos.length >= MAX_EQUIPMENT}
+          />
+        </div>
+        {newEquipmentIsWeapon ? (
+          <div className="row">
+            <div className="field">
+              <label htmlFor="equipment-damage">Dado de dano</label>
+              <input
+                id="equipment-damage"
+                type="text"
+                maxLength={6}
+                value={newEquipment.dano ?? ''}
+                onChange={(e) => changeNewEquipment({ dano: e.target.value })}
+                onKeyDown={addEquipmentOnEnter}
+                aria-invalid={newEquipmentDamageInvalid}
+                aria-describedby={newEquipmentDamageInvalid ? 'equipment-damage-error' : undefined}
+                placeholder="ex: 1d8"
+              />
+            </div>
+            <Select
+              label="Atributo base"
+              value={newEquipment.atributo ?? ''}
+              onChange={(atributo) => changeNewEquipment({ atributo: atributo === '' ? null : atributo })}
+              options={[
+                { value: '', label: 'Nenhum' },
+                ...ATTRIBUTE_KEYS.map((key) => ({ value: key, label: ATTRIBUTE_LABEL[key] })),
+              ]}
+            />
+          </div>
+        ) : (
+          <div className="field">
+            <label htmlFor="equipment-armor-class">CA</label>
+            <NumberInput
+              id="equipment-armor-class"
+              min={0}
+              max={MAX_EQUIPMENT_ARMOR_CLASS}
+              value={newEquipment.classeArmadura ?? undefined}
+              onChange={(classeArmadura) => changeNewEquipment({ classeArmadura })}
+              onClear={() => changeNewEquipment({ classeArmadura: null })}
+              onKeyDown={addEquipmentOnEnter}
+            />
+          </div>
+        )}
+        <div className="field">
+          <label htmlFor="equipment-properties">Propriedades</label>
+          <input
+            id="equipment-properties"
+            type="text"
+            maxLength={MAX_EQUIPMENT_PROPERTIES_LENGTH}
+            value={newEquipment.propriedades ?? ''}
+            onChange={(e) => changeNewEquipment({ propriedades: e.target.value })}
+            onKeyDown={addEquipmentOnEnter}
+            placeholder={newEquipmentIsWeapon ? 'ex: Versátil, acuidade' : 'ex: Pesada, desvantagem em Furtividade'}
+          />
+        </div>
+        {newEquipmentDamageInvalid && (
+          <p id="equipment-damage-error" className="form-error">
+            Use um dado como 1d8 ou 2d6.
+          </p>
+        )}
+        <button type="button" className="btn btn-ghost" onClick={addEquipment} disabled={!canAddEquipment}>
+          + Adicionar {newEquipmentIsWeapon ? 'arma' : 'armadura'}
+        </button>
+      </div>
+
+      <EquipmentPackPicker
+        characterId={id}
+        appliedPack={form.pacoteEquipamento}
+        pendingPack={id ? null : form.pacoteEquipamento}
+        dirty={dirtySections.includes('equipamento')}
+        onPendingChange={(pack) => setField('pacoteEquipamento', pack)}
+        onApplied={applyPackResult}
+      />
+
+      <h3 className="section-title">Itens</h3>
+      {items.length > 0 ? (
+        <ul className="items-list">
+          {items.map((item, i) => (
+            <li key={`${item}-${i}`} className="item-row">
+              <span>
+                {item}
+                {(form.itensDoPacote ?? []).includes(item) && <span className="item-from-pack">do pacote</span>}
+              </span>
+              <button type="button" className="btn-remove" onClick={() => removeItem(i)} aria-label={`Remover ${item}`}>
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted-hint">Nenhum item na ficha.</p>
+      )}
+      <div className="row add-item">
+        <div className="field grow">
+          <label htmlFor="new-item">Novo item ({items.length}/{MAX_ITEMS})</label>
+          <input
+            id="new-item"
+            type="text"
+            maxLength={MAX_ITEM_LENGTH}
+            value={newItem}
+            onChange={(e) => setNewItem(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addItem();
+              }
+            }}
+            placeholder="ex: Poção de cura"
+            disabled={items.length >= MAX_ITEMS}
+          />
+        </div>
+        <button type="button" className="btn btn-ghost" onClick={addItem} disabled={!canAddItem}>
+          + Adicionar item
+        </button>
+      </div>
+    </>
+  );
+
+  const renderMagias = () => (
+    <>
+      <h3 className="section-title">Truques</h3>
+      <p className="muted-hint">Truques não têm círculo nem gastam espaços de magia: podem ser usados à vontade.</p>
+
+      {cantrips.length > 0 && (
+        <div className="spells-list">
+          {cantrips.map(({ spell, index }) => (
+            <div key={index} className="spell-card">
+              <div className="spell-card-header">
+                <span className="spell-name">{spell.name}</span>
+                <span className="spell-level">Truque</span>
+                <button
+                  type="button"
+                  className="btn-remove"
+                  onClick={() => removeSpell(index)}
+                  aria-label={`Remover ${spell.name}`}
+                >
+                  ✕
+                </button>
+              </div>
+              {spell.description && <p className="spell-desc">{spell.description}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="add-spell card-inner">
+        <h4>Adicionar truque</h4>
+        <div className="field">
+          <label htmlFor="cantrip-name">Nome do truque</label>
+          <input
+            id="cantrip-name"
+            type="text"
+            value={newCantrip.name}
+            onChange={(e) => setNewCantrip((c) => ({ ...c, name: e.target.value }))}
+            placeholder="ex: Raio de Fogo"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="cantrip-desc">Descrição</label>
+          <textarea
+            id="cantrip-desc"
+            rows={2}
+            value={newCantrip.description}
+            onChange={(e) => setNewCantrip((c) => ({ ...c, description: e.target.value }))}
+            placeholder="Efeito, alcance, duração..."
+          />
+        </div>
+        <button type="button" className="btn btn-ghost" onClick={addCantrip} disabled={!newCantrip.name.trim()}>
+          + Adicionar truque
+        </button>
+      </div>
+
+      <h3 className="section-title">Magias e espaços de magia</h3>
+
+      {circlesInUse.length > 0 && (
+        <div className="slot-tracker">
+          <div className="slot-tracker-head">
+            <h4>Espaços de magia</h4>
+            <button type="button" className="btn btn-ghost" onClick={restAllSlots}>
+              Descansar: restaurar todos
+            </button>
+          </div>
+          {circlesInUse.map((circle) => {
+            const remaining = remainingSpellSlots(form, circle);
+            const total = totalSpellSlots(form, circle);
+            return (
+              <div key={circle} className={`slot-row ${remaining === 0 ? 'slot-row--empty' : ''}`}>
+                <span className="slot-circle">{circle}º círculo</span>
+                <div className="slot-remaining" role="group" aria-label={`Espaços restantes do ${circle}º círculo`}>
+                  <button
+                    type="button"
+                    className="slot-step"
+                    onClick={() => setSlotRemaining(circle, remaining - 1)}
+                    disabled={remaining <= 0}
+                    aria-label={`Gastar um espaço do ${circle}º círculo`}
+                  >
+                    −
+                  </button>
+                  <strong aria-live="polite">
+                    {remaining}/{total}
+                  </strong>
+                  <button
+                    type="button"
+                    className="slot-step"
+                    onClick={() => setSlotRemaining(circle, remaining + 1)}
+                    disabled={remaining >= total}
+                    aria-label={`Recuperar um espaço do ${circle}º círculo`}
+                  >
+                    +
+                  </button>
+                </div>
+                <label className="slot-total">
+                  <span className="required-mark">Total</span>
+                  <NumberInput
+                    required
+                    min={1}
+                    max={MAX_SPELL_SLOTS}
+                    value={total}
+                    onChange={(value) => setSlotTotal(circle, value)}
+                  />
+                </label>
+                {!circleHasSpells(circle) && (
+                  <button
+                    type="button"
+                    className="btn-remove"
+                    onClick={() => removeCircle(circle)}
+                    aria-label={`Remover espaços do ${circle}º círculo`}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {spells.some((spell) => spell.level > 0) && (
+        <div className="spells-list">
+          {spells.map((spell, i) =>
+            spell.level > 0 ? (
+              <div key={i} className="spell-card">
+                <div className="spell-card-header">
+                  <span className="spell-name">{spell.name}</span>
+                  <span className="spell-level">{spell.level}º círculo</span>
+                  <button
+                    type="button"
+                    className="btn-remove"
+                    onClick={() => removeSpell(i)}
+                    aria-label={`Remover ${spell.name}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+                {spell.description && <p className="spell-desc">{spell.description}</p>}
+              </div>
+            ) : null,
+          )}
+        </div>
+      )}
+
+      <div className="add-spell card-inner">
+        <h4>Adicionar magia</h4>
+        <div className="row">
+          <div className="field grow">
+            <label htmlFor="spell-name">Nome da magia</label>
+            <input
+              id="spell-name"
+              type="text"
+              value={newSpell.name}
+              onChange={(e) => setNewSpell((s) => ({ ...s, name: e.target.value }))}
+              placeholder="ex: Bola de Fogo"
+            />
+          </div>
+          <Select
+            label="Círculo (obrigatório)"
+            value={newSpell.circle}
+            onChange={chooseSpellCircle}
+            options={[{ value: '', label: 'Escolha o círculo' }, ...circleOptions]}
+          />
+        </div>
+        {newSpell.circle !== '' && (
+          <div className="field">
+            <label htmlFor="spell-slots">Espaços de magia do {newSpell.circle}º círculo</label>
+            <NumberInput
+              id="spell-slots"
+              min={1}
+              max={MAX_SPELL_SLOTS}
+              value={newSpell.slots}
+              onChange={(slots) => setNewSpell((s) => ({ ...s, slots }))}
+              onClear={() => setNewSpell((s) => ({ ...s, slots: 0 }))}
+            />
+          </div>
+        )}
+        <div className="field">
+          <label htmlFor="spell-desc">Descrição</label>
+          <textarea
+            id="spell-desc"
+            rows={2}
+            value={newSpell.description}
+            onChange={(e) => setNewSpell((s) => ({ ...s, description: e.target.value }))}
+            placeholder="Efeito, alcance, duração..."
+          />
+        </div>
+        <button type="button" className="btn btn-ghost" onClick={addSpell} disabled={!canAddSpell}>
+          + Adicionar magia
+        </button>
+      </div>
+    </>
+  );
+
+  const renderRolagens = () => (
+    <>
+      <p className="muted-hint">
+        As rolagens valem na hora, sem precisar salvar, e ficam no histórico da ficha. Se a ficha estiver numa mesa com
+        sessão ativa, aparecem também no chat de rolagens.
+      </p>
+      <div className="sheet-rolls-grid">
+        <HitPointRolls character={rollCharacter} onRolled={(rolled, roll) => applyRolledCharacter(rolled, roll.id)} />
+        {!rollCharacter.moedasRoladas && !embedded ? (
+          <CoinRolls character={rollCharacter} onRolled={(rolled, roll) => applyRolledCharacter(rolled, roll.id)} />
+        ) : (
+          <p className="muted-hint">
+            {rollCharacter.moedasRoladas
+              ? 'As moedas desta ficha já foram roladas. A partir de agora, acrescente moedas conforme a história.'
+              : 'Durante a mesa não se rolam moedas. Acrescente as moedas conforme a história.'}
+          </p>
+        )}
+      </div>
+      <h3 className="section-title">Histórico</h3>
+      <SheetRollHistory load={loadRollHistory} refreshKey={lastRollId ?? undefined} />
+    </>
+  );
+
+  const renderTab = () => {
+    const status = tabStatus[tab];
+    if (status === 'error') {
+      return (
+        <LoadError
+          title={`Não foi possível abrir a aba ${SHEET_TAB_LABEL[tab]}`}
+          message={tabErrors[tab] ?? 'Tente novamente.'}
+          onRetry={() => loadTab(tab, true)}
+        />
+      );
+    }
+    if (status !== 'loaded') {
+      return <p className="muted">Abrindo a aba {SHEET_TAB_LABEL[tab]}...</p>;
+    }
+    switch (tab) {
+      case 'personagem':
+        return renderPersonagem();
+      case 'atributos':
+        return renderAtributos();
+      case 'habilidades':
+        return renderHabilidades();
+      case 'equipamento':
+        return renderEquipamento();
+      case 'magias':
+        return renderMagias();
+      case 'rolagens':
+        return renderRolagens();
+    }
+  };
 
   return (
     <section className={embedded ? 'character-editor' : 'page'}>
@@ -502,7 +1598,6 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
 
       <form
         className="form card character-sheet-form"
-        onInvalidCapture={openInvalidSection}
         onSubmit={(e) => {
           e.preventDefault();
           save();
@@ -510,817 +1605,19 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
       >
         <p className="required-legend">
           Campos marcados com <span className="required-mark" aria-hidden="true" /> são obrigatórios.
+          {id && ' Ao salvar, só as abas alteradas são gravadas.'}
         </p>
-        {/* ── Identificação ── */}
-        <div className="row">
-          <div className="field grow">
-            <label htmlFor="name" className="required-mark">Nome</label>
-            <input
-              id="name"
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => setField('name', e.target.value)}
-              placeholder="ex: Arannis, o Feiticeiro"
-            />
-          </div>
-          <Select
-            label="Tipo"
-            required
-            value={form.kind}
-            onChange={(kind) => setField('kind', kind)}
-            disabled={kindOptions.length === 1}
-            options={kindOptions.map((kind) => ({
-              value: kind,
-              label: KIND_LABEL[kind],
-              disabled: !allowedKinds.includes(kind),
-            }))}
-          />
-        </div>
 
-        <h4 className="sheet-subtitle">Classes</h4>
-        {classes.map((entry, i) => (
-          <div className="row" key={i}>
-            <div className="field grow">
-              <label htmlFor={`classe-${i}`} className="required-mark">Classe</label>
-              <input
-                id={`classe-${i}`}
-                type="text"
-                required
-                maxLength={MAX_CLASS_LENGTH}
-                value={entry.classe}
-                onChange={(e) => changeClass(i, { classe: e.target.value })}
-                placeholder="ex: Guerreiro"
-              />
-            </div>
-            <div className="field grow">
-              <label htmlFor={`subclasse-${i}`}>Subclasse</label>
-              <input
-                id={`subclasse-${i}`}
-                type="text"
-                maxLength={MAX_CLASS_LENGTH}
-                value={entry.subclasse}
-                onChange={(e) => changeClass(i, { subclasse: e.target.value })}
-                placeholder="ex: Campeão"
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`nivel-${i}`} className="required-mark">Nível</label>
-              <NumberInput
-                id={`nivel-${i}`}
-                required
-                min={1}
-                max={MAX_CLASS_LEVEL}
-                value={entry.nivel}
-                onChange={(nivel) => changeClass(i, { nivel: clampClassLevel(nivel) })}
-              />
-            </div>
-            <button
-              type="button"
-              className="btn-remove"
-              onClick={() => removeClass(i)}
-              disabled={classes.length === 1}
-              aria-label={`Remover classe ${entry.classe || i + 1}`}
-            >
-              ✕
-            </button>
-          </div>
-        ))}
-        <div className="row">
-          <button type="button" className="btn btn-ghost" onClick={addClass} disabled={classes.length >= MAX_CLASSES}>
-            + Adicionar classe
-          </button>
-          <div className="field">
-            <label
-              htmlFor="proficiencyBonus"
-              className="required-mark"
-              title="Valor sugerido ao marcar um atributo ou perícia"
-            >
-              Bônus padrão
-            </label>
-            <NumberInput
-              id="proficiencyBonus"
-              required
-              min={0}
-              max={10}
-              value={form.proficiencyBonus ?? DEFAULT_PROFICIENCY_BONUS}
-              onChange={(bonus) => setField('proficiencyBonus', bonus)}
-            />
-          </div>
-        </div>
+        <SwipeTabs tabs={tabs} active={tab} onChange={setTab} label="Seções da ficha" idPrefix="character-sheet">
+          {renderTab()}
+        </SwipeTabs>
 
-        <div className="row">
-          <div className="field grow">
-            <label htmlFor="raca" className="required-mark">Raça</label>
-            <input
-              id="raca"
-              type="text"
-              required
-              maxLength={MAX_RACE_LENGTH}
-              value={form.raca ?? ''}
-              onChange={(e) => setField('raca', e.target.value)}
-              placeholder="ex: Elfo"
-            />
-          </div>
-          <div className="field grow">
-            <label htmlFor="alinhamento" className="required-mark">Alinhamento</label>
-            <input
-              id="alinhamento"
-              type="text"
-              required
-              maxLength={MAX_ALIGNMENT_LENGTH}
-              value={form.alinhamento ?? ''}
-              onChange={(e) => setField('alinhamento', e.target.value)}
-              placeholder="ex: Neutro e Bom"
-            />
-          </div>
-        </div>
-
-        {/* ── Stats base ── */}
-        <div className="row row--aligned">
-          <div className="field">
-            <label htmlFor="level" title="Soma dos níveis das classes">
-              Nível (soma das classes)
-            </label>
-            <output id="level" className="computed-value" aria-live="polite">
-              {hasClasses ? totalClassLevel(classes) : form.level}
-            </output>
-          </div>
-          <div className="field">
-            <label htmlFor="hpMax" className="required-mark">HP máximo</label>
-            <NumberInput
-              id="hpMax"
-              required
-              min={1}
-              value={form.hpMax}
-              onChange={(hpMax) => setField('hpMax', hpMax)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="hpCurrent" className="required-mark">HP atual</label>
-            <NumberInput
-              id="hpCurrent"
-              required
-              min={0}
-              value={form.hpCurrent}
-              onChange={(hpCurrent) => setField('hpCurrent', hpCurrent)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="vidaTemporaria">Vida temporária</label>
-            <NumberInput
-              id="vidaTemporaria"
-              min={0}
-              value={form.vidaTemporaria}
-              onChange={(vida) => setField('vidaTemporaria', vida)}
-              onClear={() => setField('vidaTemporaria', undefined)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="armorClass" className="required-mark">Classe de Armadura</label>
-            <NumberInput
-              id="armorClass"
-              required
-              min={0}
-              value={form.armorClass}
-              onChange={(armorClass) => setField('armorClass', armorClass)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="deslocamento" className="required-mark">Deslocamento (metros)</label>
-            <NumberInput
-              id="deslocamento"
-              required
-              min={0}
-              max={MAX_MOVEMENT}
-              step={1}
-              placeholder="ex: 9"
-              value={form.deslocamento}
-              onChange={(deslocamento) => setField('deslocamento', deslocamento)}
-              onClear={() => setField('deslocamento', undefined)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="passivePerception" title="8 + 2 + modificador de Sabedoria">
-              Percepção passiva
-            </label>
-            <output id="passivePerception" className="computed-value" aria-live="polite">
-              {passivePerception(form)}
-            </output>
-          </div>
-        </div>
-
-        <div className="death-saves">
-          <label className={`inspiration-toggle ${form.inspiracao ? 'active' : ''}`}>
-            <input
-              type="checkbox"
-              checked={Boolean(form.inspiracao)}
-              onChange={(e) => setField('inspiracao', e.target.checked)}
-            />
-            Inspiração
-          </label>
-          {(
-            [
-              ['sucessosContraMorte', 'Sucessos', 'success'],
-              ['falhasContraMorte', 'Falhas', 'failure'],
-            ] as const
-          ).map(([key, label, tone]) => (
-            <fieldset key={key} className={`death-save-group death-save-group--${tone}`}>
-              <legend>{label} contra a morte</legend>
-              {Array.from({ length: DEATH_SAVE_MARKS }, (_, mark) => (
-                <input
-                  key={mark}
-                  type="checkbox"
-                  aria-label={`${label} contra a morte: ${mark + 1} de ${DEATH_SAVE_MARKS}`}
-                  checked={mark < (form[key] ?? 0)}
-                  onChange={(e) => setDeathSaves(key, mark, e.target.checked)}
-                />
-              ))}
-            </fieldset>
-          ))}
-          <button
-            type="button"
-            className="btn btn-ghost death-saves-clear"
-            onClick={clearDeathSaves}
-            disabled={!form.sucessosContraMorte && !form.falhasContraMorte}
-          >
-            Limpar testes
-          </button>
-        </div>
-
-        {/* ── Atributos ── */}
-        <div className="section-header">
-          <h3 className="section-title">Atributos</h3>
-          {!id && (
-            <button
-              type="button"
-              className="btn btn-roll"
-              onClick={rollAllAttributes}
-              title="Rola 4d6 descartando o menor para cada atributo"
-            >
-              🎲 Rolar todos
-            </button>
-          )}
-        </div>
-        {id && <p className="muted-hint">Os dados de atributo só podem ser rolados na criação da ficha.</p>}
-
-        <div className="attrs-grid">
-          {ATTRIBUTE_KEYS.map((key) => (
-            <div className="field attr-field" key={key}>
-              <label htmlFor={key} className="required-mark">{ATTRIBUTE_LABEL[key]}</label>
-              <div className="attr-input-row">
-                <NumberInput
-                  id={key}
-                  required
-                  min={8}
-                  max={20}
-                  value={form.attributes[key]}
-                  onChange={(score) => setAttribute(key, score)}
-                />
-                {!id && (
-                  <button
-                    type="button"
-                    className="btn-roll-single"
-                    onClick={() => rollSingleAttribute(key)}
-                    title={`Rolar ${ATTRIBUTE_LABEL[key]}`}
-                    aria-label={`Rolar ${ATTRIBUTE_LABEL[key]}`}
-                  >
-                    🎲
-                  </button>
-                )}
-              </div>
-              <span className="modifier">{modifierFor(key)}</span>
-              <label className={`saving-throw ${form.savingThrows?.[key] !== undefined ? 'proficient' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={form.savingThrows?.[key] !== undefined}
-                  onChange={() => toggleSavingThrow(key)}
-                />
-                Proficiente ({formatModifier(attributeRollModifier(form, key))})
-              </label>
-              {form.savingThrows?.[key] !== undefined && (
-                <div className="bonus-input">
-                  <label htmlFor={`bonus-${key}`} className="required-mark">Bônus</label>
-                  <NumberInput
-                    id={`bonus-${key}`}
-                    required
-                    min={0}
-                    max={MAX_PROFICIENCY_BONUS}
-                    value={form.savingThrows[key]}
-                    onChange={(bonus) => setSavingThrowBonus(key, bonus)}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* ── Perícias ── */}
-        <h3 className="section-title">Perícias</h3>
-        <p className="muted-hint">
-          Cada perícia usa o modificador do seu atributo. Marque as perícias com proficiência e ajuste o bônus de cada uma (por exemplo, dobrado para especialização). A proficiência no atributo não passa para as perícias.
-        </p>
-        <div className="skills-grid">
-          {ALL_SKILLS.map((skill) => {
-            const bonus = form.skills?.[skill];
-            const active = bonus !== undefined;
-            return (
-              <div key={skill} className={`skill-row ${active ? 'proficient' : ''}`}>
-                <input
-                  id={`skill-${skill}`}
-                  type="checkbox"
-                  checked={active}
-                  onChange={() => toggleSkill(skill)}
-                />
-                <span className="skill-mod">{skillModifier(skill)}</span>
-                <label htmlFor={`skill-${skill}`} className="skill-name">{SKILL_LABEL[skill]}</label>
-                <span className="skill-attr">({ATTRIBUTE_LABEL[SKILL_ATTRIBUTE[skill]].slice(0, 3)})</span>
-                {active && (
-                  <NumberInput
-                    className="skill-bonus"
-                    required
-                    min={0}
-                    max={MAX_PROFICIENCY_BONUS}
-                    value={bonus}
-                    onChange={(value) => setSkillBonus(skill, value)}
-                    aria-label={`Bônus de ${SKILL_LABEL[skill]}`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* ── Equipamentos ── */}
-        <details className="sheet-section" open>
-        <summary>
-          <h3 className="section-title">Inventário</h3>
-        </summary>
-        <h4 className="sheet-subtitle">Armas e armaduras</h4>
-        {equipamentos.length > 0 ? (
-          <ul className="items-list">
-            {equipamentos.map((equipment, i) => {
-              const details = equipmentDetails(equipment);
-              return (
-                <li key={`${equipment.nome}-${i}`} className="item-row equipment-row">
-                  <span className="equipment-summary">
-                    <span className={`equipment-type equipment-type--${equipment.tipo.toLowerCase()}`}>
-                      {EQUIPMENT_TYPE_LABEL[equipment.tipo]}
-                    </span>
-                    <strong>{equipment.nome}</strong>
-                    {details.length > 0 && <span className="equipment-details">{details.join(' · ')}</span>}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-remove"
-                    onClick={() => removeEquipment(i)}
-                    aria-label={`Remover ${equipment.nome}`}
-                  >
-                    ✕
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="muted-hint">Nenhuma arma ou armadura na ficha.</p>
-        )}
-
-        <div className="add-spell card-inner add-equipment">
-          <h4>
-            Adicionar arma ou armadura ({equipamentos.length}/{MAX_EQUIPMENT})
-          </h4>
-          <div className="choice-toggle" role="radiogroup" aria-label="Tipo do equipamento">
-            {EQUIPMENT_TYPES.map((type) => (
-              <button
-                key={type}
-                type="button"
-                role="radio"
-                aria-checked={newEquipment.tipo === type}
-                className={`btn btn-ghost choice-toggle-option ${newEquipment.tipo === type ? 'choice-toggle-option--active' : ''}`}
-                onClick={() => changeNewEquipment({ tipo: type })}
-              >
-                {EQUIPMENT_TYPE_LABEL[type]}
-              </button>
-            ))}
-          </div>
-          <div className="field">
-            <label htmlFor="equipment-name">Nome</label>
-            <input
-              id="equipment-name"
-              type="text"
-              maxLength={MAX_EQUIPMENT_NAME_LENGTH}
-              value={newEquipment.nome}
-              onChange={(e) => changeNewEquipment({ nome: e.target.value })}
-              onKeyDown={addEquipmentOnEnter}
-              placeholder={newEquipmentIsWeapon ? 'ex: Espada longa' : 'ex: Cota de malha'}
-              disabled={equipamentos.length >= MAX_EQUIPMENT}
-            />
-          </div>
-          {newEquipmentIsWeapon ? (
-            <div className="row">
-              <div className="field">
-                <label htmlFor="equipment-damage">Dado de dano</label>
-                <input
-                  id="equipment-damage"
-                  type="text"
-                  maxLength={6}
-                  value={newEquipment.dano ?? ''}
-                  onChange={(e) => changeNewEquipment({ dano: e.target.value })}
-                  onKeyDown={addEquipmentOnEnter}
-                  aria-invalid={newEquipmentDamageInvalid}
-                  aria-describedby={newEquipmentDamageInvalid ? 'equipment-damage-error' : undefined}
-                  placeholder="ex: 1d8"
-                />
-              </div>
-              <Select
-                label="Atributo base"
-                value={newEquipment.atributo ?? ''}
-                onChange={(atributo) => changeNewEquipment({ atributo: atributo === '' ? null : atributo })}
-                options={[
-                  { value: '', label: 'Nenhum' },
-                  ...ATTRIBUTE_KEYS.map((key) => ({ value: key, label: ATTRIBUTE_LABEL[key] })),
-                ]}
-              />
-            </div>
-          ) : (
-            <div className="field">
-              <label htmlFor="equipment-armor-class">CA</label>
-              <NumberInput
-                id="equipment-armor-class"
-                min={0}
-                max={MAX_EQUIPMENT_ARMOR_CLASS}
-                value={newEquipment.classeArmadura ?? undefined}
-                onChange={(classeArmadura) => changeNewEquipment({ classeArmadura })}
-                onClear={() => changeNewEquipment({ classeArmadura: null })}
-                onKeyDown={addEquipmentOnEnter}
-              />
-            </div>
-          )}
-          <div className="field">
-            <label htmlFor="equipment-properties">Propriedades</label>
-            <input
-              id="equipment-properties"
-              type="text"
-              maxLength={MAX_EQUIPMENT_PROPERTIES_LENGTH}
-              value={newEquipment.propriedades ?? ''}
-              onChange={(e) => changeNewEquipment({ propriedades: e.target.value })}
-              onKeyDown={addEquipmentOnEnter}
-              placeholder={newEquipmentIsWeapon ? 'ex: Versátil, acuidade' : 'ex: Pesada, desvantagem em Furtividade'}
-            />
-          </div>
-          {newEquipmentDamageInvalid && (
-            <p id="equipment-damage-error" className="form-error">
-              Use um dado como 1d8 ou 2d6.
-            </p>
-          )}
-          <button type="button" className="btn btn-ghost" onClick={addEquipment} disabled={!canAddEquipment}>
-            + Adicionar {newEquipmentIsWeapon ? 'arma' : 'armadura'}
-          </button>
-        </div>
-
-        <h4 className="sheet-subtitle">Itens</h4>
-        {items.length > 0 ? (
-          <ul className="items-list">
-            {items.map((item, i) => (
-              <li key={`${item}-${i}`} className="item-row">
-                <span>{item}</span>
-                <button
-                  type="button"
-                  className="btn-remove"
-                  onClick={() => removeItem(i)}
-                  aria-label={`Remover ${item}`}
-                >
-                  ✕
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted-hint">Nenhum item na ficha.</p>
-        )}
-        <div className="row add-item">
-          <div className="field grow">
-            <label htmlFor="new-item">Novo item ({items.length}/{MAX_ITEMS})</label>
-            <input
-              id="new-item"
-              type="text"
-              maxLength={MAX_ITEM_LENGTH}
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addItem();
-                }
-              }}
-              placeholder="ex: Poção de cura"
-              disabled={items.length >= MAX_ITEMS}
-            />
-          </div>
-          <button type="button" className="btn btn-ghost" onClick={addItem} disabled={!canAddItem}>
-            + Adicionar item
-          </button>
-        </div>
-
-        </details>
-
-        <details className="sheet-section" open>
-        <summary>
-          <h3 className="section-title">Truques</h3>
-        </summary>
-
-        <p className="muted-hint">Truques não têm círculo nem gastam espaços de magia: podem ser usados à vontade.</p>
-
-        {cantrips.length > 0 && (
-          <div className="spells-list">
-            {cantrips.map(({ spell, index }) => (
-              <div key={index} className="spell-card">
-                <div className="spell-card-header">
-                  <span className="spell-name">{spell.name}</span>
-                  <span className="spell-level">Truque</span>
-                  <button
-                    type="button"
-                    className="btn-remove"
-                    onClick={() => removeSpell(index)}
-                    aria-label={`Remover ${spell.name}`}
-                  >
-                    ✕
-                  </button>
-                </div>
-                {spell.description && <p className="spell-desc">{spell.description}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="add-spell card-inner">
-          <h4>Adicionar truque</h4>
-          <div className="field">
-            <label htmlFor="cantrip-name">Nome do truque</label>
-            <input
-              id="cantrip-name"
-              type="text"
-              value={newCantrip.name}
-              onChange={(e) => setNewCantrip((c) => ({ ...c, name: e.target.value }))}
-              placeholder="ex: Raio de Fogo"
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="cantrip-desc">Descrição</label>
-            <textarea
-              id="cantrip-desc"
-              rows={2}
-              value={newCantrip.description}
-              onChange={(e) => setNewCantrip((c) => ({ ...c, description: e.target.value }))}
-              placeholder="Efeito, alcance, duração..."
-            />
-          </div>
-          <button type="button" className="btn btn-ghost" onClick={addCantrip} disabled={!newCantrip.name.trim()}>
-            + Adicionar truque
-          </button>
-        </div>
-
-        </details>
-
-        <details className="sheet-section" open>
-        <summary>
-          <h3 className="section-title">Magias e espaços de magia</h3>
-        </summary>
-
-        {circlesInUse.length > 0 && (
-          <div className="slot-tracker">
-            <div className="slot-tracker-head">
-              <h4>Espaços de magia</h4>
-              <button type="button" className="btn btn-ghost" onClick={restAllSlots}>
-                Descansar: restaurar todos
-              </button>
-            </div>
-            {circlesInUse.map((circle) => {
-              const remaining = remainingSpellSlots(form, circle);
-              const total = totalSpellSlots(form, circle);
-              return (
-                <div key={circle} className={`slot-row ${remaining === 0 ? 'slot-row--empty' : ''}`}>
-                  <span className="slot-circle">{circle}º círculo</span>
-                  <div className="slot-remaining" role="group" aria-label={`Espaços restantes do ${circle}º círculo`}>
-                    <button
-                      type="button"
-                      className="slot-step"
-                      onClick={() => setSlotRemaining(circle, remaining - 1)}
-                      disabled={remaining <= 0}
-                      aria-label={`Gastar um espaço do ${circle}º círculo`}
-                    >
-                      −
-                    </button>
-                    <strong aria-live="polite">
-                      {remaining}/{total}
-                    </strong>
-                    <button
-                      type="button"
-                      className="slot-step"
-                      onClick={() => setSlotRemaining(circle, remaining + 1)}
-                      disabled={remaining >= total}
-                      aria-label={`Recuperar um espaço do ${circle}º círculo`}
-                    >
-                      +
-                    </button>
-                  </div>
-                  <label className="slot-total">
-                    <span className="required-mark">Total</span>
-                    <NumberInput
-                      required
-                      min={1}
-                      max={MAX_SPELL_SLOTS}
-                      value={total}
-                      onChange={(value) => setSlotTotal(circle, value)}
-                    />
-                  </label>
-                  {!circleHasSpells(circle) && (
-                    <button
-                      type="button"
-                      className="btn-remove"
-                      onClick={() => removeCircle(circle)}
-                      aria-label={`Remover espaços do ${circle}º círculo`}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {spells.some((spell) => spell.level > 0) && (
-          <div className="spells-list">
-            {spells.map((spell, i) =>
-              spell.level > 0 ? (
-                <div key={i} className="spell-card">
-                  <div className="spell-card-header">
-                    <span className="spell-name">{spell.name}</span>
-                    <span className="spell-level">{spell.level}º círculo</span>
-                    <button
-                      type="button"
-                      className="btn-remove"
-                      onClick={() => removeSpell(i)}
-                      aria-label={`Remover ${spell.name}`}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  {spell.description && <p className="spell-desc">{spell.description}</p>}
-                </div>
-              ) : null,
-            )}
-          </div>
-        )}
-
-        <div className="add-spell card-inner">
-          <h4>Adicionar magia</h4>
-          <div className="row">
-            <div className="field grow">
-              <label htmlFor="spell-name">Nome da magia</label>
-              <input
-                id="spell-name"
-                type="text"
-                value={newSpell.name}
-                onChange={(e) => setNewSpell((s) => ({ ...s, name: e.target.value }))}
-                placeholder="ex: Bola de Fogo"
-              />
-            </div>
-            <Select
-              label="Círculo (obrigatório)"
-              value={newSpell.circle}
-              onChange={chooseSpellCircle}
-              options={[{ value: '', label: 'Escolha o círculo' }, ...circleOptions]}
-            />
-          </div>
-          {newSpell.circle !== '' && (
-            <div className="field">
-              <label htmlFor="spell-slots">Espaços de magia do {newSpell.circle}º círculo</label>
-              <NumberInput
-                id="spell-slots"
-                min={1}
-                max={MAX_SPELL_SLOTS}
-                value={newSpell.slots}
-                onChange={(slots) => setNewSpell((s) => ({ ...s, slots }))}
-                onClear={() => setNewSpell((s) => ({ ...s, slots: 0 }))}
-              />
-            </div>
-          )}
-          <div className="field">
-            <label htmlFor="spell-desc">Descrição</label>
-            <textarea
-              id="spell-desc"
-              rows={2}
-              value={newSpell.description}
-              onChange={(e) => setNewSpell((s) => ({ ...s, description: e.target.value }))}
-              placeholder="Efeito, alcance, duração..."
-            />
-          </div>
-          <button type="button" className="btn btn-ghost" onClick={addSpell} disabled={!canAddSpell}>
-            + Adicionar magia
-          </button>
-        </div>
-
-        </details>
-
-        <h3 className="section-title">Habilidades de classe e subclasse</h3>
-        <div className="field">
-          <label htmlFor="habilidades">Habilidades</label>
-          <textarea
-            id="habilidades"
-            rows={5}
-            maxLength={MAX_ABILITIES_LENGTH}
-            value={form.habilidades ?? ''}
-            onChange={(e) => setField('habilidades', e.target.value)}
-            placeholder="Escreva livremente as habilidades da classe e da subclasse, com nível, efeito e usos."
-          />
-          <span className="muted">
-            {(form.habilidades ?? '').length}/{MAX_ABILITIES_LENGTH}
-          </span>
-        </div>
-
-        <h3 className="section-title">Habilidades de raça</h3>
-        <div className="field">
-          <label htmlFor="habilidadesRaca">Habilidades de raça</label>
-          <textarea
-            id="habilidadesRaca"
-            rows={4}
-            maxLength={MAX_ABILITIES_LENGTH}
-            value={form.habilidadesRaca ?? ''}
-            onChange={(e) => setField('habilidadesRaca', e.target.value)}
-            placeholder="Escreva livremente as habilidades da raça, com efeito e usos."
-          />
-          <span className="muted">
-            {(form.habilidadesRaca ?? '').length}/{MAX_ABILITIES_LENGTH}
-          </span>
-        </div>
-
-        <h3 className="section-title">Talentos</h3>
-        <div className="field">
-          <label htmlFor="talentos">Talentos</label>
-          <textarea
-            id="talentos"
-            rows={4}
-            maxLength={MAX_ABILITIES_LENGTH}
-            value={form.talentos ?? ''}
-            onChange={(e) => setField('talentos', e.target.value)}
-            placeholder="Escreva livremente os talentos do personagem, com efeito e usos."
-          />
-          <span className="muted">
-            {(form.talentos ?? '').length}/{MAX_ABILITIES_LENGTH}
-          </span>
-        </div>
-
-        {/* ── História ── */}
-        <h3 className="section-title">História</h3>
-        <div className="field">
-          <label htmlFor="backstory">História / descrição</label>
-          <textarea
-            id="backstory"
-            rows={3}
-            value={form.backstory ?? ''}
-            onChange={(e) => setField('backstory', e.target.value)}
-            placeholder="Quem é esse personagem?"
-          />
-        </div>
-
-        {isNpcOrMonster && (
-          <div className="field">
-            <label htmlFor="personalityPrompt">Personalidade para a IA</label>
-            <textarea
-              id="personalityPrompt"
-              rows={3}
-              value={form.personalityPrompt ?? ''}
-              onChange={(e) => setField('personalityPrompt', e.target.value)}
-              placeholder="ex: Fale como um anão rabugento, desconfiado de forasteiros, que só ajuda por moedas de ouro."
-            />
-          </div>
-        )}
-
-        {showTableLinks && (
-          <CheckList
-            legend="Vincular às mesas (opcional)"
-            hint="Nas mesas marcadas, a ficha aparece na aba Fichas e fica disponível para o combate."
-            items={myTables.flatMap((table) =>
-              table.id ? [{ id: table.id, label: table.name, detail: TABLE_STATUS_LABEL[table.status] }] : [],
-            )}
-            selected={selectedTableIds}
-            emptyText="Você ainda não tem mesas abertas. Dá para vincular depois, ao criar a mesa ou dentro dela."
-            loading={tablesLoading}
-            error={tablesError}
-            onChange={setSelectedTableIds}
-          />
-        )}
-
-        {/* ── Ações ── */}
         {saveError && <p className="form-error save-error" role="alert">{saveError}</p>}
         <div className="actions">
           <button type="button" className="btn btn-ghost" onClick={cancel}>
             Cancelar
           </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+          <button type="submit" className="btn btn-primary" disabled={saving || (Boolean(id) && !dirty)}>
             {saving ? 'Salvando...' : 'Salvar ficha'}
           </button>
         </div>

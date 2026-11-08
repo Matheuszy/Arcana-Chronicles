@@ -4,11 +4,16 @@ import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Atributos;
+import com.arcana.backend.character.model.Moeda;
+import com.arcana.backend.character.model.PacoteEquipamento;
+import com.arcana.backend.character.model.DeslocamentoAdicional;
+import com.arcana.backend.character.model.TipoDeslocamento;
 import com.arcana.backend.character.model.ClassePersonagem;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.character.service.PersonagemService;
 import com.arcana.backend.config.exception.RegraDeNegocioException;
@@ -41,13 +46,17 @@ class PersonagemServiceTest {
     @Mock
     private UsuarioRepositorie usuarioRepositorie;
 
+    @Mock
+    private PacoteEquipamentoRepository pacoteRepository;
+
     private PersonagemService service;
     private SessoesAtivasDeMesa sessoesAtivas;
 
     @BeforeEach
     void setUp() {
         sessoesAtivas = mock(SessoesAtivasDeMesa.class);
-        service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper(), sessoesAtivas);
+        service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper(), sessoesAtivas,
+                pacoteRepository);
     }
 
     private Personagem personagemDeAlice() {
@@ -77,7 +86,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null
-        , 9, null, null, null);
+        , 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private Usuario contaComPapel(Long id, PapelUsuario papel) {
@@ -178,11 +187,11 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", "Evocação", 6)),
-                null, null, null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
-        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Mago", "Evocação", 6)), resposta.classes());
+        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Mago", "Evocação", 6, 8, 6)), resposta.classes());
         assertEquals(6, resposta.level());
     }
 
@@ -208,12 +217,13 @@ class PersonagemServiceTest {
                         new PersonagemRequestDto.ClasseDto("Artífice", "  ", 2)), 3, Map.of("constituicao", 3, "forca", 6),
                 List.of(" Corda de 15 m ", "Tocha"), "  Fúria: dobra o dano  ",
                 " Elfo ", "Neutro e Bom", "  Visão no escuro até 18 m  ",
-                "  Atleta: +1 em Força  ", 5, 12, true, 2, 1);
+                "  Atleta: +1 em Força  ", 5, 12, true, 2, 1, null, null, null, null,
+                " Soldado ", "  Sempre fico de olho nas saídas  ", "Honra", "Minha companhia", "   ", null, null, null, null, null, null, null, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
-        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Guerreiro", "Campeão", 3),
-                new PersonagemResponseDto.ClasseDto("Artífice", null, 2)), resposta.classes());
+        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Guerreiro", "Campeão", 3, 8, 3),
+                new PersonagemResponseDto.ClasseDto("Artífice", null, 2, 8, 2)), resposta.classes());
         assertEquals(5, resposta.level());
         assertEquals("Atleta: +1 em Força", resposta.talentos());
         assertEquals(3, resposta.proficiencyBonus());
@@ -231,6 +241,11 @@ class PersonagemServiceTest {
         assertTrue(resposta.inspiracao());
         assertEquals(2, resposta.sucessosContraMorte());
         assertEquals(1, resposta.falhasContraMorte());
+        assertEquals("Soldado", resposta.antecedente());
+        assertEquals("Sempre fico de olho nas saídas", resposta.tracosPersonalidade());
+        assertEquals("Honra", resposta.ideais());
+        assertEquals("Minha companhia", resposta.vinculos());
+        assertNull(resposta.defeitos());
         assertEquals(6, personagem.getSalvaguardas().get(Atributo.FORCA));
     }
 
@@ -250,12 +265,252 @@ class PersonagemServiceTest {
         assertEquals(0, resposta.falhasContraMorte());
     }
 
+    @Test
+    void deveCalcularPercepcaoPassivaComModificadorDeSabedoriaEBonusDeProficiencia() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setAttributes(new Atributos(10, 10, 10, 10, 15, 10));
+        personagem.setBonusProficiencia(3);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        assertEquals(15, service.buscarPorId(10L, 1L).percepcaoPassiva());
+    }
+
+    @Test
+    void deveCalcularPercepcaoPassivaComSabedoriaBaixaArredondandoParaBaixo() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setAttributes(new Atributos(10, 10, 10, 10, 7, 10));
+        personagem.setBonusProficiencia(2);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        assertEquals(10, service.buscarPorId(10L, 1L).percepcaoPassiva());
+    }
+
+    @Test
+    void deveGravarMoedasEZerarAsQueNaoVieram() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setMoedasPrata(40);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        PersonagemRequestDto dto = new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
+                12, null, 0, 150, 3, null, null);
+
+        var resposta = service.atualizar(10L, dto, 1L);
+
+        assertEquals(12, resposta.moedasCobre());
+        assertEquals(0, resposta.moedasPrata());
+        assertEquals(150, resposta.moedasOuro());
+        assertEquals(3, resposta.moedasPlatina());
+    }
+
+    @Test
+    void deveAplicarPacoteEscolhidoNaCriacaoDaFicha() {
+        contaComPapel(1L, PapelUsuario.JOGADOR);
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pacoteRepository.findById("ARTISTA")).thenReturn(Optional.of(
+                new PacoteEquipamento("ARTISTA", "Artista", 3, List.of("Mochila", "Kit de disfarce"))));
+        PersonagemRequestDto dto = new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                null, null, null, List.of("Alaúde"), null, null, null, null, null, null, 9, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "artista", null);
+
+        var resposta = service.criar(dto, 1L);
+
+        assertEquals(List.of("Alaúde", "Mochila", "Kit de disfarce"), resposta.items());
+        assertEquals("ARTISTA", resposta.pacoteEquipamento());
+        assertEquals(List.of("Mochila", "Kit de disfarce"), resposta.itensDoPacote());
+    }
+
+    @Test
+    void deveDefinirCaAdicionalESomarNaCaTotal() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resposta = service.definirCaAdicional(10L, 1L, 5);
+
+        assertEquals(5, resposta.caAdicional());
+        assertEquals(17, resposta.classeArmaduraTotal());
+    }
+
+    @Test
+    void deveNegarCaAdicionalNaFichaDeOutroUsuario() {
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagemDeAlice()));
+
+        assertThrows(AccessDeniedException.class, () -> service.definirCaAdicional(10L, 2L, 2));
+        verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveAcrescentarMoedasNarradasNaMesa() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setMoedasOuro(10);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertEquals(35, service.acrescentarMoedas(10L, 1L, Moeda.OURO, 25).moedasOuro());
+    }
+
+    @Test
+    void deveRecusarAcrescimoQuePassaDoLimiteDeMoedas() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setMoedasCobre(999_999);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        assertThrows(IllegalStateException.class, () -> service.acrescentarMoedas(10L, 1L, Moeda.COBRE, 2));
+        verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarAcrescimoDeMoedasNaFichaDeOutroUsuario() {
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagemDeAlice()));
+
+        assertThrows(AccessDeniedException.class, () -> service.acrescentarMoedas(10L, 2L, Moeda.OURO, 5));
+    }
+
+    private PersonagemRequestDto dtoComClasse(PersonagemRequestDto.ClasseDto classe) {
+        return new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                List.of(classe), null, null, null, null, null, null, null, null, null, 9, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    void deveGravarDadoDeVidaEDadosDisponiveisDaClasse() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resposta = service.atualizar(10L,
+                dtoComClasse(new PersonagemRequestDto.ClasseDto("Bárbaro", null, 4, 12, 1)), 1L);
+
+        assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Bárbaro", null, 4, 12, 1)), resposta.classes());
+    }
+
+    @Test
+    void deveRecusarDadoDeVidaForaDeD6AD12() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        var erro = assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L,
+                dtoComClasse(new PersonagemRequestDto.ClasseDto("Mago", null, 2, 4, 2)), 1L));
+
+        assertEquals("O dado de vida de Mago deve ser d6, d8, d10 ou d12.", erro.getMessage());
+    }
+
+    @Test
+    void deveRecusarMaisDadosDeVidaDisponiveisQueONivelDaClasse() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        var erro = assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L,
+                dtoComClasse(new PersonagemRequestDto.ClasseDto("Mago", null, 2, 6, 3)), 1L));
+
+        assertEquals("Os dados de vida disponíveis de Mago não podem passar do nível da classe (2).", erro.getMessage());
+    }
+
+    private PersonagemRequestDto dtoComDeslocamentos(List<PersonagemRequestDto.DeslocamentoAdicionalDto> deslocamentos) {
+        return new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null,
+                null, null, null, null, null, null, null, null, null, deslocamentos, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    void deveGravarDeslocamentosAdicionaisMantendoODeslocamentoBase() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resposta = service.atualizar(10L, dtoComDeslocamentos(List.of(
+                new PersonagemRequestDto.DeslocamentoAdicionalDto(TipoDeslocamento.VOO, 18, " Magia Voo ", true),
+                new PersonagemRequestDto.DeslocamentoAdicionalDto(TipoDeslocamento.NATACAO, 9, "  ", null))), 1L);
+
+        assertEquals(9, resposta.deslocamento());
+        assertEquals(List.of(
+                new PersonagemResponseDto.DeslocamentoAdicionalDto(TipoDeslocamento.VOO, 18, "Magia Voo", true),
+                new PersonagemResponseDto.DeslocamentoAdicionalDto(TipoDeslocamento.NATACAO, 9, null, false)),
+                resposta.deslocamentosAdicionais());
+    }
+
+    @Test
+    void deveRemoverDeslocamentosAdicionaisQuandoAListaVemVazia() {
+        Personagem personagem = personagemDeAlice();
+        personagem.getDeslocamentosAdicionais().add(new DeslocamentoAdicional(TipoDeslocamento.ESCALADA, 6, null, false));
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resposta = service.atualizar(10L, dtoComDeslocamentos(List.of()), 1L);
+
+        assertEquals(List.of(), resposta.deslocamentosAdicionais());
+    }
+
+    private PersonagemRequestDto dtoComProficiencias(List<String> idiomas, List<String> ferramentas,
+                                                     List<String> armas, List<String> armaduras) {
+        return new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null,
+                idiomas, ferramentas, armas, armaduras, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    void deveGravarIdiomasEProficienciasSemEspacosNasPontas() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resposta = service.atualizar(10L, dtoComProficiencias(List.of(" Comum ", "Élfico"),
+                List.of("Ferramentas de ladrão"), List.of("Armas simples", "Espadas longas"),
+                List.of("Armaduras leves")), 1L);
+
+        assertEquals(List.of("Comum", "Élfico"), resposta.idiomas());
+        assertEquals(List.of("Ferramentas de ladrão"), resposta.proficienciasFerramentas());
+        assertEquals(List.of("Armas simples", "Espadas longas"), resposta.proficienciasArmas());
+        assertEquals(List.of("Armaduras leves"), resposta.proficienciasArmaduras());
+    }
+
+    @Test
+    void deveRecusarIdiomaRepetidoMesmoComOutraCaixa() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        var erro = assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L,
+                dtoComProficiencias(List.of("Élfico", " élfico"), null, null, null), 1L));
+
+        assertEquals("Idioma repetido na ficha: élfico", erro.getMessage());
+        verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRecusarProficienciaEmArmaRepetida() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        var erro = assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L,
+                dtoComProficiencias(null, null, List.of("Arcos", "ARCOS"), null), 1L));
+
+        assertEquals("Proficiência em arma repetida na ficha: ARCOS", erro.getMessage());
+    }
+
     private PersonagemRequestDto dtoComEquipamentos(List<PersonagemRequestDto.EquipamentoDto> equipamentos) {
         return new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, equipamentos, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -321,12 +576,12 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 Map.of("voar", 2), null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         PersonagemRequestDto comAtributoInvalido = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
-                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comPericiaInvalida, 1L));
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comAtributoInvalido, 1L));
@@ -339,7 +594,7 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, magias, espacos, restantes, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test

@@ -3,13 +3,15 @@ import { SessionProvider, useSession } from './context/SessionContext';
 import { UserChannelProvider } from './context/UserChannelContext';
 import TableInvites from './components/TableInvites';
 import Scenery, { sceneryForPath } from './components/Scenery';
-import { D20Icon, HelmIcon, QuillIcon } from './components/ui/Icons';
+import { D20Icon, HelmIcon, PosterIcon, QuillIcon } from './components/ui/Icons';
+import ReleaseNotesGate from './components/releaseNotes/ReleaseNotesGate';
 import Login from './pages/Login/Login';
 import CharacterList from './pages/CharacterList/CharacterList';
 import CharacterForm from './pages/CharacterForm/CharacterForm';
 import TableList from './pages/TableList/TableList';
 import TableRoom from './pages/TableRoom/TableRoom';
 import Account from './pages/Account/Account';
+import ReleaseNotesPage from './pages/ReleaseNotes/ReleaseNotes';
 import './App.css';
 
 /** Redireciona para /login se não houver sessão ativa */
@@ -52,6 +54,12 @@ function Shell() {
                   Minha conta
                 </NavLink>
               )}
+              {!inRoom && (
+                <NavLink to="/notas" className={({ isActive }) => (isActive ? 'active' : '')}>
+                  <PosterIcon />
+                  Notas
+                </NavLink>
+              )}
             </nav>
 
             <div className="who">
@@ -72,6 +80,7 @@ function Shell() {
       </header>
 
       {userId && role === 'JOGADOR' && <TableInvites />}
+      {userId && <ReleaseNotesGate userId={userId} paused={inRoom} />}
 
       <main className="stage">
         <Routes>
@@ -91,6 +100,9 @@ function Shell() {
           } />
           <Route path="/conta" element={
             <PrivateRoute><Account /></PrivateRoute>
+          } />
+          <Route path="/notas" element={
+            <PrivateRoute><ReleaseNotesPage /></PrivateRoute>
           } />
           <Route path="/mesas" element={
             <PrivateRoute><TableList /></PrivateRoute>
