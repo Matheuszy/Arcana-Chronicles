@@ -77,7 +77,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null
-        , 9);
+        , 9, null, null, null);
     }
 
     private Usuario contaComPapel(Long id, PapelUsuario papel) {
@@ -178,7 +178,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", "Evocação", 6)),
-                null, null, null, null, null, null, null, null, null, 9);
+                null, null, null, null, null, null, null, null, null, 9, null, null, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -208,7 +208,7 @@ class PersonagemServiceTest {
                         new PersonagemRequestDto.ClasseDto("Artífice", "  ", 2)), 3, Map.of("constituicao", 3, "forca", 6),
                 List.of(" Corda de 15 m ", "Tocha"), "  Fúria: dobra o dano  ",
                 " Elfo ", "Neutro e Bom", "  Visão no escuro até 18 m  ",
-                "  Atleta: +1 em Força  ", 5, 12);
+                "  Atleta: +1 em Força  ", 5, 12, true, 2, 1);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -228,7 +228,26 @@ class PersonagemServiceTest {
         assertEquals("Visão no escuro até 18 m", resposta.habilidadesRaca());
         assertEquals(5, resposta.vidaTemporaria());
         assertEquals(12, resposta.deslocamento());
+        assertTrue(resposta.inspiracao());
+        assertEquals(2, resposta.sucessosContraMorte());
+        assertEquals(1, resposta.falhasContraMorte());
         assertEquals(6, personagem.getSalvaguardas().get(Atributo.FORCA));
+    }
+
+    @Test
+    void deveLimparInspiracaoETestesContraAMorteQuandoNaoInformados() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setInspiracao(true);
+        personagem.setSucessosContraMorte(3);
+        personagem.setFalhasContraMorte(2);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resposta = service.atualizar(10L, dtoValido(), 1L);
+
+        assertFalse(resposta.inspiracao());
+        assertEquals(0, resposta.sucessosContraMorte());
+        assertEquals(0, resposta.falhasContraMorte());
     }
 
     private PersonagemRequestDto dtoComEquipamentos(List<PersonagemRequestDto.EquipamentoDto> equipamentos) {
@@ -236,7 +255,7 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, equipamentos, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null);
     }
 
     @Test
@@ -302,12 +321,12 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 Map.of("voar", 2), null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null);
         PersonagemRequestDto comAtributoInvalido = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
-                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9);
+                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9, null, null, null);
 
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comPericiaInvalida, 1L));
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comAtributoInvalido, 1L));
@@ -320,7 +339,7 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, magias, espacos, restantes, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null);
     }
 
     @Test

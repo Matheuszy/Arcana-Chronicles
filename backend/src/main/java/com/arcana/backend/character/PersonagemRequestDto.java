@@ -99,7 +99,17 @@ public record PersonagemRequestDto(
         @NotNull(message = "Deslocamento é obrigatório")
         @Min(value = 0, message = "Deslocamento não pode ser negativo")
         @Max(value = 300, message = "Deslocamento não pode passar de 300 metros")
-        Integer deslocamento
+        Integer deslocamento,
+
+        Boolean inspiracao,
+
+        @Min(value = 0, message = "Sucessos nos testes contra a morte devem ser de 0 a 3")
+        @Max(value = 3, message = "Sucessos nos testes contra a morte devem ser de 0 a 3")
+        Integer sucessosContraMorte,
+
+        @Min(value = 0, message = "Falhas nos testes contra a morte devem ser de 0 a 3")
+        @Max(value = 3, message = "Falhas nos testes contra a morte devem ser de 0 a 3")
+        Integer falhasContraMorte
 
 ) {
     public record ClasseDto(
