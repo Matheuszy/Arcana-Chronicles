@@ -62,6 +62,20 @@ class PersonagemIT extends IntegracaoTest {
     }
 
     @Test
+    void devePermitirApenasAoDonoAjustarACaAdicional() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Long id = criarPersonagem(dono, "PLAYER");
+        String url = "/api/characters/" + id + "/ca-adicional";
+
+        patchComo(dono.token(), url, Map.of("valor", 2))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.caAdicional").value(2))
+                .andExpect(jsonPath("$.classeArmaduraTotal").value(14));
+        patchComo(registrar("JOGADOR").token(), url, Map.of("valor", 3)).andExpect(status().isForbidden());
+        patchComo(dono.token(), url, Map.of("valor", 21)).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void devePersistirTruquesMagiasEEspacosDeMagiaRestantes() throws Exception {
         Conta dono = registrar("JOGADOR");
         Long id = criarPersonagem(dono, "PLAYER");

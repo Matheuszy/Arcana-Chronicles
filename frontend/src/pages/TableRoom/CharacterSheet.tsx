@@ -8,6 +8,7 @@ import {
   DEATH_SAVE_MARKS,
   DEFAULT_HIT_DIE,
   equipmentPackName,
+  totalArmorClass,
   SheetRoll,
   KIND_LABEL,
   MOVEMENT_TYPE_LABEL,
@@ -28,6 +29,7 @@ import {
 } from '../../types/character';
 import { RollRequest } from '../../types/chat';
 import HitPointRolls from '../../components/sheet/HitPointRolls';
+import ExtraArmorClass from '../../components/sheet/ExtraArmorClass';
 import CoinRolls from '../../components/sheet/CoinRolls';
 import SheetRollHistory from '../../components/sheet/SheetRollHistory';
 import SheetWeapon from './SheetWeapon';
@@ -123,7 +125,15 @@ export default function CharacterSheet({
           )}
           <div className="paper-vital">
             <span className="paper-vital-label">Defesa</span>
-            <strong>{character.armorClass}</strong>
+            <strong>{totalArmorClass(character)}</strong>
+            {(character.caAdicional ?? 0) > 0 && (
+              <span className="paper-vital-detail">
+                {character.armorClass} + {character.caAdicional} adicional
+              </span>
+            )}
+            {onCharacterUpdated && (
+              <ExtraArmorClass key={character.caAdicional ?? 0} character={character} onUpdated={onCharacterUpdated} />
+            )}
           </div>
           <div className="paper-vital">
             <span className="paper-vital-label">Deslocamento</span>

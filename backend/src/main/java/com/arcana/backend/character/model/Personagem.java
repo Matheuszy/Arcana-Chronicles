@@ -46,6 +46,9 @@ public class Personagem {
     @Column(name = "vida_temporaria")
     private Integer vidaTemporaria;
 
+    @Column(name = "ca_adicional", nullable = false)
+    private Integer caAdicional = 0;
+
     @Column(nullable = false)
     private Integer deslocamento = 9;
 

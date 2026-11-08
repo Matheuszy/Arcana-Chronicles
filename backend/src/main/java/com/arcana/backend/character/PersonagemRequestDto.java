@@ -167,7 +167,11 @@ public record PersonagemRequestDto(
         Integer moedasPlatina,
 
         @Size(max = 30, message = "Pacote de equipamento inválido")
-        String pacoteEquipamento
+        String pacoteEquipamento,
+
+        @Min(value = 0, message = "A CA adicional não pode ser negativa")
+        @Max(value = 20, message = "A CA adicional não pode passar de 20")
+        Integer caAdicional
 
 ) {
     public record ClasseDto(

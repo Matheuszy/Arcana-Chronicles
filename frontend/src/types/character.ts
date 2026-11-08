@@ -147,6 +147,11 @@ export interface AdditionalMovement {
 }
 
 export const MAX_MOVEMENT = 300;
+export const MAX_EXTRA_ARMOR_CLASS = 20;
+
+export function totalArmorClass(character: Character): number {
+  return character.classeArmaduraTotal ?? character.armorClass + (character.caAdicional ?? 0);
+}
 export const MAX_ADDITIONAL_MOVEMENTS = 10;
 export const MAX_MOVEMENT_ORIGIN_LENGTH = 60;
 
@@ -191,6 +196,8 @@ export interface Character {
   moedasOuro?: number;
   moedasPlatina?: number;
   pacoteEquipamento?: string | null;
+  caAdicional?: number;
+  classeArmaduraTotal?: number;
   itensDoPacote?: string[];
   attributes: Attributes;
   backstory?: string;

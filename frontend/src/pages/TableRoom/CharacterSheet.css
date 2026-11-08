@@ -302,3 +302,5 @@
 }
 .paper-coins span { font-size: 0.7rem; letter-spacing: 0.08em; color: #5a4632; }
 .paper-coins strong { font-family: var(--font-display); overflow-wrap: anywhere; }
+
+.paper-vital-detail { font-size: 0.72rem; color: #5a4632; }

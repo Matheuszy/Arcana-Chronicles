@@ -106,6 +106,13 @@ public class PersonagemService {
         return PersonagemResponseDto.from(personagemRepository.save(personagem));
     }
 
+    @Transactional
+    public PersonagemResponseDto definirCaAdicional(Long id, Long ownerId, int valor) {
+        Personagem personagem = findAndValidateOwner(id, ownerId);
+        personagem.setCaAdicional(valor);
+        return PersonagemResponseDto.from(personagemRepository.save(personagem));
+    }
+
     /** Remove um personagem */
     @Transactional
     public void deletar(Long id, Long ownerId) {
@@ -143,6 +150,7 @@ public class PersonagemService {
         personagem.setHpCurrent(dto.hpCurrent());
         personagem.setArmorClass(dto.armorClass());
         personagem.setVidaTemporaria(dto.vidaTemporaria());
+        personagem.setCaAdicional(valorOuZero(dto.caAdicional()));
         personagem.setDeslocamento(dto.deslocamento());
         personagem.setInspiracao(Boolean.TRUE.equals(dto.inspiracao()));
         personagem.setSucessosContraMorte(dto.sucessosContraMorte() != null ? dto.sucessosContraMorte() : 0);

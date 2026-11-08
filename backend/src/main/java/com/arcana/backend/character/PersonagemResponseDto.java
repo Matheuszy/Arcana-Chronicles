@@ -67,7 +67,9 @@ public record PersonagemResponseDto(
         Integer moedasOuro,
         Integer moedasPlatina,
         String pacoteEquipamento,
-        List<String> itensDoPacote
+        List<String> itensDoPacote,
+        Integer caAdicional,
+        int classeArmaduraTotal
 
 ) {
     public record ClasseDto(
@@ -196,7 +198,9 @@ public record PersonagemResponseDto(
                 p.getMoedasOuro(),
                 p.getMoedasPlatina(),
                 p.getPacoteEquipamento(),
-                List.copyOf(p.getItensDoPacote())
+                List.copyOf(p.getItensDoPacote()),
+                p.getCaAdicional(),
+                p.getArmorClass() + p.getCaAdicional()
         );
     }
 

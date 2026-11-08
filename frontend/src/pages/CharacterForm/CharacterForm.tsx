@@ -32,6 +32,7 @@ import {
   DEFAULT_HIT_DIE,
   HIT_DICE,
   MAX_BACKGROUND_LENGTH,
+  MAX_EXTRA_ARMOR_CLASS,
   MAX_MOVEMENT,
   MAX_PERSONALITY_LENGTH,
   MAX_PROFICIENCY_ENTRIES,
@@ -138,6 +139,7 @@ const EMPTY_CHARACTER: Character = {
   vinculos: '',
   defeitos: '',
   deslocamentosAdicionais: [],
+  caAdicional: 0,
   moedasCobre: 0,
   moedasPrata: 0,
   moedasElectro: 0,
@@ -791,6 +793,21 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
               min={0}
               value={form.armorClass}
               onChange={(armorClass) => setField('armorClass', armorClass)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="caAdicional" title="Bônus de magias e equipamentos, como Escudo da Fé">
+              CA adicional
+            </label>
+            <NumberInput
+              id="caAdicional"
+              min={0}
+              max={MAX_EXTRA_ARMOR_CLASS}
+              step={1}
+              value={form.caAdicional ?? 0}
+              onChange={(value) =>
+                setField('caAdicional', Math.min(MAX_EXTRA_ARMOR_CLASS, Math.max(0, Math.trunc(value) || 0)))
+              }
             />
           </div>
           <div className="field">

@@ -36,6 +36,13 @@ export const characterService = {
     });
   },
 
+  setExtraArmorClass(id: string, valor: number): Promise<Character> {
+    return apiRequest<Character>(`${BASE_PATH}/${id}/ca-adicional`, {
+      method: 'PATCH',
+      body: JSON.stringify({ valor }),
+    });
+  },
+
   listPacks(): Promise<EquipmentPack[]> {
     return apiRequest<EquipmentPack[]>('/pacotes-equipamento');
   },

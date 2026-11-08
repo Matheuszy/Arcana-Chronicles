@@ -1,6 +1,7 @@
 package com.arcana.backend.character.controller;
 
 import com.arcana.backend.character.AplicarPacoteRequestDto;
+import com.arcana.backend.character.CaAdicionalRequestDto;
 import com.arcana.backend.character.GastoDeDadosDeVidaRequestDto;
 import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
@@ -34,6 +35,15 @@ public class PersonagemController {
         this.personagemService = personagemService;
         this.rolagemDeFichaService = rolagemDeFichaService;
         this.pacoteEquipamentoService = pacoteEquipamentoService;
+    }
+
+    @PatchMapping("/{id}/ca-adicional")
+    public ResponseEntity<PersonagemResponseDto> definirCaAdicional(
+            @PathVariable Long id,
+            @Valid @RequestBody CaAdicionalRequestDto pedido,
+            @AuthenticationPrincipal Usuario usuario) {
+
+        return ResponseEntity.ok(personagemService.definirCaAdicional(id, usuario.getId(), pedido.valor()));
     }
 
     @PutMapping("/{id}/pacote-equipamento")
