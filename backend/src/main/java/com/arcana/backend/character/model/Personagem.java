@@ -99,6 +99,30 @@ public class Personagem {
 
 
     @ElementCollection
+    @CollectionTable(name = "personagem_idiomas", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "idioma", length = 60, nullable = false)
+    private List<String> idiomas = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_proficiencias_ferramentas", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "ferramenta", length = 60, nullable = false)
+    private List<String> proficienciasFerramentas = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_proficiencias_armas", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "arma", length = 60, nullable = false)
+    private List<String> proficienciasArmas = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "personagem_proficiencias_armaduras", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    @Column(name = "armadura", length = 60, nullable = false)
+    private List<String> proficienciasArmaduras = new ArrayList<>();
+
+    @ElementCollection
     @CollectionTable(name = "personagem_pericias", joinColumns = @JoinColumn(name = "personagem_id"))
     @MapKeyColumn(name = "pericia")
     @Column(name = "bonus", nullable = false)

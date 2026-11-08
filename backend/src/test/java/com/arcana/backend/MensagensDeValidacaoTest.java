@@ -40,7 +40,7 @@ class MensagensDeValidacaoTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
-                List.of(), null, null, null, null, " ", null, null, null, -1, null, null, null, null);
+                List.of(), null, null, null, null, " ", null, null, null, -1, null, null, null, null, null, null, null, null);
 
         assertEquals(List.of("A ficha precisa de ao menos uma classe", "Alinhamento é obrigatório",
                 "Bônus de proficiência é obrigatório", "Deslocamento é obrigatório", "Raça é obrigatória",
@@ -54,7 +54,7 @@ class MensagensDeValidacaoTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
-                "Elfo", "Neutro e Bom", null, null, null, 9, null, null, null);
+                "Elfo", "Neutro e Bom", null, null, null, 9, null, null, null, null, null, null, null);
 
         assertEquals(List.of(), mensagens(validador.validate(ficha)));
     }
@@ -66,10 +66,24 @@ class MensagensDeValidacaoTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
-                "Elfo", "Neutro e Bom", null, null, null, 9, true, 4, -1);
+                "Elfo", "Neutro e Bom", null, null, null, 9, true, 4, -1, null, null, null, null);
 
         assertEquals(List.of("Falhas nos testes contra a morte devem ser de 0 a 3",
                 "Sucessos nos testes contra a morte devem ser de 0 a 3"), mensagens(validador.validate(ficha)));
+    }
+
+    @Test
+    void deveRecusarIdiomaVazioEProficienciaLongaDemais() {
+        var ficha = new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                List.of(new PersonagemRequestDto.ClasseDto("Mago", null, 1)), 2, null, null, null,
+                "Elfo", "Neutro e Bom", null, null, null, 9, null, null, null,
+                List.of(" "), List.of("x".repeat(61)), null, null);
+
+        assertEquals(List.of("Idioma não pode ser vazio",
+                "Proficiência em ferramenta não pode ter mais de 60 caracteres"), mensagens(validador.validate(ficha)));
     }
 
     @Test

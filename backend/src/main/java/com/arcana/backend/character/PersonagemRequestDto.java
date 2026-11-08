@@ -109,7 +109,23 @@ public record PersonagemRequestDto(
 
         @Min(value = 0, message = "Falhas nos testes contra a morte devem ser de 0 a 3")
         @Max(value = 3, message = "Falhas nos testes contra a morte devem ser de 0 a 3")
-        Integer falhasContraMorte
+        Integer falhasContraMorte,
+
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 idiomas")
+        List<@NotBlank(message = "Idioma não pode ser vazio")
+             @Size(max = 60, message = "Idioma não pode ter mais de 60 caracteres") String> idiomas,
+
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 proficiências em ferramentas")
+        List<@NotBlank(message = "Proficiência em ferramenta não pode ser vazia")
+             @Size(max = 60, message = "Proficiência em ferramenta não pode ter mais de 60 caracteres") String> proficienciasFerramentas,
+
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 proficiências em armas")
+        List<@NotBlank(message = "Proficiência em arma não pode ser vazia")
+             @Size(max = 60, message = "Proficiência em arma não pode ter mais de 60 caracteres") String> proficienciasArmas,
+
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 proficiências em armaduras")
+        List<@NotBlank(message = "Proficiência em armadura não pode ser vazia")
+             @Size(max = 60, message = "Proficiência em armadura não pode ter mais de 60 caracteres") String> proficienciasArmaduras
 
 ) {
     public record ClasseDto(

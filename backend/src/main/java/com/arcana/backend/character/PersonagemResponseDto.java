@@ -48,7 +48,11 @@ public record PersonagemResponseDto(
         Integer deslocamento,
         boolean inspiracao,
         Integer sucessosContraMorte,
-        Integer falhasContraMorte
+        Integer falhasContraMorte,
+        List<String> idiomas,
+        List<String> proficienciasFerramentas,
+        List<String> proficienciasArmas,
+        List<String> proficienciasArmaduras
 
 ) {
     public record ClasseDto(
@@ -147,7 +151,11 @@ public record PersonagemResponseDto(
                 p.getDeslocamento(),
                 p.isInspiracao(),
                 p.getSucessosContraMorte(),
-                p.getFalhasContraMorte()
+                p.getFalhasContraMorte(),
+                List.copyOf(p.getIdiomas()),
+                List.copyOf(p.getProficienciasFerramentas()),
+                List.copyOf(p.getProficienciasArmas()),
+                List.copyOf(p.getProficienciasArmaduras())
         );
     }
 

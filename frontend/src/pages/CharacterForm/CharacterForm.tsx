@@ -10,6 +10,7 @@ import { useConfirm } from '../../components/ui/Confirm';
 import { useToast } from '../../components/ui/Toast';
 import Select from '../../components/ui/Select';
 import NumberInput from '../../components/ui/NumberInput';
+import TextListEditor from './TextListEditor';
 import {
   attributeModifier,
   attributeRollModifier,
@@ -21,6 +22,10 @@ import {
   ClassEntry,
   DAMAGE_DICE_PATTERN,
   DEATH_SAVE_MARKS,
+  MAX_PROFICIENCY_ENTRIES,
+  MAX_PROFICIENCY_ENTRY_LENGTH,
+  PROFICIENCY_LISTS,
+  STANDARD_LANGUAGES,
   DEFAULT_PROFICIENCY_BONUS,
   EMPTY_ATTRIBUTES,
   EMPTY_SPELL_SLOTS,
@@ -105,6 +110,10 @@ const EMPTY_CHARACTER: Character = {
   inspiracao: false,
   sucessosContraMorte: 0,
   falhasContraMorte: 0,
+  idiomas: [],
+  proficienciasFerramentas: [],
+  proficienciasArmas: [],
+  proficienciasArmaduras: [],
 };
 
 interface CharacterEditorProps {
@@ -850,6 +859,28 @@ export function CharacterEditor({ id, embedded = false, onSaved, onCancel }: Cha
             );
           })}
         </div>
+
+        <details className="sheet-section" open>
+        <summary>
+          <h3 className="section-title">Idiomas e proficiências</h3>
+        </summary>
+        <div className="proficiency-lists">
+          {PROFICIENCY_LISTS.map(({ key, label, placeholder, empty }) => (
+            <TextListEditor
+              key={key}
+              id={`new-${key}`}
+              label={label}
+              values={form[key] ?? []}
+              onChange={(values) => setField(key, values)}
+              max={MAX_PROFICIENCY_ENTRIES}
+              maxLength={MAX_PROFICIENCY_ENTRY_LENGTH}
+              placeholder={placeholder}
+              emptyText={empty}
+              suggestions={key === 'idiomas' ? STANDARD_LANGUAGES : undefined}
+            />
+          ))}
+        </div>
+        </details>
 
         {/* ── Equipamentos ── */}
         <details className="sheet-section" open>

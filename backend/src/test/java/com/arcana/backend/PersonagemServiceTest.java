@@ -77,7 +77,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null
-        , 9, null, null, null);
+        , 9, null, null, null, null, null, null, null);
     }
 
     private Usuario contaComPapel(Long id, PapelUsuario papel) {
@@ -178,7 +178,7 @@ class PersonagemServiceTest {
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto("Mago", "Evocação", 6)),
-                null, null, null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -208,7 +208,7 @@ class PersonagemServiceTest {
                         new PersonagemRequestDto.ClasseDto("Artífice", "  ", 2)), 3, Map.of("constituicao", 3, "forca", 6),
                 List.of(" Corda de 15 m ", "Tocha"), "  Fúria: dobra o dano  ",
                 " Elfo ", "Neutro e Bom", "  Visão no escuro até 18 m  ",
-                "  Atleta: +1 em Força  ", 5, 12, true, 2, 1);
+                "  Atleta: +1 em Força  ", 5, 12, true, 2, 1, null, null, null, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
 
@@ -250,12 +250,61 @@ class PersonagemServiceTest {
         assertEquals(0, resposta.falhasContraMorte());
     }
 
+    private PersonagemRequestDto dtoComProficiencias(List<String> idiomas, List<String> ferramentas,
+                                                     List<String> armas, List<String> armaduras) {
+        return new PersonagemRequestDto(
+                "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
+                new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null,
+                idiomas, ferramentas, armas, armaduras);
+    }
+
+    @Test
+    void deveGravarIdiomasEProficienciasSemEspacosNasPontas() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+        when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resposta = service.atualizar(10L, dtoComProficiencias(List.of(" Comum ", "Élfico"),
+                List.of("Ferramentas de ladrão"), List.of("Armas simples", "Espadas longas"),
+                List.of("Armaduras leves")), 1L);
+
+        assertEquals(List.of("Comum", "Élfico"), resposta.idiomas());
+        assertEquals(List.of("Ferramentas de ladrão"), resposta.proficienciasFerramentas());
+        assertEquals(List.of("Armas simples", "Espadas longas"), resposta.proficienciasArmas());
+        assertEquals(List.of("Armaduras leves"), resposta.proficienciasArmaduras());
+    }
+
+    @Test
+    void deveRecusarIdiomaRepetidoMesmoComOutraCaixa() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        var erro = assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L,
+                dtoComProficiencias(List.of("Élfico", " élfico"), null, null, null), 1L));
+
+        assertEquals("Idioma repetido na ficha: élfico", erro.getMessage());
+        verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRecusarProficienciaEmArmaRepetida() {
+        Personagem personagem = personagemDeAlice();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        var erro = assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L,
+                dtoComProficiencias(null, null, List.of("Arcos", "ARCOS"), null), 1L));
+
+        assertEquals("Proficiência em arma repetida na ficha: ARCOS", erro.getMessage());
+    }
+
     private PersonagemRequestDto dtoComEquipamentos(List<PersonagemRequestDto.EquipamentoDto> equipamentos) {
         return new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, equipamentos, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -321,12 +370,12 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 Map.of("voar", 2), null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
         PersonagemRequestDto comAtributoInvalido = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
-                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, Map.of("sorte", 2), null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
 
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comPericiaInvalida, 1L));
         assertThrows(IllegalArgumentException.class, () -> service.atualizar(10L, comAtributoInvalido, 1L));
@@ -339,7 +388,7 @@ class PersonagemServiceTest {
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, magias, espacos, restantes, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, 9, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, 9, null, null, null, null, null, null, null);
     }
 
     @Test

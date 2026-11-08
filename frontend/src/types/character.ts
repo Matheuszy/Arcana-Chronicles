@@ -81,6 +81,10 @@ export interface Character {
   inspiracao?: boolean;
   sucessosContraMorte?: number;
   falhasContraMorte?: number;
+  idiomas?: string[];
+  proficienciasFerramentas?: string[];
+  proficienciasArmas?: string[];
+  proficienciasArmaduras?: string[];
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */
@@ -114,6 +118,35 @@ export interface Character {
 }
 
 export const DEATH_SAVE_MARKS = 3;
+export const MAX_PROFICIENCY_ENTRIES = 30;
+export const MAX_PROFICIENCY_ENTRY_LENGTH = 60;
+export const STANDARD_LANGUAGES = [
+  'Comum',
+  'Anão',
+  'Élfico',
+  'Gigante',
+  'Gnômico',
+  'Goblin',
+  'Halfling',
+  'Orc',
+  'Abissal',
+  'Celestial',
+  'Dracônico',
+  'Dialeto Subterrâneo',
+  'Infernal',
+  'Primordial',
+  'Silvestre',
+  'Subcomum',
+] as const;
+
+export type ProficiencyListKey = 'idiomas' | 'proficienciasFerramentas' | 'proficienciasArmas' | 'proficienciasArmaduras';
+
+export const PROFICIENCY_LISTS: ReadonlyArray<{ key: ProficiencyListKey; label: string; placeholder: string; empty: string }> = [
+  { key: 'idiomas', label: 'Idiomas', placeholder: 'ex: Élfico', empty: 'Nenhum idioma na ficha.' },
+  { key: 'proficienciasFerramentas', label: 'Ferramentas', placeholder: 'ex: Ferramentas de ladrão', empty: 'Nenhuma ferramenta na ficha.' },
+  { key: 'proficienciasArmas', label: 'Armas', placeholder: 'ex: Armas simples', empty: 'Nenhuma arma na ficha.' },
+  { key: 'proficienciasArmaduras', label: 'Armaduras', placeholder: 'ex: Armaduras leves', empty: 'Nenhuma armadura na ficha.' },
+];
 export const MAX_SPELL_SLOTS = 20;
 export const SPELL_CIRCLES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 export const MAX_ITEMS = 50;

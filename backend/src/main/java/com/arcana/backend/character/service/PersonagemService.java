@@ -24,8 +24,11 @@ import jakarta.transaction.Transactional;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class PersonagemService {
@@ -151,6 +154,11 @@ public class PersonagemService {
                     personagem.getSalvaguardas().put(Atributo.daChave(chave), bonus));
         }
 
+        substituirLista(personagem.getIdiomas(), dto.idiomas(), "Idioma repetido");
+        substituirLista(personagem.getProficienciasFerramentas(), dto.proficienciasFerramentas(), "Proficiência em ferramenta repetida");
+        substituirLista(personagem.getProficienciasArmas(), dto.proficienciasArmas(), "Proficiência em arma repetida");
+        substituirLista(personagem.getProficienciasArmaduras(), dto.proficienciasArmaduras(), "Proficiência em armadura repetida");
+
         personagem.getItens().clear();
         if (dto.items() != null) {
             dto.items().stream().map(String::trim).forEach(personagem.getItens()::add);
@@ -245,6 +253,19 @@ public class PersonagemService {
         if (quantidade == null || quantidade < 0 || quantidade > LIMITE_ESPACOS_POR_CIRCULO) {
             throw new IllegalArgumentException(
                     descricao + " do " + circulo + "º círculo devem ficar entre 0 e " + LIMITE_ESPACOS_POR_CIRCULO + ".");
+        }
+    }
+
+    private void substituirLista(List<String> atual, List<String> recebida, String repetida) {
+        atual.clear();
+        if (recebida == null) return;
+        Set<String> vistos = new HashSet<>();
+        for (String entrada : recebida) {
+            String valor = entrada.trim();
+            if (!vistos.add(valor.toLowerCase(Locale.ROOT))) {
+                throw new IllegalArgumentException(repetida + " na ficha: " + valor);
+            }
+            atual.add(valor);
         }
     }
 

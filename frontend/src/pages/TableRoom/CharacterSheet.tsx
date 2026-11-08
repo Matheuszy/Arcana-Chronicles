@@ -5,6 +5,7 @@ import {
   Character,
   DEATH_SAVE_MARKS,
   KIND_LABEL,
+  PROFICIENCY_LISTS,
   SKILL_ATTRIBUTE,
   SKILL_LABEL,
   SkillKey,
@@ -168,6 +169,23 @@ export default function CharacterSheet({
             );
           })}
         </ul>
+
+        <h3 className="paper-title">Idiomas e proficiências</h3>
+        <div className="paper-inventory paper-proficiencies">
+          {PROFICIENCY_LISTS.map(({ key, label, empty }) => {
+            const entries = character[key] ?? [];
+            return (
+              <section key={key} className="paper-inventory-block" aria-labelledby={`sheet-${key}`}>
+                <h4 id={`sheet-${key}`}>{label}</h4>
+                {entries.length > 0 ? (
+                  <p className="paper-text">{entries.join(', ')}</p>
+                ) : (
+                  <p className="paper-text paper-empty">{empty}</p>
+                )}
+              </section>
+            );
+          })}
+        </div>
 
         <h3 className="paper-title">Inventário</h3>
         <div className="paper-inventory">

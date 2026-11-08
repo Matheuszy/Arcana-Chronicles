@@ -153,6 +153,7 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+.paper-proficiencies .paper-inventory-block:first-child { grid-column: auto; }
 .paper-inventory-block .paper-items { columns: 1; }
 .paper-inventory-block .paper-text { margin: 0; }
 

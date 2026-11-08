@@ -441,3 +441,35 @@
 .death-save-group--success input[type="checkbox"] { accent-color: var(--positive); }
 .death-save-group--failure input[type="checkbox"] { accent-color: var(--seal); }
 .death-saves-clear { padding: 0.35rem 0.8rem; font-size: 0.85rem; }
+
+.proficiency-lists {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem 1.5rem;
+}
+@media (min-width: 760px) {
+  .proficiency-lists { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.tag-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.tag-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.7rem;
+  border: 1px solid var(--leather);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.text-list-warning {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--danger-text);
+}
