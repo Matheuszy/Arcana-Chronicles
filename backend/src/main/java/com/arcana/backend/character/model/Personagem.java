@@ -49,6 +49,9 @@ public class Personagem {
     @Column(name = "ca_adicional", nullable = false)
     private Integer caAdicional = 0;
 
+    @Column(name = "bonus_iniciativa", nullable = false)
+    private Integer bonusIniciativa = 0;
+
     @Column(nullable = false)
     private Integer deslocamento = 9;
 

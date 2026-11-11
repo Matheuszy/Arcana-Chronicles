@@ -84,8 +84,8 @@ class CombateDesafioChatTest {
                 combateChat, new GerenciadorMesasAtivas(), mock(TaskScheduler.class), relogio,
                 Duration.ofSeconds(60));
 
-        when(mesaService.buscarFichaDoJogadorNaMesa(1L, ARIA.userId())).thenReturn(ficha(ARIA, "Lyra", 14, 3));
-        when(mesaService.buscarFichaDoJogadorNaMesa(1L, BROM.userId())).thenReturn(ficha(BROM, "Thorn", 16, 2));
+        when(mesaService.buscarFichaDoJogadorNaMesa(1L, ARIA.userId())).thenReturn(ficha(ARIA, "Lyra", 14, 0));
+        when(mesaService.buscarFichaDoJogadorNaMesa(1L, BROM.userId())).thenReturn(ficha(BROM, "Thorn", 16, 0));
 
         when(mesaService.buscarFichaDeNpcDaMesa(1L, 500L, MESTRE.userId())).thenReturn(fichaDeMonstro());
 
@@ -104,14 +104,14 @@ class CombateDesafioChatTest {
     }
 
     private static FichaDeParticipante ficha(AcessoMesaDto jogador, String personagem, int destreza,
-                                             int bonusProficiencia) {
+                                             int bonusIniciativa) {
         Map<Atributo, Integer> valores = new EnumMap<>(Atributo.class);
         for (Atributo atributo : Atributo.values()) {
             valores.put(atributo, 10);
         }
         valores.put(Atributo.DESTREZA, destreza);
         return new FichaDeParticipante(jogador.userId(), jogador.displayName(), 100L + jogador.userId(), personagem,
-                valores, Map.of(), Map.of(), bonusProficiencia);
+                valores, Map.of(), Map.of(), bonusIniciativa);
     }
 
     private static FichaDeParticipante fichaDeMonstro() {
@@ -121,7 +121,7 @@ class CombateDesafioChatTest {
         }
         valores.put(Atributo.DESTREZA, 14);
         return new FichaDeParticipante(MESTRE.userId(), MESTRE.displayName(), 500L, "Goblin", valores, Map.of(),
-                Map.of(), 2);
+                Map.of(), 0);
     }
 
     private WebSocketSession sessao(String id, AcessoMesaDto acesso) {
@@ -166,7 +166,7 @@ class CombateDesafioChatTest {
 
     private void rolarIniciativa(WebSocketSession sessao) throws Exception {
         enviar(sessao, """
-                {"type":"COMBATE_ROLAR","comandoCombate":{"modo":"NORMAL","somarProficiencia":false}}
+                {"type":"COMBATE_ROLAR","comandoCombate":{"modo":"NORMAL"}}
                 """);
     }
 

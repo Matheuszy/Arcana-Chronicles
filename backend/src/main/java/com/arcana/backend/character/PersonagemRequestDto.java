@@ -171,7 +171,11 @@ public record PersonagemRequestDto(
 
         @Min(value = 0, message = "A CA adicional não pode ser negativa")
         @Max(value = 20, message = "A CA adicional não pode passar de 20")
-        Integer caAdicional
+        Integer caAdicional,
+
+        @Min(value = -10, message = "O bônus de iniciativa não pode ser menor que -10")
+        @Max(value = 20, message = "O bônus de iniciativa não pode passar de 20")
+        Integer bonusIniciativa
 
 ) {
     public record ClasseDto(

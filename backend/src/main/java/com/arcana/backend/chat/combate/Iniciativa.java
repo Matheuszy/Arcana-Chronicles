@@ -8,8 +8,7 @@ public record Iniciativa(
         List<Integer> dados,
         int mantido,
         int modificadorDestreza,
-        int bonusProficiencia,
+        int bonusIniciativa,
         int total,
-        ModoRolagem modo,
-        boolean somouProficiencia
+        ModoRolagem modo
 ) {}

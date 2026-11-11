@@ -153,6 +153,8 @@ export interface AdditionalMovement {
 
 export const MAX_MOVEMENT = 300;
 export const MAX_EXTRA_ARMOR_CLASS = 20;
+export const MIN_INITIATIVE_BONUS = -10;
+export const MAX_INITIATIVE_BONUS = 20;
 
 export function totalArmorClass(character: Character): number {
   return character.classeArmaduraTotal ?? character.armorClass + (character.caAdicional ?? 0);
@@ -202,6 +204,7 @@ export interface Character {
   moedasPlatina?: number;
   pacoteEquipamento?: string | null;
   caAdicional?: number;
+  bonusIniciativa?: number;
   moedasRoladas?: boolean;
   classeArmaduraTotal?: number;
   itensDoPacote?: string[];
@@ -263,6 +266,7 @@ export const SHEET_SECTION_FIELDS: Record<SheetSection, ReadonlyArray<keyof Char
     'vidaTemporaria',
     'armorClass',
     'caAdicional',
+    'bonusIniciativa',
     'deslocamento',
     'deslocamentosAdicionais',
     'inspiracao',

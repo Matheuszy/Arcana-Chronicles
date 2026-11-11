@@ -264,6 +264,7 @@ public class PersonagemService {
         personagem.setVidaTemporaria(dto.vidaTemporaria());
         personagem.setArmorClass(dto.armorClass());
         personagem.setCaAdicional(valorOuZero(dto.caAdicional()));
+        personagem.setBonusIniciativa(valorOuZero(dto.bonusIniciativa()));
         personagem.setDeslocamento(dto.deslocamento());
         personagem.setInspiracao(Boolean.TRUE.equals(dto.inspiracao()));
         personagem.setSucessosContraMorte(valorOuZero(dto.sucessosContraMorte()));
