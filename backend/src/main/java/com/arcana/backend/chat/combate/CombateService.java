@@ -47,7 +47,7 @@ public class CombateService {
         for (Long jogadorId : escolhidos) {
             FichaDeParticipante ficha = mesaService.buscarFichaDoJogadorNaMesa(mesa.getMesaId(), jogadorId);
             combate.adicionarJogador(ficha.jogadorId(), ficha.nomeJogador(), ficha.nomePersonagem(),
-                    ficha.modificadorBaseDeAtributo(Atributo.DESTREZA), ficha.bonusProficiencia());
+                    ficha.modificadorBaseDeAtributo(Atributo.DESTREZA), ficha.bonusIniciativa());
         }
         for (GrupoDeMonstros grupo : gruposEscolhidos) {
             adicionarGrupo(combate, mesa, mestre, grupo);
@@ -55,31 +55,28 @@ public class CombateService {
         return mesa.combate().iniciar(combate);
     }
 
-    public CombateDto rolarIniciativa(MesaAtiva mesa, AcessoMesaDto jogador, ModoRolagem modo,
-                                      Boolean somarProficiencia) {
+    public CombateDto rolarIniciativa(MesaAtiva mesa, AcessoMesaDto jogador, ModoRolagem modo) {
         exigirMesaEmAndamento(mesa);
         ModoRolagem modoEscolhido = modo != null ? modo : ModoRolagem.NORMAL;
-        boolean somar = Boolean.TRUE.equals(somarProficiencia);
 
         return mesa.combate().alterar(combate -> {
             String entradaId = Combate.idDoJogador(jogador.userId());
             Combate.Entrada entrada = combate.entrada(entradaId);
             combate.exigirAguardandoRolagem(entradaId);
-            combate.registrarIniciativa(entradaId, rolar(entrada, modoEscolhido, somar));
+            combate.registrarIniciativa(entradaId, rolar(entrada, modoEscolhido));
         });
     }
 
     public CombateDto rolarIniciativaDosMonstros(MesaAtiva mesa, AcessoMesaDto mestre, List<String> entradaIds,
-                                                 ModoRolagem modo, Boolean somarProficiencia) {
+                                                 ModoRolagem modo) {
         exigirMestre(mestre);
         exigirMesaEmAndamento(mesa);
         ModoRolagem modoEscolhido = modo != null ? modo : ModoRolagem.NORMAL;
-        boolean somar = Boolean.TRUE.equals(somarProficiencia);
 
         return mesa.combate().alterar(combate -> {
             List<Combate.Entrada> monstros = monstrosParaRolar(combate, entradaIds);
             for (Combate.Entrada monstro : monstros) {
-                combate.registrarIniciativa(monstro.getId(), rolar(monstro, modoEscolhido, somar));
+                combate.registrarIniciativa(monstro.getId(), rolar(monstro, modoEscolhido));
             }
         });
     }
@@ -127,7 +124,7 @@ public class CombateService {
         for (int numero = 1; numero <= grupo.quantidade(); numero++) {
             String nome = grupo.quantidade() == 1 ? nomeBase : nomeBase + " " + numero;
             combate.adicionarMonstro(ficha.personagemId(), nomeBase, nome, ficha.nomeJogador(),
-                    destreza, ficha.bonusProficiencia());
+                    destreza, ficha.bonusIniciativa());
         }
     }
 
@@ -151,12 +148,11 @@ public class CombateService {
         return escolhidos;
     }
 
-    private Iniciativa rolar(Combate.Entrada entrada, ModoRolagem modo, boolean somarProficiencia) {
-        int bonus = somarProficiencia ? entrada.getBonusProficiencia() : 0;
+    private Iniciativa rolar(Combate.Entrada entrada, ModoRolagem modo) {
         DiceRollResult dados = rolagemDados.rolar(new PedidoRolagem(20, 1, 0, modo));
-        int total = dados.getKept() + entrada.getModificadorDestreza() + bonus;
-        return new Iniciativa(dados.getRolls(), dados.getKept(), entrada.getModificadorDestreza(), bonus, total,
-                modo, somarProficiencia);
+        int total = dados.getKept() + entrada.getModificadorDestreza() + entrada.getBonusIniciativa();
+        return new Iniciativa(dados.getRolls(), dados.getKept(), entrada.getModificadorDestreza(),
+                entrada.getBonusIniciativa(), total, modo);
     }
 
     private void exigirMestre(AcessoMesaDto acesso) {

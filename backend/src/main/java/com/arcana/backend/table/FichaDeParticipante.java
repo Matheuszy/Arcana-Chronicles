@@ -16,7 +16,7 @@ public record FichaDeParticipante(
         Map<Atributo, Integer> valores,
         Map<Atributo, Integer> bonusAtributos,
         Map<Pericia, Integer> bonusPericias,
-        int bonusProficiencia
+        int bonusIniciativa
 ) {
 
     private static final int VALOR_NEUTRO = 10;
@@ -40,7 +40,7 @@ public record FichaDeParticipante(
                 .forEach(pericia -> pericias.put(pericia, personagem.getSkills().get(pericia.getChave())));
 
         return new FichaDeParticipante(jogadorId, nomeJogador, personagem.getId(), personagem.getName(),
-                valores, personagem.getSalvaguardas(), pericias, personagem.getBonusProficiencia());
+                valores, personagem.getSalvaguardas(), pericias, personagem.getBonusIniciativa());
     }
 
     public static int modificadorDoValor(int valor) {

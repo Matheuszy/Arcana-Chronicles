@@ -110,12 +110,6 @@
   flex: none;
 }
 
-.combat-proficiency {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
 .msg--sistema .content {
   white-space: pre-line;
 }

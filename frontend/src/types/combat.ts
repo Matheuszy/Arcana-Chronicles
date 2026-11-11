@@ -8,10 +8,9 @@ export interface Initiative {
   dados: number[];
   mantido: number;
   modificadorDestreza: number;
-  bonusProficiencia: number;
+  bonusIniciativa: number;
   total: number;
   modo: RollMode;
-  somouProficiencia: boolean;
 }
 
 export interface CombatEntry {
@@ -47,7 +46,6 @@ export interface CombatCommand {
   monstros?: MonsterGroup[];
   entradas?: string[];
   modo?: RollMode;
-  somarProficiencia?: boolean;
 }
 
 export const MAX_MONSTERS_PER_GROUP = 20;

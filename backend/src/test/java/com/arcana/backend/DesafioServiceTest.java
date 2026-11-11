@@ -89,7 +89,7 @@ class DesafioServiceTest {
             todos.put(atributo, valores.getOrDefault(atributo, 10));
         }
         return new FichaDeParticipante(jogador.userId(), jogador.displayName(), 100L + jogador.userId(), personagem,
-                todos, bonusAtributos, bonusPericias, 2);
+                todos, bonusAtributos, bonusPericias, 0);
     }
 
     private void proximasFaces(Integer... valores) {

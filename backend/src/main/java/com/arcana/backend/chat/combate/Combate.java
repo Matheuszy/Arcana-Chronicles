@@ -29,12 +29,12 @@ public class Combate {
         private final String nomeJogador;
         private final String nomePersonagem;
         private final int modificadorDestreza;
-        private final int bonusProficiencia;
+        private final int bonusIniciativa;
         private Iniciativa iniciativa;
         private boolean rerolagemLiberada;
 
         Entrada(String id, TipoEntrada tipo, Long controladorId, Long personagemId, String grupo,
-                String nomeJogador, String nomePersonagem, int modificadorDestreza, int bonusProficiencia) {
+                String nomeJogador, String nomePersonagem, int modificadorDestreza, int bonusIniciativa) {
             this.id = id;
             this.tipo = tipo;
             this.controladorId = controladorId;
@@ -43,7 +43,7 @@ public class Combate {
             this.nomeJogador = nomeJogador;
             this.nomePersonagem = nomePersonagem;
             this.modificadorDestreza = modificadorDestreza;
-            this.bonusProficiencia = bonusProficiencia;
+            this.bonusIniciativa = bonusIniciativa;
         }
 
         public String getId() {
@@ -78,8 +78,8 @@ public class Combate {
             return modificadorDestreza;
         }
 
-        public int getBonusProficiencia() {
-            return bonusProficiencia;
+        public int getBonusIniciativa() {
+            return bonusIniciativa;
         }
 
         public Iniciativa getIniciativa() {
@@ -173,17 +173,17 @@ public class Combate {
     }
 
     void adicionarJogador(Long jogadorId, String nomeJogador, String nomePersonagem, int modificadorDestreza,
-                          int bonusProficiencia) {
+                          int bonusIniciativa) {
         String entradaId = idDoJogador(jogadorId);
         entradas.put(entradaId, new Entrada(entradaId, TipoEntrada.JOGADOR, jogadorId, null, null, nomeJogador,
-                nomePersonagem, modificadorDestreza, bonusProficiencia));
+                nomePersonagem, modificadorDestreza, bonusIniciativa));
     }
 
     void adicionarMonstro(Long personagemId, String grupo, String nomeMonstro, String nomeMestre,
-                          int modificadorDestreza, int bonusProficiencia) {
+                          int modificadorDestreza, int bonusIniciativa) {
         String entradaId = PREFIXO_MONSTRO + (++monstrosAdicionados);
         entradas.put(entradaId, new Entrada(entradaId, TipoEntrada.MONSTRO, mestreId, personagemId, grupo,
-                nomeMestre, nomeMonstro, modificadorDestreza, bonusProficiencia));
+                nomeMestre, nomeMonstro, modificadorDestreza, bonusIniciativa));
     }
 
     void exigirAguardandoRolagem(String entradaId) {

@@ -85,7 +85,7 @@ class CombateChatTest {
                 Duration.ofSeconds(60));
 
         when(mesaService.buscarFichaDoJogadorNaMesa(1L, ARIA.userId())).thenReturn(ficha(ARIA, "Lyra", 14, 3));
-        when(mesaService.buscarFichaDoJogadorNaMesa(1L, BROM.userId())).thenReturn(ficha(BROM, "Thorn", 16, 2));
+        when(mesaService.buscarFichaDoJogadorNaMesa(1L, BROM.userId())).thenReturn(ficha(BROM, "Thorn", 16, 0));
 
         when(mesaService.buscarFichaDeNpcDaMesa(1L, 500L, MESTRE.userId())).thenReturn(fichaDeMonstro());
 
@@ -104,14 +104,14 @@ class CombateChatTest {
     }
 
     private static FichaDeParticipante ficha(AcessoMesaDto jogador, String personagem, int destreza,
-                                             int bonusProficiencia) {
+                                             int bonusIniciativa) {
         Map<Atributo, Integer> valores = new EnumMap<>(Atributo.class);
         for (Atributo atributo : Atributo.values()) {
             valores.put(atributo, 10);
         }
         valores.put(Atributo.DESTREZA, destreza);
         return new FichaDeParticipante(jogador.userId(), jogador.displayName(), 100L + jogador.userId(), personagem,
-                valores, Map.of(), Map.of(), bonusProficiencia);
+                valores, Map.of(), Map.of(), bonusIniciativa);
     }
 
     private static FichaDeParticipante fichaDeMonstro() {
@@ -121,7 +121,7 @@ class CombateChatTest {
         }
         valores.put(Atributo.DESTREZA, 14);
         return new FichaDeParticipante(MESTRE.userId(), MESTRE.displayName(), 500L, "Goblin", valores, Map.of(),
-                Map.of(), 2);
+                Map.of(), 1);
     }
 
     private WebSocketSession sessao(String id, AcessoMesaDto acesso) {
@@ -169,17 +169,17 @@ class CombateChatTest {
                 """);
     }
 
-    private void rolarIniciativa(WebSocketSession sessao, String modo, boolean somarProficiencia) throws Exception {
+    private void rolarIniciativa(WebSocketSession sessao, String modo) throws Exception {
         enviar(sessao, """
-                {"type":"COMBATE_ROLAR","comandoCombate":{"modo":"%s","somarProficiencia":%s}}
-                """.formatted(modo, somarProficiencia));
+                {"type":"COMBATE_ROLAR","comandoCombate":{"modo":"%s"}}
+                """.formatted(modo));
     }
 
     private void iniciarComBromNoPrimeiroTurno() throws Exception {
         iniciarCombateComAriaEBrom();
         faces.addAll(List.of(10, 12));
-        rolarIniciativa(sessaoAria, "NORMAL", true);
-        rolarIniciativa(sessaoBrom, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
+        rolarIniciativa(sessaoBrom, "NORMAL");
     }
 
     @Test
@@ -210,27 +210,41 @@ class CombateChatTest {
     void deveNegarIniciativaParaQuemNaoFoiEscolhido() throws Exception {
         iniciarCombateComAriaEBrom();
 
-        rolarIniciativa(sessaoCael, "NORMAL", false);
+        rolarIniciativa(sessaoCael, "NORMAL");
 
         assertEquals("Este jogador não participa do combate.", ultimoAviso(sessaoCael));
     }
 
     @Test
-    void deveSomarDestrezaEProficienciaSoQuandoOJogadorEscolher() throws Exception {
+    void deveSomarDestrezaEBonusDeIniciativaDaFichaSemProficiencia() throws Exception {
         iniciarCombateComAriaEBrom();
         faces.addAll(List.of(10, 12));
 
-        rolarIniciativa(sessaoAria, "NORMAL", true);
-        rolarIniciativa(sessaoBrom, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
+        rolarIniciativa(sessaoBrom, "NORMAL");
 
         JsonNode participantes = ultimoCombate(sessaoMestre).get("participantes");
         JsonNode aria = participantes.get(1).get("iniciativa");
         JsonNode brom = participantes.get(0).get("iniciativa");
         assertEquals(15, aria.get("total").asInt());
         assertEquals(2, aria.get("modificadorDestreza").asInt());
-        assertEquals(3, aria.get("bonusProficiencia").asInt());
+        assertEquals(3, aria.get("bonusIniciativa").asInt());
+        assertFalse(aria.has("bonusProficiencia"));
         assertEquals(15, brom.get("total").asInt());
-        assertEquals(0, brom.get("bonusProficiencia").asInt());
+        assertEquals(0, brom.get("bonusIniciativa").asInt());
+    }
+
+    @Test
+    void deveIgnorarPedidoDeSomarProficienciaNaIniciativa() throws Exception {
+        iniciarCombateComAriaEBrom();
+        faces.add(12);
+
+        enviar(sessaoBrom, """
+                {"type":"COMBATE_ROLAR","comandoCombate":{"modo":"NORMAL","somarProficiencia":true}}
+                """);
+
+        JsonNode brom = participante(ultimoCombate(sessaoMestre), "30").get("iniciativa");
+        assertEquals(15, brom.get("total").asInt());
     }
 
     @Test
@@ -238,11 +252,11 @@ class CombateChatTest {
         iniciarCombateComAriaEBrom();
         faces.addAll(List.of(4, 15));
 
-        rolarIniciativa(sessaoAria, "VANTAGEM", false);
+        rolarIniciativa(sessaoAria, "VANTAGEM");
 
         JsonNode aria = ultimoCombate(sessaoAria).get("participantes").get(0).get("iniciativa");
         assertEquals(15, aria.get("mantido").asInt());
-        assertEquals(17, aria.get("total").asInt());
+        assertEquals(20, aria.get("total").asInt());
         assertEquals("VANTAGEM", aria.get("modo").asText());
     }
 
@@ -250,12 +264,12 @@ class CombateChatTest {
     void deveMostrarAListaOrdenadaSoQuandoTodosRolaremDesempatandoPelaDestreza() throws Exception {
         iniciarCombateComAriaEBrom();
         faces.add(10);
-        rolarIniciativa(sessaoAria, "NORMAL", true);
+        rolarIniciativa(sessaoAria, "NORMAL");
 
         assertEquals("INICIATIVA", ultimoCombate(sessaoBrom).get("fase").asText());
 
         faces.add(12);
-        rolarIniciativa(sessaoBrom, "NORMAL", false);
+        rolarIniciativa(sessaoBrom, "NORMAL");
 
         JsonNode combate = ultimoCombate(sessaoBrom);
         assertEquals("EM_ANDAMENTO", combate.get("fase").asText());
@@ -269,7 +283,7 @@ class CombateChatTest {
     void deveNegarSegundaRolagemAteOMestreLiberar() throws Exception {
         iniciarComBromNoPrimeiroTurno();
 
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
 
         assertEquals("Você já rolou a iniciativa. Peça ao mestre para liberar uma nova rolagem.",
                 ultimoAviso(sessaoAria));
@@ -287,7 +301,7 @@ class CombateChatTest {
         assertTrue(recebidas(sessaoAria, "SISTEMA").isEmpty());
 
         faces.add(20);
-        rolarIniciativa(sessaoAria, "NORMAL", true);
+        rolarIniciativa(sessaoAria, "NORMAL");
 
         JsonNode combate = ultimoCombate(sessaoMestre);
         assertEquals("Lyra", combate.get("participantes").get(0).get("nomePersonagem").asText());
@@ -491,34 +505,34 @@ class CombateChatTest {
     void deveRolarUmD20PorMonstroComUmUnicoComandoEFecharAOrdemComOsJogadores() throws Exception {
         iniciarComAriaETresGoblins();
         faces.add(10);
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
         assertEquals("INICIATIVA", ultimoCombate(sessaoAria).get("fase").asText());
 
         faces.addAll(List.of(3, 18, 11));
-        rolarMonstros("{\"modo\":\"NORMAL\",\"somarProficiencia\":false}");
+        rolarMonstros("{\"modo\":\"NORMAL\"}");
 
         JsonNode combate = ultimoCombate(sessaoAria);
         assertEquals("EM_ANDAMENTO", combate.get("fase").asText());
-        assertEquals(5, participante(combate, "monstro-1").get("iniciativa").get("total").asInt());
-        assertEquals(20, participante(combate, "monstro-2").get("iniciativa").get("total").asInt());
-        assertEquals(13, participante(combate, "monstro-3").get("iniciativa").get("total").asInt());
+        assertEquals(6, participante(combate, "monstro-1").get("iniciativa").get("total").asInt());
+        assertEquals(21, participante(combate, "monstro-2").get("iniciativa").get("total").asInt());
+        assertEquals(14, participante(combate, "monstro-3").get("iniciativa").get("total").asInt());
         assertEquals("monstro-2", combate.get("turnoDe").asText());
         assertEquals(10L, combate.get("controladorDoTurno").asLong());
         assertTrue(recebidas(sessaoCael, "SISTEMA").isEmpty());
     }
 
     @Test
-    void deveRolarSoOsMonstrosEscolhidosComVantagemEProficiencia() throws Exception {
+    void deveRolarSoOsMonstrosEscolhidosComVantagemEBonusDeIniciativaDaFicha() throws Exception {
         iniciarComAriaETresGoblins();
 
         faces.addAll(List.of(4, 15));
-        rolarMonstros("{\"entradas\":[\"monstro-2\"],\"modo\":\"VANTAGEM\",\"somarProficiencia\":true}");
+        rolarMonstros("{\"entradas\":[\"monstro-2\"],\"modo\":\"VANTAGEM\"}");
 
         JsonNode combate = ultimoCombate(sessaoMestre);
         JsonNode iniciativa = participante(combate, "monstro-2").get("iniciativa");
-        assertEquals(19, iniciativa.get("total").asInt());
+        assertEquals(18, iniciativa.get("total").asInt());
         assertEquals(15, iniciativa.get("mantido").asInt());
-        assertEquals(2, iniciativa.get("bonusProficiencia").asInt());
+        assertEquals(1, iniciativa.get("bonusIniciativa").asInt());
         assertTrue(participante(combate, "monstro-1").get("iniciativa").isNull());
         assertTrue(participante(combate, "monstro-3").get("iniciativa").isNull());
     }
@@ -554,14 +568,14 @@ class CombateChatTest {
                 ultimoAviso(sessaoMestre));
 
         faces.add(20);
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
         enviar(sessaoMestre, """
                 {"type":"COMBATE_LIBERAR_REROLL","comandoCombate":{"entradas":["monstro-2"]}}
                 """);
         faces.add(1);
         rolarMonstros("{\"entradas\":[\"monstro-2\"]}");
 
-        assertEquals(3, participante(ultimoCombate(sessaoMestre), "monstro-2").get("iniciativa").get("total").asInt());
+        assertEquals(4, participante(ultimoCombate(sessaoMestre), "monstro-2").get("iniciativa").get("total").asInt());
     }
 
     @Test
@@ -579,7 +593,7 @@ class CombateChatTest {
     void devePermitirAoMestreRolarLivrementeSoNoTurnoDeUmMonstro() throws Exception {
         iniciarComAriaETresGoblins();
         faces.add(10);
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
         faces.addAll(List.of(18, 3, 3));
         rolarMonstros("{}");
         faces.add(9);
@@ -597,7 +611,7 @@ class CombateChatTest {
     void devePassarOTurnoDoMonstroSoParaOMestre() throws Exception {
         iniciarComAriaETresGoblins();
         faces.add(10);
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
         faces.addAll(List.of(18, 3, 3));
         rolarMonstros("{}");
 

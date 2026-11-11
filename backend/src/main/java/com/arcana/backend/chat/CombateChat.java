@@ -39,17 +39,16 @@ public class CombateChat {
 
     public void executar(MesaAtiva mesa, AcessoMesaDto acesso, ChatMessage mensagem) {
         ComandoCombate comando = mensagem.getComandoCombate() == null
-                ? new ComandoCombate(null, null, null, null, null)
+                ? new ComandoCombate(null, null, null, null)
                 : mensagem.getComandoCombate();
         CombateDto antes = combateService.estado(mesa).orElse(null);
 
         switch (mensagem.getType()) {
             case COMBATE_INICIAR -> combateService.iniciar(mesa, acesso, comando.jogadores(),
                     comando.monstros());
-            case COMBATE_ROLAR -> combateService.rolarIniciativa(mesa, acesso, comando.modo(),
-                    comando.somarProficiencia());
+            case COMBATE_ROLAR -> combateService.rolarIniciativa(mesa, acesso, comando.modo());
             case COMBATE_ROLAR_MONSTROS -> combateService.rolarIniciativaDosMonstros(mesa, acesso,
-                    comando.entradas(), comando.modo(), comando.somarProficiencia());
+                    comando.entradas(), comando.modo());
             case COMBATE_LIBERAR_REROLL -> combateService.liberarRerolagem(mesa, acesso, comando.entradas());
             case COMBATE_PASSAR_TURNO -> combateService.passarTurno(mesa, acesso);
             case COMBATE_ENCERRAR -> combateService.encerrar(mesa, acesso);

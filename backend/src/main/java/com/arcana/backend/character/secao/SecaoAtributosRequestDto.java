@@ -30,6 +30,10 @@ public record SecaoAtributosRequestDto(
         @Max(value = 20, message = "A CA adicional não pode passar de 20")
         Integer caAdicional,
 
+        @Min(value = -10, message = "O bônus de iniciativa não pode ser menor que -10")
+        @Max(value = 20, message = "O bônus de iniciativa não pode passar de 20")
+        Integer bonusIniciativa,
+
         @NotNull(message = "Deslocamento é obrigatório")
         @Min(value = 0, message = "Deslocamento não pode ser negativo")
         @Max(value = 300, message = "Deslocamento não pode passar de 300 metros")
@@ -67,7 +71,7 @@ public record SecaoAtributosRequestDto(
 ) {
     public static SecaoAtributosRequestDto de(PersonagemRequestDto dto) {
         return new SecaoAtributosRequestDto(dto.hpMax(), dto.hpCurrent(), dto.vidaTemporaria(), dto.armorClass(),
-                dto.caAdicional(), dto.deslocamento(), dto.deslocamentosAdicionais(), dto.inspiracao(),
+                dto.caAdicional(), dto.bonusIniciativa(), dto.deslocamento(), dto.deslocamentosAdicionais(), dto.inspiracao(),
                 dto.sucessosContraMorte(), dto.falhasContraMorte(), dto.proficiencyBonus(), dto.attributes(),
                 dto.savingThrows(), dto.skills());
     }

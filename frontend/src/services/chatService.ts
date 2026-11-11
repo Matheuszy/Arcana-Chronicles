@@ -193,16 +193,12 @@ class ChatService {
     this.sendCombatCommand('COMBATE_INICIAR', { jogadores: playerIds, monstros: monsters });
   }
 
-  rollInitiative(mode: RollMode, addProficiency: boolean): void {
-    this.sendCombatCommand('COMBATE_ROLAR', { modo: mode, somarProficiencia: addProficiency });
+  rollInitiative(mode: RollMode): void {
+    this.sendCombatCommand('COMBATE_ROLAR', { modo: mode });
   }
 
-  rollMonsterInitiative(entryIds: string[], mode: RollMode, addProficiency: boolean): void {
-    this.sendCombatCommand('COMBATE_ROLAR_MONSTROS', {
-      entradas: entryIds,
-      modo: mode,
-      somarProficiencia: addProficiency,
-    });
+  rollMonsterInitiative(entryIds: string[], mode: RollMode): void {
+    this.sendCombatCommand('COMBATE_ROLAR_MONSTROS', { entradas: entryIds, modo: mode });
   }
 
   allowInitiativeReroll(entryIds: string[]): void {

@@ -105,7 +105,7 @@ class DesafioChatTest {
             valores.put(atributo, 14);
         }
         return new FichaDeParticipante(jogador.userId(), jogador.displayName(), 100L + jogador.userId(), personagem,
-                valores, Map.of(), Map.of(), 2);
+                valores, Map.of(), Map.of(), 0);
     }
 
     private WebSocketSession sessao(String id, AcessoMesaDto acesso) {

@@ -13,8 +13,8 @@ interface CombatTrackerProps {
   viewerId: string | null;
   isMaster: boolean;
   canSend: boolean;
-  onRollInitiative: (mode: RollMode, addProficiency: boolean) => void;
-  onRollMonsters: (entryIds: string[], mode: RollMode, addProficiency: boolean) => void;
+  onRollInitiative: (mode: RollMode) => void;
+  onRollMonsters: (entryIds: string[], mode: RollMode) => void;
   onPassTurn: () => void;
   onAllowReroll: (entryIds: string[]) => void;
   onEnd: () => void;
@@ -43,8 +43,8 @@ function describeInitiative(entry: CombatEntry): string {
   const initiative = entry.iniciativa;
   if (!initiative) return 'aguardando rolagem';
   const dice = initiative.dados.length > 1 ? `[${initiative.dados.join(', ')}] → ${initiative.mantido}` : initiative.mantido;
-  const proficiency = initiative.somouProficiencia ? ` + PROF ${initiative.bonusProficiencia}` : '';
-  return `d20 ${dice} + DES ${initiative.modificadorDestreza}${proficiency}`;
+  const bonus = initiative.bonusIniciativa !== 0 ? ` + BÔNUS ${initiative.bonusIniciativa}` : '';
+  return `d20 ${dice} + DES ${initiative.modificadorDestreza}${bonus}`;
 }
 
 export default function CombatTracker({
@@ -60,7 +60,6 @@ export default function CombatTracker({
 }: CombatTrackerProps) {
   const confirm = useConfirm();
   const [mode, setMode] = useState<RollMode>('NORMAL');
-  const [addProficiency, setAddProficiency] = useState(false);
 
   const inProgress = combat.fase === 'EM_ANDAMENTO';
   const mine = combat.participantes.find((p) => p.tipo === 'JOGADOR' && String(p.controladorId) === viewerId);
@@ -147,15 +146,11 @@ export default function CombatTracker({
             onChange={setMode}
             options={MODES.map((option) => ({ value: option, label: ROLL_MODE_LABEL[option] }))}
           />
-          <label className="combat-proficiency">
-            <input type="checkbox" checked={addProficiency} onChange={(e) => setAddProficiency(e.target.checked)} />
-            Somar bônus de proficiência
-          </label>
           {mine?.aguardandoRolagem && (
             <button
               className="btn btn-primary"
               disabled={!canSend}
-              onClick={() => onRollInitiative(mode, addProficiency)}
+              onClick={() => onRollInitiative(mode)}
             >
               {mine.iniciativa ? 'Rolar iniciativa de novo' : 'Rolar iniciativa'}
             </button>
@@ -165,7 +160,7 @@ export default function CombatTracker({
               key={group.key}
               className="btn btn-primary"
               disabled={!canSend}
-              onClick={() => onRollMonsters(group.entryIds, mode, addProficiency)}
+              onClick={() => onRollMonsters(group.entryIds, mode)}
             >
               {group.entryIds.length === 1
                 ? `Rolar iniciativa: ${group.label}`

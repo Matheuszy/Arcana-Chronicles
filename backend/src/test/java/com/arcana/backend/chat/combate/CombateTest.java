@@ -24,7 +24,7 @@ class CombateTest {
     }
 
     private static Iniciativa total(int total) {
-        return new Iniciativa(List.of(total), total, 0, 0, total, ModoRolagem.NORMAL, false);
+        return new Iniciativa(List.of(total), total, 0, 0, total, ModoRolagem.NORMAL);
     }
 
     private void todosRolam(int aria, int brom, int cael) {
