@@ -193,6 +193,10 @@ class ChatService {
     this.sendCombatCommand('COMBATE_INICIAR', { nome: name, jogadores: playerIds, monstros: monsters });
   }
 
+  addToCombat(combatId: string, playerIds: number[], monsters: MonsterGroup[]): void {
+    this.sendCombatCommand('COMBATE_ADICIONAR', { combateId: combatId, jogadores: playerIds, monstros: monsters });
+  }
+
   rollInitiative(mode: RollMode): void {
     this.sendCombatCommand('COMBATE_ROLAR', { modo: mode });
   }

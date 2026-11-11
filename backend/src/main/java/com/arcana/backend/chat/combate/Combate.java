@@ -32,6 +32,7 @@ public class Combate {
         private final int bonusIniciativa;
         private Iniciativa iniciativa;
         private boolean rerolagemLiberada;
+        private boolean aguardandoFimDoTurno;
 
         Entrada(String id, TipoEntrada tipo, Long controladorId, Long personagemId, String grupo,
                 String nomeJogador, String nomePersonagem, int modificadorDestreza, int bonusIniciativa) {
@@ -88,6 +89,10 @@ public class Combate {
 
         public boolean isRerolagemLiberada() {
             return rerolagemLiberada;
+        }
+
+        public boolean isAguardandoFimDoTurno() {
+            return aguardandoFimDoTurno;
         }
 
         public boolean aguardandoRolagem() {
@@ -163,7 +168,17 @@ public class Combate {
         if (!emAndamento()) {
             return List.copyOf(entradas.values());
         }
-        return ordem.stream().map(entradas::get).toList();
+        List<Entrada> emOrdem = new ArrayList<>(ordem.stream().map(entradas::get).toList());
+        entradas.values().stream()
+                .filter(entrada -> !ordem.contains(entrada.id))
+                .forEach(emOrdem::add);
+        return List.copyOf(emOrdem);
+    }
+
+    public long monstrosDoGrupo(String grupo) {
+        return entradas.values().stream()
+                .filter(entrada -> entrada.tipo == TipoEntrada.MONSTRO && grupo.equals(entrada.grupo))
+                .count();
     }
 
     public Entrada entrada(String entradaId) {
@@ -196,19 +211,31 @@ public class Combate {
     void adicionarJogador(Long jogadorId, String nomeJogador, String nomePersonagem, int modificadorDestreza,
                           int bonusIniciativa) {
         String entradaId = idDoJogador(jogadorId);
-        entradas.put(entradaId, new Entrada(entradaId, TipoEntrada.JOGADOR, jogadorId, null, null, nomeJogador,
+        if (entradas.containsKey(entradaId)) {
+            throw new IllegalStateException(nomePersonagem + " já está neste combate.");
+        }
+        adicionar(new Entrada(entradaId, TipoEntrada.JOGADOR, jogadorId, null, null, nomeJogador,
                 nomePersonagem, modificadorDestreza, bonusIniciativa));
     }
 
     void adicionarMonstro(Long personagemId, String grupo, String nomeMonstro, String nomeMestre,
                           int modificadorDestreza, int bonusIniciativa) {
         String entradaId = PREFIXO_MONSTRO + (++monstrosAdicionados);
-        entradas.put(entradaId, new Entrada(entradaId, TipoEntrada.MONSTRO, mestreId, personagemId, grupo,
+        adicionar(new Entrada(entradaId, TipoEntrada.MONSTRO, mestreId, personagemId, grupo,
                 nomeMestre, nomeMonstro, modificadorDestreza, bonusIniciativa));
     }
 
+    private void adicionar(Entrada entrada) {
+        entrada.aguardandoFimDoTurno = emAndamento();
+        entradas.put(entrada.id, entrada);
+    }
+
     void exigirAguardandoRolagem(String entradaId) {
-        if (!entrada(entradaId).aguardandoRolagem()) {
+        Entrada entrada = entrada(entradaId);
+        if (entrada.aguardandoFimDoTurno) {
+            throw new IllegalStateException("Aguarde o fim do turno atual para rolar a iniciativa.");
+        }
+        if (!entrada.aguardandoRolagem()) {
             throw new IllegalStateException(
                     "Você já rolou a iniciativa. Peça ao mestre para liberar uma nova rolagem.");
         }
@@ -239,6 +266,7 @@ public class Combate {
             indiceDoTurno = 0;
             rodada++;
         }
+        entradas.values().forEach(entrada -> entrada.aguardandoFimDoTurno = false);
     }
 
     void removerJogador(Long jogadorId) {
@@ -254,6 +282,9 @@ public class Combate {
             return;
         }
         int posicao = ordem.indexOf(entradaId);
+        if (posicao < 0) {
+            return;
+        }
         List<String> restantes = new ArrayList<>(ordem);
         restantes.remove(entradaId);
         ordem = List.copyOf(restantes);
@@ -266,11 +297,12 @@ public class Combate {
     }
 
     private void reordenar() {
-        if (entradas.values().stream().anyMatch(entrada -> entrada.iniciativa == null)) {
+        if (!emAndamento() && entradas.values().stream().anyMatch(entrada -> entrada.iniciativa == null)) {
             return;
         }
         String atual = idDoTurno();
         ordem = entradas.values().stream()
+                .filter(entrada -> entrada.iniciativa != null)
                 .sorted(Comparator.comparingInt((Entrada entrada) -> entrada.iniciativa.total()).reversed()
                         .thenComparing(Comparator.comparingInt((Entrada entrada) -> entrada.modificadorDestreza)
                                 .reversed()))

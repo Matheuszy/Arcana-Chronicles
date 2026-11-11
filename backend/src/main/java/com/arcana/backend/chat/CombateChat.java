@@ -1,5 +1,6 @@
 package com.arcana.backend.chat;
 
+import com.arcana.backend.chat.combate.AdicaoAoCombate;
 import com.arcana.backend.chat.combate.ComandoCombate;
 import com.arcana.backend.chat.combate.CombateDto;
 import com.arcana.backend.chat.combate.CombateService;
@@ -27,7 +28,8 @@ public class CombateChat {
             ChatMessage.Type.COMBATE_ROLAR_MONSTROS,
             ChatMessage.Type.COMBATE_LIBERAR_REROLL,
             ChatMessage.Type.COMBATE_PASSAR_TURNO,
-            ChatMessage.Type.COMBATE_ENCERRAR);
+            ChatMessage.Type.COMBATE_ENCERRAR,
+            ChatMessage.Type.COMBATE_ADICIONAR);
 
     private final CombateService combateService;
     private final ObjectMapper objectMapper;
@@ -42,6 +44,7 @@ public class CombateChat {
                 ? new ComandoCombate(null, null, null, null, null, null)
                 : mensagem.getComandoCombate();
         List<CombateDto> antes = combateService.estados(mesa);
+        AdicaoAoCombate adicao = null;
 
         switch (mensagem.getType()) {
             case COMBATE_INICIAR -> combateService.iniciar(mesa, acesso, comando.nome(), comando.jogadores(),
@@ -53,10 +56,15 @@ public class CombateChat {
                     comando.entradas());
             case COMBATE_PASSAR_TURNO -> combateService.passarTurno(mesa, acesso, comando.combateId());
             case COMBATE_ENCERRAR -> combateService.encerrar(mesa, acesso, comando.combateId());
+            case COMBATE_ADICIONAR -> adicao = combateService.adicionar(mesa, acesso, comando.combateId(),
+                    comando.jogadores(), comando.monstros());
             default -> throw new IllegalArgumentException("Comando de combate desconhecido.");
         }
 
         publicar(mesa, antes);
+        if (adicao != null) {
+            anunciarEntrada(mesa, adicao);
+        }
     }
 
     public void sincronizar(MesaAtiva mesa, WebSocketSession sessao, AcessoMesaDto acesso) {
@@ -82,6 +90,16 @@ public class CombateChat {
 
         for (MesaAtiva.Conexao conexao : mesa.conexoes()) {
             enviar(conexao.sessao(), eventoDosCombates(mesa, conexao.acesso()));
+        }
+    }
+
+    private void anunciarEntrada(MesaAtiva mesa, AdicaoAoCombate adicao) {
+        ChatMessage evento = novoEvento(mesa, ChatMessage.Type.COMBATE_ENTRADA);
+        evento.setEntradaNoCombate(adicao.anuncio());
+        for (MesaAtiva.Conexao conexao : mesa.conexoes()) {
+            if (!adicao.jogadoresQueEntraram().contains(conexao.acesso().userId())) {
+                enviar(conexao.sessao(), evento);
+            }
         }
     }
 

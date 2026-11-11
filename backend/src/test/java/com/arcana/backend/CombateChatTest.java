@@ -534,6 +534,95 @@ class CombateChatTest {
                 """);
     }
 
+    private JsonNode ultimaEntrada(WebSocketSession sessao) throws Exception {
+        List<JsonNode> eventos = recebidas(sessao, "COMBATE_ENTRADA");
+        return eventos.get(eventos.size() - 1).get("entradaNoCombate");
+    }
+
+    private void adicionarAoCombate(String comando) throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_ADICIONAR","comandoCombate":%s}
+                """.formatted(comando));
+    }
+
+    @Test
+    void deveAdicionarJogadorAoCombateEmAndamentoAnunciandoATodosMenosAQuemEntrou() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+
+        adicionarAoCombate("{\"jogadores\":[40]}");
+
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom)) {
+            JsonNode entrada = ultimaEntrada(sessao);
+            assertEquals("Combate 1", entrada.get("combateNome").asText());
+            assertEquals("Mira", entrada.get("nomes").get(0).asText());
+        }
+        assertTrue(recebidas(sessaoCael, "COMBATE_ENTRADA").isEmpty());
+
+        JsonNode mira = participante(ultimoCombate(sessaoCael), "40");
+        assertTrue(mira.get("aguardandoRolagem").asBoolean());
+        assertTrue(mira.get("aguardandoFimDoTurno").asBoolean());
+        assertEquals("EM_ANDAMENTO", ultimoCombate(sessaoCael).get("fase").asText());
+        assertEquals(30L, ultimoCombate(sessaoCael).get("turnoDe").asLong());
+    }
+
+    @Test
+    void deveLiberarAIniciativaDeQuemEntrouAoFimDoTurnoEEncaixarNaOrdem() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        adicionarAoCombate("{\"jogadores\":[40]}");
+
+        rolarIniciativa(sessaoCael, "NORMAL");
+        assertEquals("Aguarde o fim do turno atual para rolar a iniciativa.", ultimoAviso(sessaoCael));
+
+        enviar(sessaoBrom, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertFalse(participante(ultimoCombate(sessaoCael), "40").get("aguardandoFimDoTurno").asBoolean());
+
+        faces.add(5);
+        rolarIniciativa(sessaoCael, "NORMAL");
+
+        JsonNode combate = ultimoCombate(sessaoMestre);
+        assertEquals("Mira", combate.get("participantes").get(2).get("nomePersonagem").asText());
+        assertEquals(20L, combate.get("turnoDe").asLong());
+        enviar(sessaoAria, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertEquals(40L, ultimoCombate(sessaoCael).get("turnoDe").asLong());
+        assertEquals(1, ultimoCombate(sessaoCael).get("rodada").asInt());
+    }
+
+    @Test
+    void deveNumerarOsMonstrosQueEntramDepoisContinuandoOGrupo() throws Exception {
+        iniciarComAriaETresGoblins();
+
+        adicionarAoCombate("{\"monstros\":[{\"personagemId\":500,\"quantidade\":2}]}");
+
+        JsonNode entrada = ultimaEntrada(sessaoAria);
+        assertEquals("Goblin 4", entrada.get("nomes").get(0).asText());
+        assertEquals("Goblin 5", entrada.get("nomes").get(1).asText());
+        assertEquals(6, ultimoCombate(sessaoMestre).get("participantes").size());
+    }
+
+    @Test
+    void deveRecusarAdicaoSemNinguemOuFeitaPorJogador() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+
+        adicionarAoCombate("{}");
+        assertEquals("Escolha ao menos um jogador ou monstro para entrar no combate.", ultimoAviso(sessaoMestre));
+
+        enviar(sessaoAria, """
+                {"type":"COMBATE_ADICIONAR","comandoCombate":{"jogadores":[40]}}
+                """);
+        assertEquals("Apenas o mestre pode administrar o combate.", ultimoAviso(sessaoAria));
+        assertTrue(recebidas(sessaoMestre, "COMBATE_ENTRADA").isEmpty());
+    }
+
+    @Test
+    void deveRecusarAnuncioDeEntradaEnviadoPeloCliente() throws Exception {
+        enviar(sessaoAria, """
+                {"type":"COMBATE_ENTRADA","entradaNoCombate":{"combateNome":"Falso","nomes":["Ninguem"]}}
+                """);
+
+        assertEquals("Tipo de mensagem não permitido.", ultimoAviso(sessaoAria));
+        assertTrue(recebidas(sessaoMestre, "COMBATE_ENTRADA").isEmpty());
+    }
+
     private void rolarMonstros(String comando) throws Exception {
         enviar(sessaoMestre, """
                 {"type":"COMBATE_ROLAR_MONSTROS","comandoCombate":%s}

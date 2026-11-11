@@ -323,6 +323,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         message.setStatus(null);
         message.setItens(null);
         message.setCombates(null);
+        message.setEntradaNoCombate(null);
 
         if (message.getType() == ChatMessage.Type.SESSAO_ENCERRAR) {
             encerrarSessaoPeloMestre(session, acesso);

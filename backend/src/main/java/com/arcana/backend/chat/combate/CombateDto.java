@@ -22,6 +22,7 @@ public record CombateDto(
             String nomePersonagem,
             boolean aguardandoRolagem,
             boolean rerolagemLiberada,
+            boolean aguardandoFimDoTurno,
             Iniciativa iniciativa
     ) {}
 
@@ -37,7 +38,8 @@ public record CombateDto(
                         .map(entrada -> new EntradaDto(entrada.getId(), entrada.getTipo(),
                                 entrada.getControladorId(), entrada.getPersonagemId(), entrada.getGrupo(),
                                 entrada.getNomeJogador(), entrada.getNomePersonagem(), entrada.aguardandoRolagem(),
-                                entrada.isRerolagemLiberada(), entrada.getIniciativa()))
+                                entrada.isRerolagemLiberada(), entrada.isAguardandoFimDoTurno(),
+                                entrada.getIniciativa()))
                         .toList());
     }
 }

@@ -276,3 +276,15 @@
 @media (min-width: 640px) {
   .combat-summary { flex-direction: row; align-items: baseline; gap: 0.5rem; }
 }
+
+.turn-alert-card--arrival .turn-alert-title {
+  font-size: 1.35rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.combat-wait-hint { margin: 0; font-size: 0.85rem; }
+
+@media (min-width: 640px) {
+  .turn-alert-card--arrival .turn-alert-title { font-size: 1.6rem; }
+}

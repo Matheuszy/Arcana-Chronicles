@@ -29,7 +29,7 @@ interface MonsterGroupPending {
 function pendingMonsterGroups(combat: Combat): MonsterGroupPending[] {
   const groups = new Map<string, MonsterGroupPending>();
   combat.participantes
-    .filter((entry) => entry.tipo === 'MONSTRO' && entry.aguardandoRolagem)
+    .filter((entry) => entry.tipo === 'MONSTRO' && entry.aguardandoRolagem && !entry.aguardandoFimDoTurno)
     .forEach((entry) => {
       const key = String(entry.personagemId);
       const group = groups.get(key) ?? { key, label: entry.grupo ?? entry.nomePersonagem, entryIds: [] };
@@ -41,7 +41,7 @@ function pendingMonsterGroups(combat: Combat): MonsterGroupPending[] {
 
 function describeInitiative(entry: CombatEntry): string {
   const initiative = entry.iniciativa;
-  if (!initiative) return 'aguardando rolagem';
+  if (!initiative) return entry.aguardandoFimDoTurno ? 'entrou agora · rola ao fim do turno atual' : 'aguardando rolagem';
   const dice = initiative.dados.length > 1 ? `[${initiative.dados.join(', ')}] → ${initiative.mantido}` : initiative.mantido;
   const bonus = initiative.bonusIniciativa !== 0 ? ` + BÔNUS ${initiative.bonusIniciativa}` : '';
   return `d20 ${dice} + DES ${initiative.modificadorDestreza}${bonus}`;
@@ -136,7 +136,11 @@ export default function CombatTracker({
         })}
       </ol>
 
-      {(mine?.aguardandoRolagem || monsterGroups.length > 0) && (
+      {mine?.aguardandoFimDoTurno && (
+        <p className="muted combat-wait-hint">Você entrou no combate. Sua iniciativa é liberada ao fim do turno atual.</p>
+      )}
+
+      {((mine?.aguardandoRolagem && !mine.aguardandoFimDoTurno) || monsterGroups.length > 0) && (
         <div className="combat-roll">
           <Select
             label="Modo da rolagem"
@@ -146,7 +150,7 @@ export default function CombatTracker({
             onChange={setMode}
             options={MODES.map((option) => ({ value: option, label: ROLL_MODE_LABEL[option] }))}
           />
-          {mine?.aguardandoRolagem && (
+          {mine?.aguardandoRolagem && !mine.aguardandoFimDoTurno && (
             <button
               className="btn btn-primary"
               disabled={!canSend}

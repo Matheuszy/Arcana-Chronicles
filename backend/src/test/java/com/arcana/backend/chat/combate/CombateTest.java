@@ -208,4 +208,98 @@ class CombateTest {
 
         assertTrue(daMesa.estados().isEmpty());
     }
+
+    @Test
+    void deveDeixarQuemEntraNaFaseDeIniciativaRolarNaHora() {
+        combate.adicionarJogador(50L, "Dax", "Kael", 0, 0);
+
+        Combate.Entrada dax = combate.entrada("50");
+        assertFalse(dax.isAguardandoFimDoTurno());
+        assertDoesNotThrow(() -> combate.registrarIniciativa("50", total(12)));
+    }
+
+    @Test
+    void deveSegurarARolagemDeQuemEntraNoCombateEmAndamentoAteOFimDoTurnoAtual() {
+        todosRolam(20, 15, 10);
+        combate.adicionarJogador(50L, "Dax", "Kael", 0, 0);
+
+        assertTrue(combate.entrada("50").isAguardandoFimDoTurno());
+        IllegalStateException erro = assertThrows(IllegalStateException.class,
+                () -> combate.registrarIniciativa("50", total(12)));
+        assertEquals("Aguarde o fim do turno atual para rolar a iniciativa.", erro.getMessage());
+
+        combate.passarTurno();
+
+        assertFalse(combate.entrada("50").isAguardandoFimDoTurno());
+        assertDoesNotThrow(() -> combate.registrarIniciativa("50", total(12)));
+    }
+
+    @Test
+    void deveManterOCombateAndandoEnquantoQuemEntrouNaoRola() {
+        todosRolam(20, 15, 10);
+        combate.adicionarJogador(50L, "Dax", "Kael", 0, 0);
+
+        combate.passarTurno();
+        combate.passarTurno();
+        combate.passarTurno();
+
+        assertEquals(Combate.Fase.EM_ANDAMENTO, combate.getFase());
+        assertEquals(2, combate.getRodada());
+        assertEquals("20", combate.idDoTurno());
+        assertEquals(List.of("20", "30", "40", "50"), ordem());
+    }
+
+    @Test
+    void deveAgirNestaRodadaQuandoAPosicaoDeQuemEntrouAindaNaoPassou() {
+        todosRolam(20, 15, 10);
+        combate.adicionarJogador(50L, "Dax", "Kael", 0, 0);
+        combate.passarTurno();
+
+        combate.registrarIniciativa("50", total(12));
+
+        assertEquals(List.of("20", "30", "50", "40"), ordem());
+        assertEquals("30", combate.idDoTurno());
+        combate.passarTurno();
+        assertEquals("50", combate.idDoTurno());
+        assertEquals(1, combate.getRodada());
+    }
+
+    @Test
+    void deveAgirSoNaProximaRodadaQuandoAPosicaoDeQuemEntrouJaPassou() {
+        todosRolam(20, 15, 10);
+        combate.adicionarJogador(50L, "Dax", "Kael", 0, 0);
+        combate.passarTurno();
+
+        combate.registrarIniciativa("50", total(18));
+
+        assertEquals(List.of("20", "50", "30", "40"), ordem());
+        assertEquals("30", combate.idDoTurno());
+        combate.passarTurno();
+        assertEquals("40", combate.idDoTurno());
+        combate.passarTurno();
+        assertEquals("20", combate.idDoTurno());
+        assertEquals(2, combate.getRodada());
+        combate.passarTurno();
+        assertEquals("50", combate.idDoTurno());
+    }
+
+    @Test
+    void deveRecusarJogadorQueJaEstaNoCombate() {
+        IllegalStateException erro = assertThrows(IllegalStateException.class,
+                () -> combate.adicionarJogador(20L, "Aria", "Lyra", 2, 0));
+
+        assertEquals("Lyra já está neste combate.", erro.getMessage());
+    }
+
+    @Test
+    void deveRemoverQuemEntrouSemRolarSemMexerNoTurno() {
+        todosRolam(20, 15, 10);
+        combate.passarTurno();
+        combate.adicionarJogador(50L, "Dax", "Kael", 0, 0);
+
+        combate.removerJogador(50L);
+
+        assertEquals("30", combate.idDoTurno());
+        assertEquals(List.of("20", "30", "40"), ordem());
+    }
 }
