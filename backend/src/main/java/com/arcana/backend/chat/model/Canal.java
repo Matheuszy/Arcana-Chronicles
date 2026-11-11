@@ -7,7 +7,7 @@ public enum Canal {
 
     public static Canal doTipo(ChatMessage.Type tipo) {
         return switch (tipo) {
-            case ROLAGEM -> ROLAGENS;
+            case ROLAGEM, REACAO -> ROLAGENS;
             case IMAGEM -> IMAGENS;
             default -> CONVERSA;
         };

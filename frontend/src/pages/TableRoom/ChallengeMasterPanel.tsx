@@ -15,7 +15,10 @@ import {
   MIN_CHALLENGE_DC,
   ROLL_MODE_LABEL,
   isActiveState,
+  isAwaitingConfirmation,
+  pendingTotal,
 } from '../../types/challenge';
+import { HelpList, RollSummary } from './ChallengeHelps';
 
 const MODES: RollMode[] = ['NORMAL', 'VANTAGEM', 'DESVANTAGEM'];
 
@@ -23,6 +26,7 @@ interface ChallengeMasterPanelProps {
   challenges: Challenge[];
   targets: ChallengeTarget[];
   viewerId: string | null;
+  isMaster: boolean;
   title: string;
   createHint?: string;
   canSend: boolean;
@@ -31,6 +35,8 @@ interface ChallengeMasterPanelProps {
   onAllowExtraAttempt: (challengeId: string, targetId: string, mode: RollMode) => void;
   onEndWithFailure: (challengeId: string, targetId: string) => void;
   onCancel: (challengeId: string, targetId?: string) => void;
+  onConfirm: (challengeId: string, targetId?: string) => void;
+  onRemoveHelp: (challengeId: string, targetId: string, helpId: string) => void;
   onFinish: (challengeId: string) => void;
   onSendMessage: (challengeId: string, target: ChallengeMessageTarget, text: string, targetId?: string) => void;
 }
@@ -57,23 +63,32 @@ function PlayerRow({
   challenge,
   player,
   manage,
+  viewerId,
+  isMaster,
   canSend,
   onAllowExtraAttempt,
   onEndWithFailure,
   onCancel,
+  onConfirm,
+  onRemoveHelp,
 }: {
   challenge: Challenge;
   player: ChallengePlayer;
   manage: boolean;
+  viewerId: string | null;
+  isMaster: boolean;
   canSend: boolean;
   onAllowExtraAttempt: ChallengeMasterPanelProps['onAllowExtraAttempt'];
   onEndWithFailure: ChallengeMasterPanelProps['onEndWithFailure'];
   onCancel: ChallengeMasterPanelProps['onCancel'];
+  onConfirm: ChallengeMasterPanelProps['onConfirm'];
+  onRemoveHelp: ChallengeMasterPanelProps['onRemoveHelp'];
 }) {
   const confirm = useConfirm();
   const [extraMode, setExtraMode] = useState<RollMode>(player.modo);
   const active = isActiveState(player.estado);
   const last = player.rolagens[player.rolagens.length - 1];
+  const partial = pendingTotal(player);
 
   return (
     <li className="challenge-player">
@@ -86,9 +101,28 @@ function PlayerRow({
         </span>
       </div>
       <p className="muted challenge-player-info">
-        {ROLL_MODE_LABEL[player.modo]}
-        {player.rolagens.map((r) => ` · ${r.descricaoEscolha}: ${r.total}${r.sucesso ? ' ✓' : ' ✗'}`).join('')}
+        {ROLL_MODE_LABEL[player.modoEfetivo]}
+        {player.modoEfetivo !== player.modo && ` (pedido: ${ROLL_MODE_LABEL[player.modo]}, mudou pelas ajudas)`}
       </p>
+      <RollSummary player={player} />
+      <HelpList
+        player={player}
+        viewerId={viewerId}
+        isMaster={isMaster}
+        canSend={canSend}
+        onRemove={(helpId) => onRemoveHelp(challenge.id, player.id, helpId)}
+      />
+
+      {manage && isAwaitingConfirmation(player.estado) && partial !== null && (
+        <div className="challenge-actions">
+          <span className="challenge-confirm-hint">
+            {partial} contra CD {challenge.cd}: {challenge.cd !== null && partial >= challenge.cd ? 'sucesso' : 'falha'} se confirmar agora
+          </span>
+          <button className="btn btn-primary" disabled={!canSend} onClick={() => onConfirm(challenge.id, player.id)}>
+            Confirmar resultado
+          </button>
+        </div>
+      )}
 
       {manage && player.estado === 'AGUARDANDO_DECISAO_DO_MESTRE' && last && (
         <div className="challenge-actions">
@@ -227,8 +261,11 @@ export default function ChallengeMasterPanel({
   onAllowExtraAttempt,
   onEndWithFailure,
   onCancel,
+  onConfirm,
+  onRemoveHelp,
   onFinish,
   onSendMessage,
+  isMaster,
 }: ChallengeMasterPanelProps) {
   const confirm = useConfirm();
   const [formOpen, setFormOpen] = useState(false);
@@ -272,8 +309,8 @@ export default function ChallengeMasterPanel({
     setFormOpen(false);
   };
 
-  const ordered = challenges.filter((c) => c.ativo || String(c.criadorId) === viewerId);
-  const ownOpen = ordered.some((c) => String(c.criadorId) === viewerId);
+  const ordered = challenges.filter((c) => String(c.criadorId) === viewerId);
+  const ownOpen = ordered.length > 0;
   const hint = createHint ?? (ownOpen ? 'Finalize o desafio atual para lançar o próximo.' : undefined);
 
   return (
@@ -375,7 +412,6 @@ export default function ChallengeMasterPanel({
               <strong>{challenge.descricao ?? 'Desafio'}</strong>
               <span className="challenge-card-dc">CD {challenge.cd}</span>
             </div>
-            {!own && <p className="muted">Lançado por {challenge.criadorNome}</p>}
             <ul className="challenge-players">
               {challenge.jogadores.map((player) => (
                 <PlayerRow
@@ -383,13 +419,22 @@ export default function ChallengeMasterPanel({
                   challenge={challenge}
                   player={player}
                   manage={own}
+                  viewerId={viewerId}
+                  isMaster={isMaster}
                   canSend={canSend}
                   onAllowExtraAttempt={onAllowExtraAttempt}
                   onEndWithFailure={onEndWithFailure}
                   onCancel={onCancel}
+                  onConfirm={onConfirm}
+                  onRemoveHelp={onRemoveHelp}
                 />
               ))}
             </ul>
+            {own && challenge.jogadores.filter((p) => isAwaitingConfirmation(p.estado)).length > 1 && (
+              <button className="btn btn-ghost" disabled={!canSend} onClick={() => onConfirm(challenge.id)}>
+                Confirmar todos os resultados
+              </button>
+            )}
             {own && (
               <MessageComposer
                 challenge={challenge}

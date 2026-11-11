@@ -698,7 +698,7 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
         </output>
       </div>
       {classes.map((entry, i) => (
-        <div className="row class-row" key={i}>
+        <div className="row row--aligned class-row" key={i}>
           <div className="field grow">
             <label htmlFor={`classe-${i}`} className="required-mark">Classe</label>
             <input

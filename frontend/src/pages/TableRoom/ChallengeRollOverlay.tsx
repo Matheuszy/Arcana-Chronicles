@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RollReveal, ROLL_MODE_LABEL } from '../../types/challenge';
+import { RollReveal, ROLL_MODE_LABEL, describeHelp } from '../../types/challenge';
 import { formatModifier } from '../../types/character';
 
 interface ChallengeRollOverlayProps {
@@ -83,9 +83,11 @@ export default function ChallengeRollOverlay({ reveal, viewerId, onClose }: Chal
         <p className="roll-stage-who">
           {isMine ? 'Você testa' : `${player.nomePersonagem} testa`} <strong>{roll.descricaoEscolha}</strong>
         </p>
-        <p className="roll-stage-dc">
-          CD <span>{challenge.cd}</span>
-        </p>
+        {challenge.cd !== null && (
+          <p className="roll-stage-dc">
+            CD <span>{challenge.cd}</span>
+          </p>
+        )}
         {dice.mode !== 'NORMAL' && (
           <p className="roll-stage-mode">{ROLL_MODE_LABEL[dice.mode]}</p>
         )}
@@ -114,9 +116,26 @@ export default function ChallengeRollOverlay({ reveal, viewerId, onClose }: Chal
                   {' '}
                   {modifier > 0 ? '+' : '−'} <strong>{Math.abs(modifier)}</strong>
                 </>
-              )}{' '}
+              )}
+              {roll.ajudas
+                .filter((help) => help.valor !== null)
+                .map((help) => (
+                  <span key={help.id}>
+                    {' '}
+                    {help.tipo === 'DADO_BONUS' ? '+' : '−'} <strong>{help.valor}</strong>
+                  </span>
+                ))}{' '}
               = <span className="roll-stage-total">{roll.total}</span>
             </p>
+            {roll.ajudas.length > 0 && (
+              <ul className="roll-stage-helps">
+                {roll.ajudas.map((help) => (
+                  <li key={help.id}>
+                    {describeHelp(help)} de {help.autorNome}
+                  </li>
+                ))}
+              </ul>
+            )}
             {modifier !== 0 && (
               <p className="roll-stage-hint">
                 modificador {formatModifier(modifier)} de {roll.descricaoEscolha}

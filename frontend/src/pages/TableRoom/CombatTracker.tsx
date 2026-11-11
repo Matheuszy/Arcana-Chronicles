@@ -3,8 +3,9 @@ import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
 import { ROLL_MODE_LABEL } from '../../types/challenge';
 import { RollMode } from '../../types/chat';
-import { Combat, CombatEntry, isMyTurn } from '../../types/combat';
+import { Combat, CombatEntry, HIDDEN_TURN_LABEL, ReactionKind, isMyTurn, reactionLabel } from '../../types/combat';
 import { CrossedSwordsIcon, TorchIcon } from '../../components/ui/Icons';
+import CombatReactionPanel from './CombatReactionPanel';
 
 const MODES: RollMode[] = ['NORMAL', 'VANTAGEM', 'DESVANTAGEM'];
 
@@ -17,6 +18,9 @@ interface CombatTrackerProps {
   onRollMonsters: (entryIds: string[], mode: RollMode) => void;
   onPassTurn: () => void;
   onAllowReroll: (entryIds: string[]) => void;
+  onReveal: (entryIds: string[]) => void;
+  onReact: (entryId: string | null, kind: ReactionKind, description: string) => void;
+  onEndReaction: (entryId: string | null) => void;
   onEnd: () => void;
 }
 
@@ -47,6 +51,11 @@ function describeInitiative(entry: CombatEntry): string {
   return `d20 ${dice} + DES ${initiative.modificadorDestreza}${bonus}`;
 }
 
+function describeReaction(entry: CombatEntry): string {
+  if (entry.reacaoAberta) return ` · reagindo: ${reactionLabel(entry.reacaoAberta)}`;
+  return entry.reacaoUsada ? ' · reação usada' : '';
+}
+
 export default function CombatTracker({
   combat,
   viewerId,
@@ -56,6 +65,9 @@ export default function CombatTracker({
   onRollMonsters,
   onPassTurn,
   onAllowReroll,
+  onReveal,
+  onReact,
+  onEndReaction,
   onEnd,
 }: CombatTrackerProps) {
   const confirm = useConfirm();
@@ -104,32 +116,52 @@ export default function CombatTracker({
         </p>
       )}
 
+      {inProgress && combat.turnoOculto && !isMaster && (
+        <p className="combat-hidden-turn" role="status">
+          <TorchIcon className="combat-torch" title="Turno atual" />
+          {HIDDEN_TURN_LABEL}
+        </p>
+      )}
+
       <ol className="combat-list">
         {combat.participantes.map((entry, index) => {
           const current = inProgress && entry.id === combat.turnoDe;
           return (
             <li
               key={entry.id}
-              className={`combat-entry ${current ? 'combat-entry--current' : ''} ${entry.tipo === 'MONSTRO' ? 'combat-entry--monster' : ''}`}
+              className={`combat-entry ${current ? 'combat-entry--current' : ''} ${entry.tipo === 'MONSTRO' ? 'combat-entry--monster' : ''} ${entry.oculto ? 'combat-entry--hidden' : ''}`}
             >
               {inProgress && <span className="combat-position">{index + 1}</span>}
               {current && <TorchIcon className="combat-torch" title="Turno atual" />}
               <div className="combat-entry-info">
-                <strong>{entry.nomePersonagem}</strong>
+                <strong>
+                  {entry.nomePersonagem}
+                  {entry.oculto && <span className="combat-hidden-badge">oculto</span>}
+                </strong>
                 <small className="muted">
                   {entry.nomeJogador} · {describeInitiative(entry)}
                   {entry.rerolagemLiberada && ' · nova rolagem liberada'}
+                  {describeReaction(entry)}
                 </small>
               </div>
               {entry.iniciativa && <span className="combat-total">{entry.iniciativa.total}</span>}
-              {isMaster && inProgress && !entry.rerolagemLiberada && (
-                <button
-                  className="btn btn-ghost combat-reroll"
-                  disabled={!canSend}
-                  onClick={() => onAllowReroll([entry.id])}
-                >
-                  Liberar nova rolagem
-                </button>
+              {isMaster && (entry.oculto || (inProgress && !entry.rerolagemLiberada)) && (
+                <div className="combat-entry-actions">
+                  {entry.oculto && (
+                    <button className="btn btn-ghost combat-reroll" disabled={!canSend} onClick={() => onReveal([entry.id])}>
+                      Revelar
+                    </button>
+                  )}
+                  {inProgress && !entry.rerolagemLiberada && (
+                    <button
+                      className="btn btn-ghost combat-reroll"
+                      disabled={!canSend}
+                      onClick={() => onAllowReroll([entry.id])}
+                    >
+                      Liberar nova rolagem
+                    </button>
+                  )}
+                </div>
               )}
             </li>
           );
@@ -173,6 +205,15 @@ export default function CombatTracker({
           ))}
         </div>
       )}
+
+      <CombatReactionPanel
+        combat={combat}
+        viewerId={viewerId}
+        isMaster={isMaster}
+        canSend={canSend}
+        onReact={onReact}
+        onEndReaction={onEndReaction}
+      />
 
       <div className="combat-actions">
         <button

@@ -38,6 +38,7 @@ export default function CombatStartPanel({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [names, setNames] = useState<Record<string, string>>({});
+  const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const [combatName, setCombatName] = useState('');
   const [destination, setDestination] = useState(NEW_COMBAT);
   const [formError, setFormError] = useState<string | null>(null);
@@ -69,6 +70,7 @@ export default function CombatStartPanel({
         personagemId: Number(npc.id),
         quantidade: quantities[String(npc.id)] ?? 0,
         nome: names[String(npc.id)]?.trim() || undefined,
+        oculto: hidden[String(npc.id)] ?? false,
       }))
       .filter((group) => group.quantidade > 0);
     const playerIds = chosen.map((p) => Number(p.userId));
@@ -91,6 +93,7 @@ export default function CombatStartPanel({
     setSelected(new Set());
     setQuantities({});
     setNames({});
+    setHidden({});
   };
 
   return (
@@ -138,7 +141,7 @@ export default function CombatStartPanel({
           const unavailable = noCharacter || inCombat;
           const online = onlineUserIds.includes(String(p.userId));
           return (
-            <li key={p.userId} className="challenge-pick">
+            <li key={p.userId} className="challenge-pick combat-player-pick">
               <label>
                 <input
                   type="checkbox"
@@ -146,12 +149,18 @@ export default function CombatStartPanel({
                   checked={selected.has(p.userId) && !unavailable}
                   onChange={() => toggle(p.userId)}
                 />
-                <span className={`presence-dot ${online ? 'online' : ''}`} aria-hidden="true" />
-                {p.displayName}
-                <small className="muted">{online ? ' (online)' : ' (offline)'}</small>
+                <span className="combat-player-info">
+                  <strong className="combat-player-name">{p.displayName}</strong>
+                  <span className="combat-player-meta">
+                    <span className="combat-player-presence">
+                      <span className={`presence-dot ${online ? 'online' : ''}`} aria-hidden="true" />
+                      {online ? 'online' : 'offline'}
+                    </span>
+                    {noCharacter && <span className="combat-player-status">sem personagem</span>}
+                    {!noCharacter && inCombat && <span className="combat-player-status">em combate</span>}
+                  </span>
+                </span>
               </label>
-              {noCharacter && <small className="muted">sem personagem</small>}
-              {!noCharacter && inCombat && <small className="muted">em combate</small>}
             </li>
           );
         })}
@@ -169,7 +178,7 @@ export default function CombatStartPanel({
       {linkedNpcs.length > 0 && (
         <>
           <p className="muted">
-            Informe quantos de cada ficha entram e, se quiser, um nome para os monstros (vazio usa o nome da ficha). Cada um rola o próprio d20 e a ficha não é duplicada.
+            Informe quantos de cada ficha entram e, se quiser, um nome para os monstros (vazio usa o nome da ficha). Cada um rola o próprio d20 e a ficha não é duplicada. Monstros ocultos não aparecem para os jogadores até você revelar.
           </p>
           <ul className="challenge-pick-list">
             {linkedNpcs.map((npc) => {
@@ -197,6 +206,14 @@ export default function CombatStartPanel({
                     onChange={(next) => changeQuantity(characterId, next)}
                     onClear={() => changeQuantity(characterId, 0)}
                   />
+                  <label className="combat-hidden-toggle">
+                    <input
+                      type="checkbox"
+                      checked={hidden[characterId] ?? false}
+                      onChange={(e) => setHidden((prev) => ({ ...prev, [characterId]: e.target.checked }))}
+                    />
+                    Oculto
+                  </label>
                 </li>
               );
             })}

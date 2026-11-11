@@ -5,6 +5,7 @@ import com.arcana.backend.chat.dice.ModoRolagem;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,6 +44,8 @@ public class Desafio {
         private ModoRolagem modo;
         private EstadoDesafio estado = EstadoDesafio.AGUARDANDO_ROLAGEM;
         private final List<RolagemDeDesafio> rolagens = new ArrayList<>();
+        private final List<Ajuda> ajudas = new ArrayList<>();
+        private final Set<Long> autoresDaTentativa = new HashSet<>();
 
         Participacao(String id, TipoAlvo tipo, Long controladorId, Long personagemId, String nomeJogador,
                      String nomePersonagem, ModoRolagem modo) {
@@ -89,6 +92,10 @@ public class Desafio {
 
         public List<RolagemDeDesafio> getRolagens() {
             return List.copyOf(rolagens);
+        }
+
+        public List<Ajuda> getAjudas() {
+            return List.copyOf(ajudas);
         }
 
         public int proximaTentativa() {
@@ -168,6 +175,9 @@ public class Desafio {
     }
 
     public List<MensagemDeResultado> mensagensVisiveisPara(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
         if (criadorId.equals(userId)) {
             return List.copyOf(mensagens);
         }
@@ -214,6 +224,8 @@ public class Desafio {
             throw new IllegalStateException(switch (participacao.estado) {
                 case AGUARDANDO_DECISAO_DO_MESTRE -> "Aguarde "
                         + (doMestre ? "o mestre" : nomeDoCriador) + " decidir se haverá uma nova tentativa.";
+                case AGUARDANDO_CONFIRMACAO -> "Aguarde "
+                        + (doMestre ? "o mestre" : nomeDoCriador) + " confirmar o resultado.";
                 case CANCELADO -> "Este desafio foi cancelado.";
                 default -> "Este desafio já foi concluído.";
             });
@@ -224,13 +236,95 @@ public class Desafio {
         validarRolagem(alvoId);
         Participacao participacao = participacao(alvoId);
         participacao.rolagens.add(rolagem);
-        if (rolagem.sucesso()) {
+        participacao.estado = EstadoDesafio.AGUARDANDO_CONFIRMACAO;
+    }
+
+    public ModoRolagem modoEfetivo(String alvoId) {
+        Participacao participacao = participacao(alvoId);
+        return combinarModos(participacao.modo, participacao.ajudas);
+    }
+
+    static ModoRolagem combinarModos(ModoRolagem base, List<Ajuda> ajudas) {
+        boolean vantagem = base == ModoRolagem.VANTAGEM
+                || ajudas.stream().anyMatch(ajuda -> ajuda.tipo() == TipoAjuda.VANTAGEM);
+        boolean anulada = ajudas.stream().anyMatch(ajuda -> ajuda.tipo() == TipoAjuda.ANULAR_DESVANTAGEM);
+        boolean desvantagem = !anulada && (base == ModoRolagem.DESVANTAGEM
+                || ajudas.stream().anyMatch(ajuda -> ajuda.tipo() == TipoAjuda.DESVANTAGEM));
+        if (vantagem == desvantagem) {
+            return ModoRolagem.NORMAL;
+        }
+        return vantagem ? ModoRolagem.VANTAGEM : ModoRolagem.DESVANTAGEM;
+    }
+
+    boolean confirmar(String alvoId) {
+        Participacao participacao = participacao(alvoId);
+        if (participacao.estado != EstadoDesafio.AGUARDANDO_CONFIRMACAO) {
+            return false;
+        }
+        int ultima = participacao.rolagens.size() - 1;
+        RolagemDeDesafio confirmada = participacao.rolagens.get(ultima).confirmar(List.copyOf(participacao.ajudas), cd);
+        participacao.rolagens.set(ultima, confirmada);
+        participacao.ajudas.clear();
+        participacao.autoresDaTentativa.clear();
+        if (confirmada.sucesso()) {
             participacao.estado = EstadoDesafio.SUCESSO;
         } else if (participacao.rolagens.size() < TENTATIVAS_MAXIMAS) {
             participacao.estado = EstadoDesafio.AGUARDANDO_DECISAO_DO_MESTRE;
         } else {
             participacao.estado = EstadoDesafio.FALHA;
         }
+        return true;
+    }
+
+    boolean confirmarTodos() {
+        boolean algumConfirmado = false;
+        for (String alvoId : participacoes.keySet()) {
+            algumConfirmado |= confirmar(alvoId);
+        }
+        return algumConfirmado;
+    }
+
+    void validarAjuda(String alvoId, Long autorId, TipoAjuda tipo) {
+        Participacao participacao = participacao(alvoId);
+        if (participacao.controladorId.equals(autorId)) {
+            throw new IllegalArgumentException("Você não pode ajudar ou atrapalhar o próprio teste.");
+        }
+        if (participacao.estado == EstadoDesafio.AGUARDANDO_CONFIRMACAO) {
+            if (!tipo.ehDado()) {
+                throw new IllegalStateException(
+                        "Depois da rolagem só é possível somar um dado bônus ou um dado de penalidade.");
+            }
+        } else if (!participacao.estado.aguardandoRolagem()) {
+            throw new IllegalStateException("O teste de " + participacao.nomePersonagem
+                    + " não aceita ajudas ou atrapalhos agora.");
+        }
+        if (participacao.autoresDaTentativa.contains(autorId)) {
+            throw new IllegalStateException("Você já ajudou ou atrapalhou " + participacao.nomePersonagem
+                    + " nesta tentativa.");
+        }
+    }
+
+    void aplicarAjuda(String alvoId, Ajuda ajuda) {
+        validarAjuda(alvoId, ajuda.autorId(), ajuda.tipo());
+        Participacao participacao = participacao(alvoId);
+        participacao.ajudas.add(ajuda);
+        participacao.autoresDaTentativa.add(ajuda.autorId());
+    }
+
+    Ajuda ajuda(String alvoId, String ajudaId) {
+        return participacao(alvoId).ajudas.stream()
+                .filter(ajuda -> ajuda.id().equals(ajudaId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Esta ajuda não está mais no teste."));
+    }
+
+    void removerAjuda(String alvoId, String ajudaId) {
+        Participacao participacao = participacao(alvoId);
+        Ajuda ajuda = ajuda(alvoId, ajudaId);
+        if (participacao.estado == EstadoDesafio.AGUARDANDO_CONFIRMACAO && !ajuda.tipo().ehDado()) {
+            throw new IllegalStateException("A rolagem já foi feita com esta ajuda.");
+        }
+        participacao.ajudas.remove(ajuda);
     }
 
     void liberarTentativaExtra(String alvoId, ModoRolagem modo) {

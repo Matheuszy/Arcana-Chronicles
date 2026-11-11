@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class Combate {
 
@@ -17,6 +18,31 @@ public class Combate {
     public enum TipoEntrada {
         JOGADOR,
         MONSTRO
+    }
+
+    public enum TipoReacao {
+        ATAQUE_DE_OPORTUNIDADE("Ataque de oportunidade"),
+        OUTRA("Reação");
+
+        private final String rotulo;
+
+        TipoReacao(String rotulo) {
+            this.rotulo = rotulo;
+        }
+
+        public String getRotulo() {
+            return rotulo;
+        }
+    }
+
+    public record Reacao(TipoReacao tipo, String descricao) {
+
+        public String rotulo() {
+            if (descricao == null) {
+                return tipo.getRotulo();
+            }
+            return tipo == TipoReacao.OUTRA ? descricao : tipo.getRotulo() + ": " + descricao;
+        }
     }
 
     public static class Entrada {
@@ -33,6 +59,9 @@ public class Combate {
         private Iniciativa iniciativa;
         private boolean rerolagemLiberada;
         private boolean aguardandoFimDoTurno;
+        private boolean oculto;
+        private boolean reacaoUsada;
+        private Reacao reacaoAberta;
 
         Entrada(String id, TipoEntrada tipo, Long controladorId, Long personagemId, String grupo,
                 String nomeJogador, String nomePersonagem, int modificadorDestreza, int bonusIniciativa) {
@@ -93,6 +122,18 @@ public class Combate {
 
         public boolean isAguardandoFimDoTurno() {
             return aguardandoFimDoTurno;
+        }
+
+        public boolean isOculto() {
+            return oculto;
+        }
+
+        public boolean isReacaoUsada() {
+            return reacaoUsada;
+        }
+
+        public Reacao getReacaoAberta() {
+            return reacaoAberta;
         }
 
         public boolean aguardandoRolagem() {
@@ -164,6 +205,10 @@ public class Combate {
         return emAndamento() ? entradas.get(ordem.get(indiceDoTurno)).controladorId : null;
     }
 
+    public boolean turnoOculto() {
+        return emAndamento() && entradas.get(ordem.get(indiceDoTurno)).oculto;
+    }
+
     public List<Entrada> entradasEmOrdem() {
         if (!emAndamento()) {
             return List.copyOf(entradas.values());
@@ -205,7 +250,14 @@ public class Combate {
     }
 
     public boolean podeRolarLivremente(Long userId) {
-        return emAndamento() && userId != null && userId.equals(controladorDoTurno());
+        return emAndamento() && userId != null
+                && (userId.equals(controladorDoTurno()) || reacaoAbertaDe(userId).isPresent());
+    }
+
+    public Optional<Entrada> reacaoAbertaDe(Long userId) {
+        return entradas.values().stream()
+                .filter(entrada -> entrada.reacaoAberta != null && entrada.controladorId.equals(userId))
+                .findFirst();
     }
 
     void adicionarJogador(Long jogadorId, String nomeJogador, String nomePersonagem, int modificadorDestreza,
@@ -220,9 +272,63 @@ public class Combate {
 
     void adicionarMonstro(Long personagemId, String grupo, String nomeMonstro, String nomeMestre,
                           int modificadorDestreza, int bonusIniciativa) {
+        adicionarMonstro(personagemId, grupo, nomeMonstro, nomeMestre, modificadorDestreza, bonusIniciativa, false);
+    }
+
+    void adicionarMonstro(Long personagemId, String grupo, String nomeMonstro, String nomeMestre,
+                          int modificadorDestreza, int bonusIniciativa, boolean oculto) {
         String entradaId = PREFIXO_MONSTRO + (++monstrosAdicionados);
-        adicionar(new Entrada(entradaId, TipoEntrada.MONSTRO, mestreId, personagemId, grupo,
-                nomeMestre, nomeMonstro, modificadorDestreza, bonusIniciativa));
+        Entrada monstro = new Entrada(entradaId, TipoEntrada.MONSTRO, mestreId, personagemId, grupo,
+                nomeMestre, nomeMonstro, modificadorDestreza, bonusIniciativa);
+        monstro.oculto = oculto;
+        adicionar(monstro);
+    }
+
+    List<String> revelar(List<String> entradaIds) {
+        List<Entrada> escolhidas = entradaIds.stream().map(this::entrada).toList();
+        for (Entrada entrada : escolhidas) {
+            if (!entrada.oculto) {
+                throw new IllegalStateException(entrada.nomePersonagem + " já está visível para os jogadores.");
+            }
+        }
+        escolhidas.forEach(entrada -> entrada.oculto = false);
+        return escolhidas.stream().map(Entrada::getNomePersonagem).toList();
+    }
+
+    void declararReacao(String entradaId, Reacao reacao) {
+        Entrada entrada = consumirReacao(entradaId);
+        entrada.reacaoAberta = reacao;
+    }
+
+    void usarReacaoParaAjudar(String entradaId) {
+        consumirReacao(entradaId);
+    }
+
+    private Entrada consumirReacao(String entradaId) {
+        Entrada entrada = entrada(entradaId);
+        if (!emAndamento() || !ordem.contains(entradaId)) {
+            throw new IllegalStateException("A reação só pode ser usada depois de rolar a iniciativa.");
+        }
+        if (entrada.oculto) {
+            throw new IllegalStateException("Revele " + entrada.nomePersonagem + " antes de usar a reação.");
+        }
+        if (entradaId.equals(idDoTurno())) {
+            throw new IllegalStateException("A reação é usada fora do próprio turno.");
+        }
+        if (entrada.reacaoUsada) {
+            throw new IllegalStateException(entrada.nomePersonagem
+                    + " já usou a reação nesta rodada. Ela volta no início do próximo turno.");
+        }
+        entrada.reacaoUsada = true;
+        return entrada;
+    }
+
+    void encerrarReacao(String entradaId) {
+        Entrada entrada = entrada(entradaId);
+        if (entrada.reacaoAberta == null) {
+            throw new IllegalStateException("Não há reação aberta para encerrar.");
+        }
+        entrada.reacaoAberta = null;
     }
 
     private void adicionar(Entrada entrada) {
@@ -266,7 +372,11 @@ public class Combate {
             indiceDoTurno = 0;
             rodada++;
         }
-        entradas.values().forEach(entrada -> entrada.aguardandoFimDoTurno = false);
+        entradas.values().forEach(entrada -> {
+            entrada.aguardandoFimDoTurno = false;
+            entrada.reacaoAberta = null;
+        });
+        entradas.get(ordem.get(indiceDoTurno)).reacaoUsada = false;
     }
 
     void removerJogador(Long jogadorId) {
