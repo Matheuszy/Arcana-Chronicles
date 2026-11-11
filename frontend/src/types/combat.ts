@@ -23,6 +23,7 @@ export interface CombatEntry {
   nomePersonagem: string;
   aguardandoRolagem: boolean;
   rerolagemLiberada: boolean;
+  aguardandoFimDoTurno: boolean;
   iniciativa: Initiative | null;
 }
 
@@ -48,6 +49,12 @@ export interface CombatSummary {
   fase: CombatPhase;
   rodada: number;
   jogadores: string[];
+}
+
+export interface CombatArrival {
+  combateId: string;
+  combateNome: string;
+  nomes: string[];
 }
 
 export interface CombatsView {
@@ -95,6 +102,12 @@ export function combatOfPlayer(combats: Combat[], viewerId: string | null): Comb
       combat.participantes.some((entry) => entry.tipo === 'JOGADOR' && String(entry.controladorId) === viewerId),
     ) ?? null
   );
+}
+
+export function arrivalSentence(names: string[]): string {
+  if (names.length === 1) return `${names[0]} entrou na partida`;
+  const list = `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
+  return `${list} entraram na partida`;
 }
 
 export function pendingInitiatives(combat: Combat): number {

@@ -14,8 +14,11 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -52,9 +55,44 @@ public class CombateService {
                     ficha.modificadorBaseDeAtributo(Atributo.DESTREZA), ficha.bonusIniciativa());
         }
         for (GrupoDeMonstros grupo : gruposEscolhidos) {
-            adicionarGrupo(combate, mesa, mestre, grupo);
+            adicionarGrupo(combate, grupo, fichaDoGrupo(mesa, mestre, grupo));
         }
         return mesa.combate().iniciar(combate);
+    }
+
+    public AdicaoAoCombate adicionar(MesaAtiva mesa, AcessoMesaDto mestre, String combateId, List<Long> jogadorIds,
+                                     List<GrupoDeMonstros> grupos) {
+        exigirMestre(mestre);
+        exigirMesaEmAndamento(mesa);
+        List<Long> escolhidos = jogadorIds == null || jogadorIds.isEmpty() ? List.of() : validarJogadores(jogadorIds);
+        List<GrupoDeMonstros> gruposEscolhidos = validarGrupos(grupos);
+        if (escolhidos.isEmpty() && gruposEscolhidos.isEmpty()) {
+            throw new IllegalArgumentException("Escolha ao menos um jogador ou monstro para entrar no combate.");
+        }
+
+        List<FichaDeParticipante> fichasDosJogadores = escolhidos.stream()
+                .map(jogadorId -> mesaService.buscarFichaDoJogadorNaMesa(mesa.getMesaId(), jogadorId))
+                .toList();
+        Map<GrupoDeMonstros, FichaDeParticipante> fichasDosGrupos = new LinkedHashMap<>();
+        gruposEscolhidos.forEach(grupo -> fichasDosGrupos.put(grupo, fichaDoGrupo(mesa, mestre, grupo)));
+        Map<Long, String> jogadoresComPersonagem = new LinkedHashMap<>();
+        fichasDosJogadores.forEach(ficha -> jogadoresComPersonagem.put(ficha.jogadorId(), ficha.nomePersonagem()));
+
+        List<String> nomes = new ArrayList<>();
+        Combate combate = mesa.combate().adicionar(combateId, jogadoresComPersonagem, alvo -> {
+            Set<String> anteriores = new HashSet<>(alvo.entradasEmOrdem().stream().map(Combate.Entrada::getId).toList());
+            for (FichaDeParticipante ficha : fichasDosJogadores) {
+                alvo.adicionarJogador(ficha.jogadorId(), ficha.nomeJogador(), ficha.nomePersonagem(),
+                        ficha.modificadorBaseDeAtributo(Atributo.DESTREZA), ficha.bonusIniciativa());
+            }
+            fichasDosGrupos.forEach((grupo, ficha) -> adicionarGrupo(alvo, grupo, ficha));
+            alvo.entradasEmOrdem().stream()
+                    .filter(entrada -> !anteriores.contains(entrada.getId()))
+                    .map(Combate.Entrada::getNomePersonagem)
+                    .forEach(nomes::add);
+        });
+        return new AdicaoAoCombate(new EntradaNoCombateDto(combate.getId(), combate.getNome(), List.copyOf(nomes)),
+                Set.copyOf(jogadoresComPersonagem.keySet()));
     }
 
     public CombateDto rolarIniciativa(MesaAtiva mesa, AcessoMesaDto jogador, ModoRolagem modo) {
@@ -129,13 +167,17 @@ public class CombateService {
         return mesa.combate().podeRolarLivremente(userId);
     }
 
-    private void adicionarGrupo(Combate combate, MesaAtiva mesa, AcessoMesaDto mestre, GrupoDeMonstros grupo) {
-        FichaDeParticipante ficha = mesaService.buscarFichaDeNpcDaMesa(mesa.getMesaId(), grupo.personagemId(),
-                mestre.userId());
+    private FichaDeParticipante fichaDoGrupo(MesaAtiva mesa, AcessoMesaDto mestre, GrupoDeMonstros grupo) {
+        return mesaService.buscarFichaDeNpcDaMesa(mesa.getMesaId(), grupo.personagemId(), mestre.userId());
+    }
+
+    private void adicionarGrupo(Combate combate, GrupoDeMonstros grupo, FichaDeParticipante ficha) {
         int destreza = ficha.modificadorBaseDeAtributo(Atributo.DESTREZA);
         String nomeBase = grupo.nome() == null || grupo.nome().isBlank() ? ficha.nomePersonagem() : grupo.nome().trim();
+        long existentes = combate.monstrosDoGrupo(nomeBase);
         for (int numero = 1; numero <= grupo.quantidade(); numero++) {
-            String nome = grupo.quantidade() == 1 ? nomeBase : nomeBase + " " + numero;
+            boolean unico = existentes == 0 && grupo.quantidade() == 1;
+            String nome = unico ? nomeBase : nomeBase + " " + (existentes + numero);
             combate.adicionarMonstro(ficha.personagemId(), nomeBase, nome, ficha.nomeJogador(),
                     destreza, ficha.bonusIniciativa());
         }

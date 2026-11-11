@@ -10,7 +10,7 @@ import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes, KIND_LABEL } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
 import { ChallengeTarget, isActiveState } from '../../types/challenge';
-import { BLOCKED_ROLL_DURING_COMBAT, canRollFreely, combatOfPlayer, isMyTurn } from '../../types/combat';
+import { BLOCKED_ROLL_DURING_COMBAT, arrivalSentence, canRollFreely, combatOfPlayer, isMyTurn } from '../../types/combat';
 import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
 import Tabs, { panelId, tabId } from '../../components/ui/Tabs';
@@ -37,7 +37,7 @@ import JoinRequestsPanel from './JoinRequestsPanel';
 import ParticipantsPanel from './ParticipantsPanel';
 import InviteFriendsPanel from './InviteFriendsPanel';
 import PrivateSheetsPanel from './PrivateSheetsPanel';
-import TurnAlert from './TurnAlert';
+import CombatAlert, { CombatAlertKind } from './CombatAlert';
 import './TableRoom.css';
 import './Challenge.css';
 import './Combat.css';
@@ -179,7 +179,13 @@ export default function TableRoom() {
   } = useRoomResources((recipients) =>
     notify(`Trecho compartilhado com ${recipients}.`, 'success'),
   );
-  const { combats, summaries: combatSummaries, handleMessage: handleCombatMessage, reset: resetCombat } = useCombat();
+  const {
+    combats,
+    summaries: combatSummaries,
+    arrival: combatArrival,
+    handleMessage: handleCombatMessage,
+    reset: resetCombat,
+  } = useCombat();
   const myCombat = isMaster ? null : combatOfPlayer(combats, viewerId);
   const turnCombat = combats.find((c) => isMyTurn(c, viewerId)) ?? null;
   const rollBlockedByChallenge =
@@ -208,8 +214,10 @@ export default function TableRoom() {
   const turnCharacterName =
     turnCombat?.participantes.find((entry) => entry.id === turnCombat.turnoDe)?.nomePersonagem ?? '';
   const turnRound = turnCombat?.rodada ?? 0;
-  const [turnAlert, setTurnAlert] = useState<{ key: string; characterName: string; round: number } | null>(null);
-  const dismissTurnAlert = useCallback(() => setTurnAlert(null), []);
+  const [combatAlerts, setCombatAlerts] = useState<
+    { key: string; kind: CombatAlertKind; title: string; detail: string }[]
+  >([]);
+  const dismissCombatAlert = useCallback(() => setCombatAlerts((current) => current.slice(1)), []);
   const lastAnnouncedTurn = useRef<string | null>(null);
 
   useEffect(() => {
@@ -219,8 +227,28 @@ export default function TableRoom() {
       notify('É o seu turno!', 'success');
       return;
     }
-    setTurnAlert({ key: turnKey, characterName: turnCharacterName, round: turnRound });
+    setCombatAlerts((current) => [
+      ...current,
+      { key: `turno-${turnKey}`, kind: 'turn', title: 'Sua vez!', detail: `${turnCharacterName} · Rodada ${turnRound}` },
+    ]);
   }, [turnKey, isMaster, notify, turnCharacterName, turnRound]);
+
+  useEffect(() => {
+    if (!combatArrival) return;
+    setCombatAlerts((current) =>
+      current.some((alert) => alert.key === combatArrival.key)
+        ? current
+        : [
+            ...current,
+            {
+              key: combatArrival.key,
+              kind: 'arrival',
+              title: arrivalSentence(combatArrival.nomes),
+              detail: combatArrival.combateNome,
+            },
+          ],
+    );
+  }, [combatArrival]);
 
   const loadTable = useCallback(() => {
     if (!id) return;
@@ -748,6 +776,8 @@ export default function TableRoom() {
               )}
               canSend={canSend}
               onStart={chatService.startCombat.bind(chatService)}
+              onAdd={chatService.addToCombat.bind(chatService)}
+              activeCombats={combats.map((c) => ({ id: c.id, nome: c.nome }))}
               onManageLinks={() => setSideTab('FICHAS')}
             />
           </div>
@@ -986,12 +1016,13 @@ export default function TableRoom() {
         />
       )}
 
-      {turnAlert && (
-        <TurnAlert
-          key={turnAlert.key}
-          characterName={turnAlert.characterName}
-          round={turnAlert.round}
-          onClose={dismissTurnAlert}
+      {combatAlerts.length > 0 && (
+        <CombatAlert
+          key={combatAlerts[0].key}
+          kind={combatAlerts[0].kind}
+          title={combatAlerts[0].title}
+          detail={combatAlerts[0].detail}
+          onClose={dismissCombatAlert}
         />
       )}
 

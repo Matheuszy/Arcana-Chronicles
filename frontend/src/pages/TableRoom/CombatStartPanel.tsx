@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import NumberInput from '../../components/ui/NumberInput';
+import Select from '../../components/ui/Select';
 import { Character, KIND_LABEL } from '../../types/character';
 import { MAX_COMBAT_NAME_LENGTH, MAX_MONSTER_NAME_LENGTH, MAX_MONSTERS_PER_GROUP, MonsterGroup } from '../../types/combat';
 import { TableParticipant } from '../../types/table';
@@ -9,10 +10,14 @@ interface CombatStartPanelProps {
   npcs: Character[];
   onlineUserIds: string[];
   busyPlayerIds: string[];
+  activeCombats: { id: string; nome: string }[];
   canSend: boolean;
   onStart: (name: string, playerIds: number[], monsters: MonsterGroup[]) => void;
+  onAdd: (combatId: string, playerIds: number[], monsters: MonsterGroup[]) => void;
   onManageLinks: () => void;
 }
+
+const NEW_COMBAT = '';
 
 function clampQuantity(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -24,20 +29,25 @@ export default function CombatStartPanel({
   npcs,
   onlineUserIds,
   busyPlayerIds,
+  activeCombats,
   canSend,
   onStart,
+  onAdd,
   onManageLinks,
 }: CombatStartPanelProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [names, setNames] = useState<Record<string, string>>({});
   const [combatName, setCombatName] = useState('');
+  const [destination, setDestination] = useState(NEW_COMBAT);
   const [formError, setFormError] = useState<string | null>(null);
 
   const players = participants.filter((p) => p.role === 'JOGADOR');
   const busy = (userId: string) => busyPlayerIds.includes(String(userId));
   const eligible = players.filter((p) => p.characterId && !busy(p.userId));
   const linkedNpcs = npcs.filter((npc) => npc.id);
+  const target = activeCombats.some((combat) => combat.id === destination) ? destination : NEW_COMBAT;
+  const addingToCombat = target !== NEW_COMBAT;
 
   const toggle = (userId: string) =>
     setSelected((prev) => {
@@ -54,10 +64,6 @@ export default function CombatStartPanel({
 
   const start = () => {
     const chosen = eligible.filter((p) => selected.has(p.userId));
-    if (chosen.length === 0) {
-      setFormError('Selecione ao menos um jogador.');
-      return;
-    }
     const monsters = linkedNpcs
       .map((npc) => ({
         personagemId: Number(npc.id),
@@ -65,12 +71,22 @@ export default function CombatStartPanel({
         nome: names[String(npc.id)]?.trim() || undefined,
       }))
       .filter((group) => group.quantidade > 0);
-    setFormError(null);
-    onStart(
-      combatName.trim(),
-      chosen.map((p) => Number(p.userId)),
-      monsters,
-    );
+    const playerIds = chosen.map((p) => Number(p.userId));
+    if (addingToCombat) {
+      if (playerIds.length === 0 && monsters.length === 0) {
+        setFormError('Escolha ao menos um jogador ou monstro para entrar no combate.');
+        return;
+      }
+      setFormError(null);
+      onAdd(target, playerIds, monsters);
+    } else {
+      if (playerIds.length === 0) {
+        setFormError('Selecione ao menos um jogador.');
+        return;
+      }
+      setFormError(null);
+      onStart(combatName.trim(), playerIds, monsters);
+    }
     setCombatName('');
     setSelected(new Set());
     setQuantities({});
@@ -83,10 +99,26 @@ export default function CombatStartPanel({
 
       {busyPlayerIds.length > 0 && (
         <p className="muted">
-          Há combate em andamento, acompanhe acima do chat. Você pode iniciar outro combate com quem estiver livre.
+          Há combate em andamento, acompanhe acima do chat. Com quem estiver livre, você pode iniciar outro combate ou adicionar a um combate em andamento.
         </p>
       )}
-      <div className="field">
+      {activeCombats.length > 0 && (
+        <Select
+          label="Destino"
+          value={target}
+          onChange={setDestination}
+          options={[
+            { value: NEW_COMBAT, label: 'Novo combate' },
+            ...activeCombats.map((combat) => ({ value: combat.id, label: `Entrar em ${combat.nome}` })),
+          ]}
+        />
+      )}
+      {addingToCombat && (
+        <p className="muted">
+          Quem entrar rola a iniciativa ao fim do turno atual e é encaixado na ordem sem travar o combate.
+        </p>
+      )}
+      <div className="field" hidden={addingToCombat}>
         <label htmlFor="combat-name">Nome do combate</label>
         <input
           id="combat-name"
@@ -178,7 +210,7 @@ export default function CombatStartPanel({
           Selecionar todos
         </button>
         <button className="btn btn-primary" disabled={!canSend} onClick={start}>
-          Iniciar combate
+          {addingToCombat ? 'Adicionar ao combate' : 'Iniciar combate'}
         </button>
       </div>
     </div>

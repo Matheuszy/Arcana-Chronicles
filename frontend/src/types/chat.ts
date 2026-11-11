@@ -1,5 +1,5 @@
 import type { Challenge, ChallengeCommand } from './challenge';
-import type { CombatCommand, CombatsView } from './combat';
+import type { CombatArrival, CombatCommand, CombatsView } from './combat';
 import type { RoomCommand, SharedItem, StatusSnapshot } from './room';
 
 export type ChatMessageType =
@@ -42,7 +42,9 @@ export type ChatMessageType =
   | 'COMBATE_ROLAR_MONSTROS'
   | 'COMBATE_LIBERAR_REROLL'
   | 'COMBATE_PASSAR_TURNO'
-  | 'COMBATE_ENCERRAR';
+  | 'COMBATE_ENCERRAR'
+  | 'COMBATE_ADICIONAR'
+  | 'COMBATE_ENTRADA';
 
 export type Channel = 'CONVERSA' | 'ROLAGENS' | 'IMAGENS';
 
@@ -122,6 +124,7 @@ export interface ChatMessage {
   status?: StatusSnapshot | null;
   itens?: SharedItem[] | null;
   combates?: CombatsView | null;
+  entradaNoCombate?: CombatArrival | null;
   comandoCombate?: CombatCommand | null;
 }
 

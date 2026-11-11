@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -166,5 +167,28 @@ class CombateDaMesaTest {
 
         assertEquals("b", alterado.id());
         assertThrows(IllegalStateException.class, () -> daMesa.alterarDoJogador(99L, combate -> {}));
+    }
+
+    @Test
+    void deveRecusarAdicionarJogadorQueEstaEmOutroCombate() {
+        daMesa.iniciar(combate("a", 20L));
+        daMesa.iniciar(combate("b", 30L));
+
+        IllegalStateException erro = assertThrows(IllegalStateException.class,
+                () -> daMesa.adicionar("b", Map.of(20L, "Lyra"), combate -> combate.adicionarJogador(
+                        20L, "Aria", "Lyra", 0, 0)));
+
+        assertEquals("Lyra já está em outro combate.", erro.getMessage());
+        assertEquals(1, daMesa.visaoDo(MESTRE, true).completos().get(1).participantes().size());
+    }
+
+    @Test
+    void deveRecusarAdicionarJogadorQueJaEstaNoMesmoCombate() {
+        daMesa.iniciar(combate("a", 20L));
+
+        IllegalStateException erro = assertThrows(IllegalStateException.class,
+                () -> daMesa.adicionar("a", Map.of(20L, "Lyra"), combate -> {}));
+
+        assertEquals("Lyra já está neste combate.", erro.getMessage());
     }
 }

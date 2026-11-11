@@ -34,6 +34,17 @@ public class CombateDaMesa {
         return CombateDto.de(combate);
     }
 
+    public synchronized Combate adicionar(String combateId, Map<Long, String> jogadoresComPersonagem,
+                                          Consumer<Combate> adicao) {
+        Combate combate = escolher(combateId);
+        jogadoresComPersonagem.forEach((jogadorId, personagem) -> doJogador(jogadorId).ifPresent(atual -> {
+            String onde = atual == combate ? "neste combate" : "em outro combate";
+            throw new IllegalStateException(personagem + " já está " + onde + ".");
+        }));
+        adicao.accept(combate);
+        return combate;
+    }
+
     public synchronized CombateDto alterarDoJogador(Long jogadorId, Consumer<Combate> alteracao) {
         Combate combate = doJogador(jogadorId)
                 .orElseThrow(() -> new IllegalStateException("Este jogador não participa do combate."));
