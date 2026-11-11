@@ -18,6 +18,7 @@ import com.arcana.backend.table.FichaDeParticipante;
 import com.arcana.backend.table.model.StatusMesa;
 import com.arcana.backend.table.service.MesaService;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -86,6 +87,7 @@ class CombateDesafioChatTest {
 
         when(mesaService.buscarFichaDoJogadorNaMesa(1L, ARIA.userId())).thenReturn(ficha(ARIA, "Lyra", 14, 0));
         when(mesaService.buscarFichaDoJogadorNaMesa(1L, BROM.userId())).thenReturn(ficha(BROM, "Thorn", 16, 0));
+        when(mesaService.buscarFichaDoJogadorNaMesa(1L, CAEL.userId())).thenReturn(ficha(CAEL, "Mira", 12, 0));
 
         when(mesaService.buscarFichaDeNpcDaMesa(1L, 500L, MESTRE.userId())).thenReturn(fichaDeMonstro());
 
@@ -155,7 +157,8 @@ class CombateDesafioChatTest {
 
     private JsonNode ultimoCombate(WebSocketSession sessao) throws Exception {
         List<JsonNode> eventos = recebidas(sessao, "COMBATE");
-        return eventos.get(eventos.size() - 1).get("combate");
+        JsonNode completos = eventos.get(eventos.size() - 1).get("combates").get("completos");
+        return completos.isEmpty() ? NullNode.getInstance() : completos.get(0);
     }
 
     private String ultimoAviso(WebSocketSession sessao) throws Exception {
@@ -369,6 +372,35 @@ class CombateDesafioChatTest {
                 {"type":"DESAFIO_ROLAR","comandoDesafio":{"atributo":"destreza"}}
                 """);
         assertEquals("Você não tem um desafio em andamento.", ultimoAviso(sessaoBrom));
+    }
+
+    @Test
+    void deveCancelarSoOsDesafiosDoCombateEncerradoMantendoOsDoOutroCombate() throws Exception {
+        iniciarComAriaNoPrimeiroTurno();
+        String combateDaAria = ultimoCombate(sessaoAria).get("id").asText();
+        desafiar(sessaoAria, "[{\"alvoId\":\"30\"}]");
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[40],"monstros":[{"personagemId":500,"quantidade":1}]}}
+                """);
+        String combateDoCael = ultimoCombate(sessaoCael).get("id").asText();
+        faces.add(19);
+        rolarIniciativa(sessaoCael);
+        faces.add(2);
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_ROLAR_MONSTROS","comandoCombate":{"combateId":"%s"}}
+                """.formatted(combateDoCael));
+        desafiar(sessaoCael, "[{\"alvoId\":\"monstro-1\"}]");
+        assertTrue(ultimoDesafio(sessaoCael).get("doCombate").asBoolean());
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_ENCERRAR","comandoCombate":{"combateId":"%s"}}
+                """.formatted(combateDaAria));
+
+        assertEquals("CANCELADO", alvo(ultimoDesafio(sessaoBrom), "30").get("estado").asText());
+        JsonNode doCael = ultimoDesafio(sessaoCael);
+        assertTrue(doCael.get("ativo").asBoolean());
+        assertEquals("AGUARDANDO_ROLAGEM", alvo(doCael, "monstro-1").get("estado").asText());
     }
 
     @Test

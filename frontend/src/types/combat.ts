@@ -28,6 +28,7 @@ export interface CombatEntry {
 
 export interface Combat {
   id: string;
+  nome: string;
   fase: CombatPhase;
   rodada: number;
   turnoDe: string | null;
@@ -41,7 +42,22 @@ export interface MonsterGroup {
   nome?: string;
 }
 
+export interface CombatSummary {
+  id: string;
+  nome: string;
+  fase: CombatPhase;
+  rodada: number;
+  jogadores: string[];
+}
+
+export interface CombatsView {
+  completos: Combat[];
+  resumos: CombatSummary[];
+}
+
 export interface CombatCommand {
+  combateId?: string;
+  nome?: string;
   jogadores?: number[];
   monstros?: MonsterGroup[];
   entradas?: string[];
@@ -50,6 +66,7 @@ export interface CombatCommand {
 
 export const MAX_MONSTERS_PER_GROUP = 20;
 export const MAX_MONSTER_NAME_LENGTH = 60;
+export const MAX_COMBAT_NAME_LENGTH = 60;
 
 export const BLOCKED_ROLL_DURING_COMBAT =
   'Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.';
@@ -61,4 +78,30 @@ export function isMyTurn(combat: Combat | null, viewerId: string | null): boolea
     combat.controladorDoTurno !== null &&
     String(combat.controladorDoTurno) === viewerId
   );
+}
+
+export function controlsAnyEntry(combat: Combat, viewerId: string | null): boolean {
+  return combat.participantes.some((entry) => String(entry.controladorId) === viewerId);
+}
+
+export function canRollFreely(combats: Combat[], viewerId: string | null): boolean {
+  const involved = combats.filter((combat) => controlsAnyEntry(combat, viewerId));
+  return involved.length === 0 || involved.some((combat) => isMyTurn(combat, viewerId));
+}
+
+export function combatOfPlayer(combats: Combat[], viewerId: string | null): Combat | null {
+  return (
+    combats.find((combat) =>
+      combat.participantes.some((entry) => entry.tipo === 'JOGADOR' && String(entry.controladorId) === viewerId),
+    ) ?? null
+  );
+}
+
+export function pendingInitiatives(combat: Combat): number {
+  return combat.participantes.filter((entry) => entry.aguardandoRolagem).length;
+}
+
+export function currentTurnName(combat: Combat): string | null {
+  if (combat.fase !== 'EM_ANDAMENTO') return null;
+  return combat.participantes.find((entry) => entry.id === combat.turnoDe)?.nomePersonagem ?? null;
 }

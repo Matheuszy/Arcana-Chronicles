@@ -150,7 +150,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         imagens.forEach(imagem -> enviarParaSessao(session, imagem));
         desafioChat.sincronizar(mesa, sessaoSegura, acesso.userId());
         salaChat.sincronizar(mesa, sessaoSegura, acesso);
-        combateChat.sincronizar(mesa, sessaoSegura);
+        combateChat.sincronizar(mesa, sessaoSegura, acesso);
 
         broadcast(mesa, presenca(mesa, tableId), sessaoSegura);
     }
@@ -322,7 +322,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         message.setDesafios(null);
         message.setStatus(null);
         message.setItens(null);
-        message.setCombate(null);
+        message.setCombates(null);
 
         if (message.getType() == ChatMessage.Type.SESSAO_ENCERRAR) {
             encerrarSessaoPeloMestre(session, acesso);
@@ -466,9 +466,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
     }
 
     private void cancelarDesafiosSeCombateAcabou(MesaAtiva mesa) {
-        if (!combateChat.ativo(mesa)) {
-            desafioChat.aoCombateEncerrado(mesa);
-        }
+        desafioChat.aoCombatesEncerrados(mesa, combateChat.combatesAtivos(mesa));
     }
 
     private String validarTexto(String conteudo) {

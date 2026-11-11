@@ -189,28 +189,28 @@ class ChatService {
     });
   }
 
-  startCombat(playerIds: number[], monsters: MonsterGroup[]): void {
-    this.sendCombatCommand('COMBATE_INICIAR', { jogadores: playerIds, monstros: monsters });
+  startCombat(name: string, playerIds: number[], monsters: MonsterGroup[]): void {
+    this.sendCombatCommand('COMBATE_INICIAR', { nome: name, jogadores: playerIds, monstros: monsters });
   }
 
   rollInitiative(mode: RollMode): void {
     this.sendCombatCommand('COMBATE_ROLAR', { modo: mode });
   }
 
-  rollMonsterInitiative(entryIds: string[], mode: RollMode): void {
-    this.sendCombatCommand('COMBATE_ROLAR_MONSTROS', { entradas: entryIds, modo: mode });
+  rollMonsterInitiative(combatId: string, entryIds: string[], mode: RollMode): void {
+    this.sendCombatCommand('COMBATE_ROLAR_MONSTROS', { combateId: combatId, entradas: entryIds, modo: mode });
   }
 
-  allowInitiativeReroll(entryIds: string[]): void {
-    this.sendCombatCommand('COMBATE_LIBERAR_REROLL', { entradas: entryIds });
+  allowInitiativeReroll(combatId: string, entryIds: string[]): void {
+    this.sendCombatCommand('COMBATE_LIBERAR_REROLL', { combateId: combatId, entradas: entryIds });
   }
 
-  passTurn(): void {
-    this.sendCombatCommand('COMBATE_PASSAR_TURNO', {});
+  passTurn(combatId: string): void {
+    this.sendCombatCommand('COMBATE_PASSAR_TURNO', { combateId: combatId });
   }
 
-  endCombat(): void {
-    this.sendCombatCommand('COMBATE_ENCERRAR', {});
+  endCombat(combatId: string): void {
+    this.sendCombatCommand('COMBATE_ENCERRAR', { combateId: combatId });
   }
 
   saveNote(text: string): void {

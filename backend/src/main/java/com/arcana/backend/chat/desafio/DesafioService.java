@@ -48,8 +48,8 @@ public class DesafioService {
             throw new AccessDeniedException("Apenas o mestre pode administrar desafios.");
         }
         boolean ehMestre = "MESTRE".equals(criador.role());
-        CombateDto combate = mesa.combate().estado().orElse(null);
-        boolean doCombate = !ehMestre && combate != null;
+        CombateDto combate = ehMestre ? null : mesa.combate().estadoDoJogador(criador.userId()).orElse(null);
+        boolean doCombate = combate != null;
         if (doCombate) {
             exigirJogadorNoTurnoDoCombate(combate, criador);
         }
@@ -62,7 +62,7 @@ public class DesafioService {
         List<NovoDesafio.Convocacao> convocacoes = validarConvocacoes(pedido.jogadores());
 
         Desafio desafio = new Desafio(UUID.randomUUID().toString(), criador.userId(), criador.displayName(),
-                ehMestre, doCombate, cd, descricao, clock.instant());
+                ehMestre, doCombate ? combate.id() : null, cd, descricao, clock.instant());
         if (doCombate) {
             convocarParticipantesDoCombate(desafio, combate, criador, convocacoes);
         } else {
@@ -185,8 +185,8 @@ public class DesafioService {
         return mesa.desafios().cancelarDoJogador(jogadorId);
     }
 
-    public List<DesafioDto> cancelarDoCombate(MesaAtiva mesa) {
-        return mesa.desafios().cancelarDoCombate();
+    public List<DesafioDto> cancelarDeCombatesEncerrados(MesaAtiva mesa, Set<String> combatesAtivos) {
+        return mesa.desafios().cancelarDeCombatesEncerrados(combatesAtivos);
     }
 
     public List<DesafioDto> cancelarPorAusenciaDoMestre(MesaAtiva mesa) {

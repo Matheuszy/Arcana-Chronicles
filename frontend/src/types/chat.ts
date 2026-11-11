@@ -1,5 +1,5 @@
 import type { Challenge, ChallengeCommand } from './challenge';
-import type { Combat, CombatCommand } from './combat';
+import type { CombatCommand, CombatsView } from './combat';
 import type { RoomCommand, SharedItem, StatusSnapshot } from './room';
 
 export type ChatMessageType =
@@ -121,7 +121,7 @@ export interface ChatMessage {
   comandoSala?: RoomCommand | null;
   status?: StatusSnapshot | null;
   itens?: SharedItem[] | null;
-  combate?: Combat | null;
+  combates?: CombatsView | null;
   comandoCombate?: CombatCommand | null;
 }
 

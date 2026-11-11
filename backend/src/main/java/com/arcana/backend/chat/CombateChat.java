@@ -14,7 +14,7 @@ import org.springframework.web.socket.WebSocketSession;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.EnumSet;
-import java.util.Objects;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -39,54 +39,55 @@ public class CombateChat {
 
     public void executar(MesaAtiva mesa, AcessoMesaDto acesso, ChatMessage mensagem) {
         ComandoCombate comando = mensagem.getComandoCombate() == null
-                ? new ComandoCombate(null, null, null, null)
+                ? new ComandoCombate(null, null, null, null, null, null)
                 : mensagem.getComandoCombate();
-        CombateDto antes = combateService.estado(mesa).orElse(null);
+        List<CombateDto> antes = combateService.estados(mesa);
 
         switch (mensagem.getType()) {
-            case COMBATE_INICIAR -> combateService.iniciar(mesa, acesso, comando.jogadores(),
+            case COMBATE_INICIAR -> combateService.iniciar(mesa, acesso, comando.nome(), comando.jogadores(),
                     comando.monstros());
             case COMBATE_ROLAR -> combateService.rolarIniciativa(mesa, acesso, comando.modo());
             case COMBATE_ROLAR_MONSTROS -> combateService.rolarIniciativaDosMonstros(mesa, acesso,
-                    comando.entradas(), comando.modo());
-            case COMBATE_LIBERAR_REROLL -> combateService.liberarRerolagem(mesa, acesso, comando.entradas());
-            case COMBATE_PASSAR_TURNO -> combateService.passarTurno(mesa, acesso);
-            case COMBATE_ENCERRAR -> combateService.encerrar(mesa, acesso);
+                    comando.combateId(), comando.entradas(), comando.modo());
+            case COMBATE_LIBERAR_REROLL -> combateService.liberarRerolagem(mesa, acesso, comando.combateId(),
+                    comando.entradas());
+            case COMBATE_PASSAR_TURNO -> combateService.passarTurno(mesa, acesso, comando.combateId());
+            case COMBATE_ENCERRAR -> combateService.encerrar(mesa, acesso, comando.combateId());
             default -> throw new IllegalArgumentException("Comando de combate desconhecido.");
         }
 
         publicar(mesa, antes);
     }
 
-    public void sincronizar(MesaAtiva mesa, WebSocketSession sessao) {
-        enviar(sessao, eventoDoCombate(mesa, combateService.estado(mesa).orElse(null)));
+    public void sincronizar(MesaAtiva mesa, WebSocketSession sessao, AcessoMesaDto acesso) {
+        enviar(sessao, eventoDosCombates(mesa, acesso));
     }
 
     public void aoJogadorSair(MesaAtiva mesa, Long jogadorId) {
-        CombateDto antes = combateService.estado(mesa).orElse(null);
+        List<CombateDto> antes = combateService.estados(mesa);
         combateService.aoJogadorSair(mesa, jogadorId);
         publicar(mesa, antes);
     }
 
-    public boolean ativo(MesaAtiva mesa) {
-        return combateService.estado(mesa).isPresent();
+    public Set<String> combatesAtivos(MesaAtiva mesa) {
+        return combateService.combatesAtivos(mesa);
     }
 
     public boolean podeRolarLivremente(MesaAtiva mesa, Long userId) {
         return combateService.podeRolarLivremente(mesa, userId);
     }
 
-    private void publicar(MesaAtiva mesa, CombateDto antes) {
-        CombateDto depois = combateService.estado(mesa).orElse(null);
-        if (Objects.equals(antes, depois)) return;
+    private void publicar(MesaAtiva mesa, List<CombateDto> antes) {
+        if (antes.equals(combateService.estados(mesa))) return;
 
-        ChatMessage evento = eventoDoCombate(mesa, depois);
-        mesa.sessoes().forEach(sessao -> enviar(sessao, evento));
+        for (MesaAtiva.Conexao conexao : mesa.conexoes()) {
+            enviar(conexao.sessao(), eventoDosCombates(mesa, conexao.acesso()));
+        }
     }
 
-    private ChatMessage eventoDoCombate(MesaAtiva mesa, CombateDto combate) {
+    private ChatMessage eventoDosCombates(MesaAtiva mesa, AcessoMesaDto acesso) {
         ChatMessage evento = novoEvento(mesa, ChatMessage.Type.COMBATE);
-        evento.setCombate(combate);
+        evento.setCombates(combateService.visaoDo(mesa, acesso));
         return evento;
     }
 

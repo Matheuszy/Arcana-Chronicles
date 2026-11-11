@@ -7,6 +7,8 @@ import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ComandoCombate(
+        String combateId,
+        String nome,
         List<Long> jogadores,
         List<GrupoDeMonstros> monstros,
         List<String> entradas,

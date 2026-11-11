@@ -1,7 +1,7 @@
 package com.arcana.backend.chat.model;
 
 import com.arcana.backend.chat.combate.ComandoCombate;
-import com.arcana.backend.chat.combate.CombateDto;
+import com.arcana.backend.chat.combate.CombatesDaMesaDto;
 import com.arcana.backend.chat.desafio.ComandoDesafio;
 import com.arcana.backend.chat.desafio.DesafioDto;
 import com.arcana.backend.chat.dice.PedidoRolagem;
@@ -50,7 +50,7 @@ public class ChatMessage {
     private StatusDto status;
     private List<ItemDto> itens;
     private ComandoCombate comandoCombate;
-    private CombateDto combate;
+    private CombatesDaMesaDto combates;
 
     // ── DiceRollResult aninhado ───────────────────────────────────────────────
 
@@ -144,6 +144,6 @@ public class ChatMessage {
     public void setItens(List<ItemDto> itens) { this.itens = itens; }
     public ComandoCombate getComandoCombate() { return comandoCombate; }
     public void setComandoCombate(ComandoCombate comandoCombate) { this.comandoCombate = comandoCombate; }
-    public CombateDto getCombate() { return combate; }
-    public void setCombate(CombateDto combate) { this.combate = combate; }
+    public CombatesDaMesaDto getCombates() { return combates; }
+    public void setCombates(CombatesDaMesaDto combates) { this.combates = combates; }
 }

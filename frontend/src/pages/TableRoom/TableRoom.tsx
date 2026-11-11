@@ -10,7 +10,7 @@ import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes, KIND_LABEL } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
 import { ChallengeTarget, isActiveState } from '../../types/challenge';
-import { BLOCKED_ROLL_DURING_COMBAT, isMyTurn } from '../../types/combat';
+import { BLOCKED_ROLL_DURING_COMBAT, canRollFreely, combatOfPlayer, isMyTurn } from '../../types/combat';
 import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
 import Tabs, { panelId, tabId } from '../../components/ui/Tabs';
@@ -21,7 +21,7 @@ import ChallengeMonsterRolls from './ChallengeMonsterRolls';
 import ChallengeRollOverlay from './ChallengeRollOverlay';
 import ChallengeMessageDialog from './ChallengeMessageDialog';
 import CombatStartPanel from './CombatStartPanel';
-import CombatTracker from './CombatTracker';
+import CombatBoard from './CombatBoard';
 import DiceRoller from './DiceRoller';
 import DiceRollMessage from './DiceRollMessage';
 import { useChallenges } from './useChallenges';
@@ -179,19 +179,21 @@ export default function TableRoom() {
   } = useRoomResources((recipients) =>
     notify(`Trecho compartilhado com ${recipients}.`, 'success'),
   );
-  const { combat, handleMessage: handleCombatMessage, reset: resetCombat } = useCombat();
+  const { combats, summaries: combatSummaries, handleMessage: handleCombatMessage, reset: resetCombat } = useCombat();
+  const myCombat = isMaster ? null : combatOfPlayer(combats, viewerId);
+  const turnCombat = combats.find((c) => isMyTurn(c, viewerId)) ?? null;
   const rollBlockedByChallenge =
     !isMaster &&
     challenges.some((c) =>
       c.jogadores.some((p) => p.tipo === 'JOGADOR' && String(p.jogadorId) === viewerId && isActiveState(p.estado)),
     );
-  const rollBlockedByCombat = combat !== null && !isMyTurn(combat, viewerId);
+  const rollBlockedByCombat = !canRollFreely(combats, viewerId);
   const rollBlocked = rollBlockedByChallenge || rollBlockedByCombat;
   const rollBlockedReason = rollBlockedByChallenge
     ? 'Você tem um desafio em andamento. A única rolagem permitida é a do desafio.'
     : BLOCKED_ROLL_DURING_COMBAT;
   const sideTabs = isMaster ? SIDE_TABS : SIDE_TABS.filter((tab) => tab !== 'COMBATE');
-  const turnKey = combat && isMyTurn(combat, viewerId) ? `${combat.id}-${combat.rodada}` : null;
+  const turnKey = turnCombat ? `${turnCombat.id}-${turnCombat.rodada}` : null;
 
   const activeChallengeCount = challenges.filter((c) => c.jogadores.some((p) => isActiveState(p.estado))).length;
   const previousChallengeCount = useRef(0);
@@ -203,8 +205,9 @@ export default function TableRoom() {
     previousChallengeCount.current = activeChallengeCount;
   }, [activeChallengeCount, isMaster]);
 
-  const turnCharacterName = combat?.participantes.find((entry) => entry.id === combat.turnoDe)?.nomePersonagem ?? '';
-  const turnRound = combat?.rodada ?? 0;
+  const turnCharacterName =
+    turnCombat?.participantes.find((entry) => entry.id === turnCombat.turnoDe)?.nomePersonagem ?? '';
+  const turnRound = turnCombat?.rodada ?? 0;
   const [turnAlert, setTurnAlert] = useState<{ key: string; characterName: string; round: number } | null>(null);
   const dismissTurnAlert = useCallback(() => setTurnAlert(null), []);
   const lastAnnouncedTurn = useRef<string | null>(null);
@@ -531,7 +534,7 @@ export default function TableRoom() {
         disabledReason: p.characterId ? undefined : 'sem personagem',
       };
     });
-  const combatChallengeTargets: ChallengeTarget[] = (combat?.participantes ?? [])
+  const combatChallengeTargets: ChallengeTarget[] = (myCombat?.participantes ?? [])
     .filter((entry) => !(entry.tipo === 'JOGADOR' && String(entry.controladorId) === viewerId))
     .map((entry) => ({
       id: entry.id,
@@ -544,11 +547,11 @@ export default function TableRoom() {
   );
   const myCreatedChallenges =challenges.filter((c) => String(c.criadorId) === viewerId);
   const playerChallengeTargets =
-    combat === null
+    myCombat === null
       ? masterChallengeTargets.filter((target) => target.id !== viewerId)
       : combatChallengeTargets;
   const playerChallengeHint =
-    combat !== null && !isMyTurn(combat, viewerId) ? 'Durante o combate, você só pode desafiar no seu turno.' : undefined;
+    myCombat !== null && !isMyTurn(myCombat, viewerId) ? 'Durante o combate, você só pode desafiar no seu turno.' : undefined;
 
   return (
     <section className="room">
@@ -709,7 +712,7 @@ export default function TableRoom() {
             challenges={myCreatedChallenges}
             targets={playerChallengeTargets}
             viewerId={viewerId}
-            title={combat !== null ? 'Meus desafios de combate' : 'Meus desafios'}
+            title={myCombat !== null ? 'Meus desafios de combate' : 'Meus desafios'}
             createHint={playerChallengeHint}
             canSend={canSend}
             connected={connected}
@@ -740,7 +743,9 @@ export default function TableRoom() {
               participants={table.participants}
               npcs={characters.filter((c) => c.kind !== 'PLAYER' && table.npcIds.map(String).includes(String(c.id)))}
               onlineUserIds={onlineUsers.map((u) => String(u.userId))}
-              combatActive={combat !== null}
+              busyPlayerIds={combats.flatMap((c) =>
+                c.participantes.filter((entry) => entry.tipo === 'JOGADOR').map((entry) => String(entry.controladorId)),
+              )}
               canSend={canSend}
               onStart={chatService.startCombat.bind(chatService)}
               onManageLinks={() => setSideTab('FICHAS')}
@@ -808,19 +813,18 @@ export default function TableRoom() {
             A mesa está pausada pelo mestre. Mensagens e rolagens ficam bloqueadas até ela ser retomada.
           </div>
         )}
-        {combat && (
-          <CombatTracker
-            combat={combat}
-            viewerId={viewerId}
-            isMaster={isMaster}
-            canSend={canSend}
-            onRollInitiative={chatService.rollInitiative.bind(chatService)}
-            onRollMonsters={chatService.rollMonsterInitiative.bind(chatService)}
-            onPassTurn={chatService.passTurn.bind(chatService)}
-            onAllowReroll={chatService.allowInitiativeReroll.bind(chatService)}
-            onEnd={chatService.endCombat.bind(chatService)}
-          />
-        )}
+        <CombatBoard
+          combats={combats}
+          summaries={combatSummaries}
+          viewerId={viewerId}
+          isMaster={isMaster}
+          canSend={canSend}
+          onRollInitiative={chatService.rollInitiative.bind(chatService)}
+          onRollMonsters={chatService.rollMonsterInitiative.bind(chatService)}
+          onPassTurn={chatService.passTurn.bind(chatService)}
+          onAllowReroll={chatService.allowInitiativeReroll.bind(chatService)}
+          onEnd={chatService.endCombat.bind(chatService)}
+        />
         <Tabs
           label="Canais da mesa"
           idPrefix={TABS_ID}

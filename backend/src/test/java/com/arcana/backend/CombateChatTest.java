@@ -18,6 +18,7 @@ import com.arcana.backend.table.FichaDeParticipante;
 import com.arcana.backend.table.model.StatusMesa;
 import com.arcana.backend.table.service.MesaService;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -86,6 +87,7 @@ class CombateChatTest {
 
         when(mesaService.buscarFichaDoJogadorNaMesa(1L, ARIA.userId())).thenReturn(ficha(ARIA, "Lyra", 14, 3));
         when(mesaService.buscarFichaDoJogadorNaMesa(1L, BROM.userId())).thenReturn(ficha(BROM, "Thorn", 16, 0));
+        when(mesaService.buscarFichaDoJogadorNaMesa(1L, CAEL.userId())).thenReturn(ficha(CAEL, "Mira", 12, 0));
 
         when(mesaService.buscarFichaDeNpcDaMesa(1L, 500L, MESTRE.userId())).thenReturn(fichaDeMonstro());
 
@@ -153,9 +155,20 @@ class CombateChatTest {
                 .toList();
     }
 
+    private JsonNode ultimosResumos(WebSocketSession sessao) throws Exception {
+        List<JsonNode> eventos = recebidas(sessao, "COMBATE");
+        return eventos.get(eventos.size() - 1).get("combates").get("resumos");
+    }
+
+    private JsonNode combatesDoMestre() throws Exception {
+        List<JsonNode> eventos = recebidas(sessaoMestre, "COMBATE");
+        return eventos.get(eventos.size() - 1).get("combates").get("completos");
+    }
+
     private JsonNode ultimoCombate(WebSocketSession sessao) throws Exception {
         List<JsonNode> eventos = recebidas(sessao, "COMBATE");
-        return eventos.get(eventos.size() - 1).get("combate");
+        JsonNode completos = eventos.get(eventos.size() - 1).get("combates").get("completos");
+        return completos.isEmpty() ? NullNode.getInstance() : completos.get(0);
     }
 
     private String ultimoAviso(WebSocketSession sessao) throws Exception {
@@ -194,16 +207,23 @@ class CombateChatTest {
     }
 
     @Test
-    void deveIniciarCombateMostrandoOPainelATodosSemAvisoNoChat() throws Exception {
+    void deveIniciarCombateMostrandoOPainelAosEnvolvidosEOResumoAosDemaisSemAvisoNoChat() throws Exception {
         iniciarCombateComAriaEBrom();
 
-        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom, sessaoCael)) {
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom)) {
             JsonNode combate = ultimoCombate(sessao);
+            assertEquals("Combate 1", combate.get("nome").asText());
             assertEquals("INICIATIVA", combate.get("fase").asText());
             assertEquals(2, combate.get("participantes").size());
             assertTrue(combate.get("participantes").get(0).get("aguardandoRolagem").asBoolean());
             assertTrue(recebidas(sessao, "SISTEMA").isEmpty());
         }
+        assertTrue(ultimoCombate(sessaoCael).isNull());
+        JsonNode resumo = ultimosResumos(sessaoCael).get(0);
+        assertEquals("Combate 1", resumo.get("nome").asText());
+        assertEquals(2, resumo.get("jogadores").size());
+        assertFalse(resumo.has("participantes"));
+        assertTrue(recebidas(sessaoCael, "SISTEMA").isEmpty());
     }
 
     @Test
@@ -345,22 +365,21 @@ class CombateChatTest {
     }
 
     @Test
-    void deveBloquearRolagemLivreForaDoTurnoIncluindoOMestre() throws Exception {
+    void deveBloquearRolagemLivreForaDoTurnoSoParaQuemEstaNoCombate() throws Exception {
         iniciarComBromNoPrimeiroTurno();
-        faces.add(9);
+        faces.addAll(List.of(9, 4, 6));
 
         enviar(sessaoBrom, ROLAGEM_LIVRE);
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
-        enviar(sessaoMestre, ROLAGEM_LIVRE);
-        enviar(sessaoCael, ROLAGEM_LIVRE);
-
-        String bloqueio = "Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.";
-        assertEquals(bloqueio, ultimoAviso(sessaoAria));
-        assertEquals(bloqueio, ultimoAviso(sessaoMestre));
-        assertEquals(bloqueio, ultimoAviso(sessaoCael));
+        assertEquals("Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.",
+                ultimoAviso(sessaoAria));
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
+
+        enviar(sessaoCael, ROLAGEM_LIVRE);
+        enviar(sessaoMestre, ROLAGEM_LIVRE);
+        assertEquals(3, recebidas(sessaoMestre, "ROLAGEM").size());
     }
 
     @Test
@@ -403,12 +422,85 @@ class CombateChatTest {
     }
 
     @Test
-    void deveRecusarSegundoCombateEnquantoUmEstiverAtivo() throws Exception {
+    void deveRecusarCombateComJogadorQueJaEstaEmOutroCombate() throws Exception {
         iniciarCombateComAriaEBrom();
 
         iniciarCombateComAriaEBrom();
 
-        assertEquals("Já existe um combate em andamento.", ultimoAviso(sessaoMestre));
+        assertEquals("Lyra já está em outro combate.", ultimoAviso(sessaoMestre));
+        assertEquals(1, combatesDoMestre().size());
+    }
+
+    @Test
+    void deveRodarDoisCombatesAoMesmoTempoComNomeEscolhidoETurnosIndependentes() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"nome":" Emboscada na ponte ","jogadores":[40]}}
+                """);
+
+        JsonNode combates = combatesDoMestre();
+        assertEquals(2, combates.size());
+        assertEquals("Emboscada na ponte", combates.get(1).get("nome").asText());
+        assertEquals("Emboscada na ponte", ultimoCombate(sessaoCael).get("nome").asText());
+        assertEquals("Combate 1", ultimosResumos(sessaoCael).get(0).get("nome").asText());
+        assertEquals("Emboscada na ponte", ultimosResumos(sessaoAria).get(0).get("nome").asText());
+
+        faces.add(15);
+        rolarIniciativa(sessaoCael, "NORMAL");
+        assertEquals("EM_ANDAMENTO", ultimoCombate(sessaoCael).get("fase").asText());
+        assertEquals(30L, ultimoCombate(sessaoBrom).get("turnoDe").asLong());
+
+        faces.add(8);
+        enviar(sessaoCael, ROLAGEM_LIVRE);
+        assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
+
+        enviar(sessaoCael, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertEquals(2, ultimoCombate(sessaoCael).get("rodada").asInt());
+        assertEquals(1, ultimoCombate(sessaoBrom).get("rodada").asInt());
+    }
+
+    @Test
+    void deveExigirQueOMestreEscolhaOCombateQuandoHaMaisDeUm() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[40]}}
+                """);
+
+        enviar(sessaoMestre, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertEquals("Escolha o combate.", ultimoAviso(sessaoMestre));
+
+        String primeiro = combatesDoMestre().get(0).get("id").asText();
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_PASSAR_TURNO","comandoCombate":{"combateId":"%s"}}
+                """.formatted(primeiro));
+        assertEquals(20L, ultimoCombate(sessaoAria).get("turnoDe").asLong());
+    }
+
+    @Test
+    void deveEncerrarUmCombateSemAfetarOOutro() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[40]}}
+                """);
+        String primeiro = combatesDoMestre().get(0).get("id").asText();
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_ENCERRAR","comandoCombate":{"combateId":"%s"}}
+                """.formatted(primeiro));
+
+        assertEquals(1, combatesDoMestre().size());
+        assertEquals("Combate 2", combatesDoMestre().get(0).get("nome").asText());
+        assertTrue(ultimoCombate(sessaoAria).isNull());
+        assertEquals("Combate 2", ultimoCombate(sessaoCael).get("nome").asText());
+    }
+
+    @Test
+    void deveRecusarNomeDeCombateLongoDemais() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"nome":"%s","jogadores":[20]}}
+                """.formatted("x".repeat(61)));
+
+        assertEquals("O nome do combate deve ter até 60 caracteres.", ultimoAviso(sessaoMestre));
     }
 
     @Test
@@ -421,15 +513,19 @@ class CombateChatTest {
     }
 
     @Test
-    void deveEnviarOCombateAtualAoNovoConectado() throws Exception {
+    void deveEnviarOCombateAtualAoNovoConectadoConformeOQueEleVe() throws Exception {
         iniciarComBromNoPrimeiroTurno();
-        WebSocketSession retornada = sessao("r", CAEL);
+        WebSocketSession aria = sessao("r", ARIA);
+        WebSocketSession cael = sessao("s", CAEL);
 
-        handler.afterConnectionEstablished(retornada);
+        handler.afterConnectionEstablished(aria);
+        handler.afterConnectionEstablished(cael);
 
-        JsonNode combate = ultimoCombate(retornada);
+        JsonNode combate = ultimoCombate(aria);
         assertEquals("EM_ANDAMENTO", combate.get("fase").asText());
         assertEquals(30L, combate.get("turnoDe").asLong());
+        assertTrue(ultimoCombate(cael).isNull());
+        assertEquals("EM_ANDAMENTO", ultimosResumos(cael).get(0).get("fase").asText());
     }
 
     private void iniciarComAriaETresGoblins() throws Exception {

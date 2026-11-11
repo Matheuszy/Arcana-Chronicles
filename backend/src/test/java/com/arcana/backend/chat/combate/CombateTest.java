@@ -17,7 +17,7 @@ class CombateTest {
 
     @BeforeEach
     void setUp() {
-        combate = new Combate("c1", MESTRE, Instant.parse("2026-10-30T12:00:00Z"));
+        combate = new Combate("c1", "Combate 1", MESTRE, Instant.parse("2026-10-30T12:00:00Z"));
         combate.adicionarJogador(20L, "Aria", "Lyra", 2, 2);
         combate.adicionarJogador(30L, "Brom", "Thorn", 3, 2);
         combate.adicionarJogador(40L, "Cael", "Mira", 1, 2);
@@ -202,10 +202,10 @@ class CombateTest {
 
         daMesa.removerJogador(20L);
         daMesa.removerJogador(30L);
-        assertTrue(daMesa.estado().isPresent());
+        assertEquals(1, daMesa.estados().size());
 
         daMesa.removerJogador(40L);
 
-        assertTrue(daMesa.estado().isEmpty());
+        assertTrue(daMesa.estados().isEmpty());
     }
 }
