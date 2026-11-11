@@ -92,10 +92,11 @@ public class DesafiosDaMesa {
         return alterados;
     }
 
-    public synchronized List<DesafioDto> cancelarDoCombate() {
+    public synchronized List<DesafioDto> cancelarDeCombatesEncerrados(Set<String> combatesAtivos) {
         List<DesafioDto> alterados = new ArrayList<>();
         for (Desafio desafio : desafios.values()) {
-            if (desafio.isDoCombate() && desafio.cancelarTodos()) {
+            if (desafio.isDoCombate() && !combatesAtivos.contains(desafio.getCombateId())
+                    && desafio.cancelarTodos()) {
                 alterados.add(DesafioDto.paraMestre(desafio));
             }
         }

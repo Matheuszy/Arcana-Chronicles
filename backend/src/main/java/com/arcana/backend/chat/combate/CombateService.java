@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -36,14 +35,17 @@ public class CombateService {
         this.clock = clock;
     }
 
-    public CombateDto iniciar(MesaAtiva mesa, AcessoMesaDto mestre, List<Long> jogadorIds,
+    public CombateDto iniciar(MesaAtiva mesa, AcessoMesaDto mestre, String nome, List<Long> jogadorIds,
                               List<GrupoDeMonstros> grupos) {
         exigirMestre(mestre);
         exigirMesaEmAndamento(mesa);
+        String nomeEscolhido = validarNomeDoCombate(nome);
         List<Long> escolhidos = validarJogadores(jogadorIds);
         List<GrupoDeMonstros> gruposEscolhidos = validarGrupos(grupos);
 
-        Combate combate = new Combate(UUID.randomUUID().toString(), mestre.userId(), clock.instant());
+        Combate combate = new Combate(UUID.randomUUID().toString(),
+                nomeEscolhido != null ? nomeEscolhido : mesa.combate().proximoNomePadrao(),
+                mestre.userId(), clock.instant());
         for (Long jogadorId : escolhidos) {
             FichaDeParticipante ficha = mesaService.buscarFichaDoJogadorNaMesa(mesa.getMesaId(), jogadorId);
             combate.adicionarJogador(ficha.jogadorId(), ficha.nomeJogador(), ficha.nomePersonagem(),
@@ -59,7 +61,7 @@ public class CombateService {
         exigirMesaEmAndamento(mesa);
         ModoRolagem modoEscolhido = modo != null ? modo : ModoRolagem.NORMAL;
 
-        return mesa.combate().alterar(combate -> {
+        return mesa.combate().alterarDoJogador(jogador.userId(), combate -> {
             String entradaId = Combate.idDoJogador(jogador.userId());
             Combate.Entrada entrada = combate.entrada(entradaId);
             combate.exigirAguardandoRolagem(entradaId);
@@ -67,13 +69,13 @@ public class CombateService {
         });
     }
 
-    public CombateDto rolarIniciativaDosMonstros(MesaAtiva mesa, AcessoMesaDto mestre, List<String> entradaIds,
-                                                 ModoRolagem modo) {
+    public CombateDto rolarIniciativaDosMonstros(MesaAtiva mesa, AcessoMesaDto mestre, String combateId,
+                                                 List<String> entradaIds, ModoRolagem modo) {
         exigirMestre(mestre);
         exigirMesaEmAndamento(mesa);
         ModoRolagem modoEscolhido = modo != null ? modo : ModoRolagem.NORMAL;
 
-        return mesa.combate().alterar(combate -> {
+        return mesa.combate().alterar(combateId, combate -> {
             List<Combate.Entrada> monstros = monstrosParaRolar(combate, entradaIds);
             for (Combate.Entrada monstro : monstros) {
                 combate.registrarIniciativa(monstro.getId(), rolar(monstro, modoEscolhido));
@@ -81,31 +83,42 @@ public class CombateService {
         });
     }
 
-    public CombateDto liberarRerolagem(MesaAtiva mesa, AcessoMesaDto mestre, List<String> entradaIds) {
+    public CombateDto liberarRerolagem(MesaAtiva mesa, AcessoMesaDto mestre, String combateId,
+                                       List<String> entradaIds) {
         exigirMestre(mestre);
         exigirMesaEmAndamento(mesa);
         List<String> escolhidas = validarEntradas(entradaIds);
-        return mesa.combate().alterar(combate -> combate.liberarRerolagem(escolhidas));
+        return mesa.combate().alterar(combateId, combate -> combate.liberarRerolagem(escolhidas));
     }
 
-    public CombateDto passarTurno(MesaAtiva mesa, AcessoMesaDto acesso) {
+    public CombateDto passarTurno(MesaAtiva mesa, AcessoMesaDto acesso, String combateId) {
         exigirMesaEmAndamento(mesa);
-        return mesa.combate().alterar(combate -> {
-            boolean ehMestre = "MESTRE".equals(acesso.role());
-            if (!ehMestre && !acesso.userId().equals(combate.controladorDoTurno())) {
+        if (ehMestre(acesso)) {
+            return mesa.combate().alterar(combateId, Combate::passarTurno);
+        }
+        return mesa.combate().alterarDoJogador(acesso.userId(), combate -> {
+            if (!acesso.userId().equals(combate.controladorDoTurno())) {
                 throw new AccessDeniedException("Só quem está no turno, ou o mestre, pode passar o turno.");
             }
             combate.passarTurno();
         });
     }
 
-    public void encerrar(MesaAtiva mesa, AcessoMesaDto mestre) {
+    public void encerrar(MesaAtiva mesa, AcessoMesaDto mestre, String combateId) {
         exigirMestre(mestre);
-        mesa.combate().encerrar();
+        mesa.combate().encerrar(combateId);
     }
 
-    public Optional<CombateDto> estado(MesaAtiva mesa) {
-        return mesa.combate().estado();
+    public List<CombateDto> estados(MesaAtiva mesa) {
+        return mesa.combate().estados();
+    }
+
+    public CombatesDaMesaDto visaoDo(MesaAtiva mesa, AcessoMesaDto acesso) {
+        return mesa.combate().visaoDo(acesso.userId(), ehMestre(acesso));
+    }
+
+    public Set<String> combatesAtivos(MesaAtiva mesa) {
+        return mesa.combate().ids();
     }
 
     public void aoJogadorSair(MesaAtiva mesa, Long jogadorId) {
@@ -155,8 +168,24 @@ public class CombateService {
                 entrada.getBonusIniciativa(), total, modo);
     }
 
+    private boolean ehMestre(AcessoMesaDto acesso) {
+        return acesso != null && "MESTRE".equals(acesso.role());
+    }
+
+    private String validarNomeDoCombate(String nome) {
+        if (nome == null || nome.isBlank()) {
+            return null;
+        }
+        String limpo = nome.trim();
+        if (limpo.length() > MAXIMO_CARACTERES_DO_NOME) {
+            throw new IllegalArgumentException(
+                    "O nome do combate deve ter até " + MAXIMO_CARACTERES_DO_NOME + " caracteres.");
+        }
+        return limpo;
+    }
+
     private void exigirMestre(AcessoMesaDto acesso) {
-        if (acesso == null || !"MESTRE".equals(acesso.role())) {
+        if (!ehMestre(acesso)) {
             throw new AccessDeniedException("Apenas o mestre pode administrar o combate.");
         }
     }

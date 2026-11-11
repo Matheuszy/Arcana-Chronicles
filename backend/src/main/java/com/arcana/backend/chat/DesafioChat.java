@@ -82,8 +82,9 @@ public class DesafioChat {
         desafioService.cancelarDoJogador(mesa, jogadorId).forEach(desafio -> notificar(mesa, desafio.id()));
     }
 
-    public void aoCombateEncerrado(MesaAtiva mesa) {
-        desafioService.cancelarDoCombate(mesa).forEach(desafio -> notificar(mesa, desafio.id()));
+    public void aoCombatesEncerrados(MesaAtiva mesa, Set<String> combatesAtivos) {
+        desafioService.cancelarDeCombatesEncerrados(mesa, combatesAtivos)
+                .forEach(desafio -> notificar(mesa, desafio.id()));
     }
 
     public boolean jogadorBloqueado(MesaAtiva mesa, Long userId) {

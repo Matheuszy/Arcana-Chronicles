@@ -70,8 +70,8 @@ export default function CombatTracker({
 
   const endCombat = async () => {
     const confirmed = await confirm({
-      title: 'Encerrar o combate?',
-      message: 'A ordem de iniciativa é descartada e todos voltam a poder rolar dados livremente.',
+      title: `Encerrar ${combat.nome}?`,
+      message: 'A ordem de iniciativa deste combate é descartada e quem estava nele volta a poder rolar dados livremente. Os demais combates continuam.',
       confirmLabel: 'Encerrar combate',
       danger: true,
     });
@@ -83,7 +83,7 @@ export default function CombatTracker({
       <header className="combat-head">
         <h3 className="combat-title">
           <CrossedSwordsIcon className="combat-title-icon" />
-          {inProgress ? 'Combate' : 'Combate · Rolando iniciativa'}
+          {inProgress ? combat.nome : `${combat.nome} · Rolando iniciativa`}
         </h3>
         {inProgress && (
           <span className="combat-round-crest" aria-label={`Rodada ${combat.rodada}`}>

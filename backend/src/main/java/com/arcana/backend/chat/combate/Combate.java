@@ -98,6 +98,7 @@ public class Combate {
     private static final String PREFIXO_MONSTRO = "monstro-";
 
     private final String id;
+    private final String nome;
     private final Long mestreId;
     private final Instant criadoEm;
     private final Map<String, Entrada> entradas = new LinkedHashMap<>();
@@ -107,8 +108,9 @@ public class Combate {
     private int rodada = 1;
     private int monstrosAdicionados;
 
-    public Combate(String id, Long mestreId, Instant criadoEm) {
+    public Combate(String id, String nome, Long mestreId, Instant criadoEm) {
         this.id = id;
+        this.nome = nome;
         this.mestreId = mestreId;
         this.criadoEm = criadoEm;
     }
@@ -119,6 +121,10 @@ public class Combate {
 
     public String getId() {
         return id;
+    }
+
+    public String getNome() {
+        return nome;
     }
 
     public Long getMestreId() {
@@ -166,6 +172,21 @@ public class Combate {
             throw new IllegalStateException("Este jogador não participa do combate.");
         }
         return entrada;
+    }
+
+    public boolean temJogador(Long jogadorId) {
+        return entradas.containsKey(idDoJogador(jogadorId));
+    }
+
+    public boolean controlaAlgumaEntrada(Long userId) {
+        return entradas.values().stream().anyMatch(entrada -> entrada.controladorId.equals(userId));
+    }
+
+    public List<String> nomesDosJogadores() {
+        return entradasEmOrdem().stream()
+                .filter(entrada -> entrada.tipo == TipoEntrada.JOGADOR)
+                .map(Entrada::getNomePersonagem)
+                .toList();
     }
 
     public boolean podeRolarLivremente(Long userId) {

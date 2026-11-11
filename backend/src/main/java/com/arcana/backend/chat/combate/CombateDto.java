@@ -4,6 +4,7 @@ import java.util.List;
 
 public record CombateDto(
         String id,
+        String nome,
         Combate.Fase fase,
         int rodada,
         String turnoDe,
@@ -27,6 +28,7 @@ public record CombateDto(
     public static CombateDto de(Combate combate) {
         return new CombateDto(
                 combate.getId(),
+                combate.getNome(),
                 combate.getFase(),
                 combate.getRodada(),
                 combate.idDoTurno(),

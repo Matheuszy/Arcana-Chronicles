@@ -25,7 +25,7 @@ public class Desafio {
     private final Long criadorId;
     private final String nomeDoCriador;
     private final boolean doMestre;
-    private final boolean doCombate;
+    private final String combateId;
     private final int cd;
     private final String descricao;
     private final Instant criadoEm;
@@ -100,13 +100,13 @@ public class Desafio {
         }
     }
 
-    public Desafio(String id, Long criadorId, String nomeDoCriador, boolean doMestre, boolean doCombate, int cd,
+    public Desafio(String id, Long criadorId, String nomeDoCriador, boolean doMestre, String combateId, int cd,
                    String descricao, Instant criadoEm) {
         this.id = id;
         this.criadorId = criadorId;
         this.nomeDoCriador = nomeDoCriador;
         this.doMestre = doMestre;
-        this.doCombate = doCombate;
+        this.combateId = combateId;
         this.cd = cd;
         this.descricao = descricao;
         this.criadoEm = criadoEm;
@@ -144,7 +144,11 @@ public class Desafio {
     }
 
     public boolean isDoCombate() {
-        return doCombate;
+        return combateId != null;
+    }
+
+    public String getCombateId() {
+        return combateId;
     }
 
     public int getCd() {

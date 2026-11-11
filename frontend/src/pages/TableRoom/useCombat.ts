@@ -1,17 +1,22 @@
 import { useCallback, useState } from 'react';
 import { ChatMessage } from '../../types/chat';
-import { Combat } from '../../types/combat';
+import { Combat, CombatSummary } from '../../types/combat';
 
 export function useCombat() {
-  const [combat, setCombat] = useState<Combat | null>(null);
+  const [combats, setCombats] = useState<Combat[]>([]);
+  const [summaries, setSummaries] = useState<CombatSummary[]>([]);
 
   const handleMessage = useCallback((msg: ChatMessage): boolean => {
     if (msg.type !== 'COMBATE') return false;
-    setCombat(msg.combate ?? null);
+    setCombats(msg.combates?.completos ?? []);
+    setSummaries(msg.combates?.resumos ?? []);
     return true;
   }, []);
 
-  const reset = useCallback(() => setCombat(null), []);
+  const reset = useCallback(() => {
+    setCombats([]);
+    setSummaries([]);
+  }, []);
 
-  return { combat, handleMessage, reset };
+  return { combats, summaries, handleMessage, reset };
 }
