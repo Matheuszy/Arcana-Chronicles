@@ -2,12 +2,16 @@ package com.arcana.backend;
 
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Pericia;
+import com.arcana.backend.chat.desafio.Ajuda;
 import com.arcana.backend.chat.desafio.DesafioDto;
+import com.arcana.backend.chat.desafio.DesafioFinalizado;
 import com.arcana.backend.chat.desafio.DesafioService;
 import com.arcana.backend.chat.desafio.EscolhaTeste;
 import com.arcana.backend.chat.desafio.EstadoDesafio;
 import com.arcana.backend.chat.desafio.MensagemDeResultado;
 import com.arcana.backend.chat.desafio.NovoDesafio;
+import com.arcana.backend.chat.desafio.RolagemDeDesafio;
+import com.arcana.backend.chat.desafio.TipoAjuda;
 import com.arcana.backend.chat.dice.ModoRolagem;
 import com.arcana.backend.chat.dice.RolagemDadosService;
 import com.arcana.backend.chat.sessao.MesaAtiva;
@@ -89,7 +93,7 @@ class DesafioServiceTest {
             todos.put(atributo, valores.getOrDefault(atributo, 10));
         }
         return new FichaDeParticipante(jogador.userId(), jogador.displayName(), 100L + jogador.userId(), personagem,
-                todos, bonusAtributos, bonusPericias, 2);
+                todos, bonusAtributos, bonusPericias, 0);
     }
 
     private void proximasFaces(Integer... valores) {
@@ -106,6 +110,26 @@ class DesafioServiceTest {
 
     private DesafioDto.ParticipacaoDto participacao(DesafioDto desafio, AcessoMesaDto jogador) {
         return desafio.jogadores().stream().filter(p -> p.jogadorId().equals(jogador.userId())).findFirst().orElseThrow();
+    }
+
+    private DesafioDto confirmar(AcessoMesaDto criador, String desafioId, AcessoMesaDto jogador) {
+        return service.confirmar(mesa, criador, desafioId, String.valueOf(jogador.userId()));
+    }
+
+    private RolagemDeDesafio ultimaRolagem(DesafioDto desafio, AcessoMesaDto jogador) {
+        List<RolagemDeDesafio> rolagens = participacao(desafio, jogador).rolagens();
+        return rolagens.get(rolagens.size() - 1);
+    }
+
+    private DesafioDto ajudar(AcessoMesaDto autor, String desafioId, AcessoMesaDto alvo, TipoAjuda tipo, Integer faces) {
+        return service.ajudar(mesa, autor, desafioId, String.valueOf(alvo.userId()), tipo, faces);
+    }
+
+    private Ajuda ajudaDe(DesafioDto desafio, AcessoMesaDto alvo, AcessoMesaDto autor) {
+        return participacao(desafio, alvo).ajudas().stream()
+                .filter(ajuda -> ajuda.autorId().equals(autor.userId()))
+                .findFirst()
+                .orElseThrow();
     }
 
     @Test
@@ -137,6 +161,8 @@ class DesafioServiceTest {
 
         proximasFaces(3, 2);
         service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
+        assertThrows(AccessDeniedException.class, () -> confirmar(MESTRE, desafio.id(), BROM));
+        confirmar(ARIA, desafio.id(), BROM);
         assertThrows(AccessDeniedException.class, () ->
                 service.encerrarComFalha(mesa, MESTRE, desafio.id(), String.valueOf(BROM.userId())));
         service.encerrarComFalha(mesa, ARIA, desafio.id(), String.valueOf(BROM.userId()));
@@ -179,8 +205,8 @@ class DesafioServiceTest {
     }
 
     @Test
-    void deveSerSucessoQuandoTotalForIgualACd() {
-        desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL));
+    void deveSerSucessoQuandoTotalForIgualACdDepoisDaConfirmacao() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
         proximasFaces(12);
 
         var resultado = service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
@@ -188,22 +214,31 @@ class DesafioServiceTest {
         assertEquals(15, resultado.rolagem().total());
         assertEquals("1d20+3", resultado.rolagem().dados().getExpression());
         assertEquals("Destreza", resultado.rolagem().descricaoEscolha());
-        assertTrue(resultado.rolagem().sucesso());
-        assertEquals(EstadoDesafio.SUCESSO, participacao(resultado.desafio(), ARIA).estado());
-        assertFalse(resultado.desafio().ativo());
+        assertFalse(resultado.rolagem().confirmada());
+        assertEquals(EstadoDesafio.AGUARDANDO_CONFIRMACAO, participacao(resultado.desafio(), ARIA).estado());
+        assertTrue(service.jogadorBloqueado(mesa, ARIA.userId()));
+
+        DesafioDto confirmado = confirmar(MESTRE, desafioId, ARIA);
+
+        assertTrue(ultimaRolagem(confirmado, ARIA).confirmada());
+        assertTrue(ultimaRolagem(confirmado, ARIA).sucesso());
+        assertEquals(EstadoDesafio.SUCESSO, participacao(confirmado, ARIA).estado());
+        assertFalse(confirmado.ativo());
         assertFalse(service.jogadorBloqueado(mesa, ARIA.userId()));
+        assertThrows(IllegalStateException.class, () -> confirmar(MESTRE, desafioId, ARIA));
     }
 
     @Test
     void deveFalharQuandoTotalForMenorQueCdEAguardarDecisaoDoMestre() {
-        desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL));
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
         proximasFaces(11);
 
-        var resultado = service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+        service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+        DesafioDto confirmado = confirmar(MESTRE, desafioId, ARIA);
 
-        assertEquals(14, resultado.rolagem().total());
-        assertFalse(resultado.rolagem().sucesso());
-        assertEquals(EstadoDesafio.AGUARDANDO_DECISAO_DO_MESTRE, participacao(resultado.desafio(), ARIA).estado());
+        assertEquals(14, ultimaRolagem(confirmado, ARIA).total());
+        assertFalse(ultimaRolagem(confirmado, ARIA).sucesso());
+        assertEquals(EstadoDesafio.AGUARDANDO_DECISAO_DO_MESTRE, participacao(confirmado, ARIA).estado());
         assertTrue(service.jogadorBloqueado(mesa, ARIA.userId()));
         assertThrows(IllegalStateException.class, () ->
                 service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA)));
@@ -227,6 +262,7 @@ class DesafioServiceTest {
         String desafioId = desafioPara(16, convocar(BROM, ModoRolagem.NORMAL)).id();
         proximasFaces(3);
         service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
+        confirmar(MESTRE, desafioId, BROM);
 
         DesafioDto liberado = service.liberarTentativaExtra(mesa, MESTRE, desafioId, String.valueOf(BROM.userId()), ModoRolagem.VANTAGEM);
         assertEquals(EstadoDesafio.AGUARDANDO_TENTATIVA_EXTRA, participacao(liberado, BROM).estado());
@@ -234,12 +270,13 @@ class DesafioServiceTest {
 
         proximasFaces(4, 15);
         var extra = service.rolar(mesa, BROM, EscolhaTeste.dePericia(Pericia.ATLETISMO));
+        DesafioDto confirmado = confirmar(MESTRE, desafioId, BROM);
 
         assertEquals(2, extra.rolagem().tentativa());
-        assertEquals(17, extra.rolagem().total());
-        assertTrue(extra.rolagem().sucesso());
-        assertEquals(EstadoDesafio.SUCESSO, participacao(extra.desafio(), BROM).estado());
-        assertEquals(2, participacao(extra.desafio(), BROM).rolagens().size());
+        assertEquals(17, ultimaRolagem(confirmado, BROM).total());
+        assertTrue(ultimaRolagem(confirmado, BROM).sucesso());
+        assertEquals(EstadoDesafio.SUCESSO, participacao(confirmado, BROM).estado());
+        assertEquals(2, participacao(confirmado, BROM).rolagens().size());
     }
 
     @Test
@@ -247,12 +284,14 @@ class DesafioServiceTest {
         String desafioId = desafioPara(20, convocar(BROM, ModoRolagem.NORMAL)).id();
         proximasFaces(2);
         service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
+        confirmar(MESTRE, desafioId, BROM);
         service.liberarTentativaExtra(mesa, MESTRE, desafioId, String.valueOf(BROM.userId()), ModoRolagem.NORMAL);
         proximasFaces(5);
 
-        var extra = service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
+        service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
+        DesafioDto confirmado = confirmar(MESTRE, desafioId, BROM);
 
-        assertEquals(EstadoDesafio.FALHA, participacao(extra.desafio(), BROM).estado());
+        assertEquals(EstadoDesafio.FALHA, participacao(confirmado, BROM).estado());
         assertFalse(service.jogadorBloqueado(mesa, BROM.userId()));
         assertThrows(IllegalStateException.class, () ->
                 service.liberarTentativaExtra(mesa, MESTRE, desafioId, String.valueOf(BROM.userId()), ModoRolagem.NORMAL));
@@ -276,6 +315,9 @@ class DesafioServiceTest {
         proximasFaces(1);
         var primeira = service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
         assertTrue(primeira.rolagem().dados().isFumble());
+        assertThrows(IllegalStateException.class, () ->
+                service.encerrarComFalha(mesa, MESTRE, desafioId, String.valueOf(ARIA.userId())));
+        confirmar(MESTRE, desafioId, ARIA);
 
         DesafioDto encerrado = service.encerrarComFalha(mesa, MESTRE, desafioId, String.valueOf(ARIA.userId()));
 
@@ -333,9 +375,10 @@ class DesafioServiceTest {
         mesa.alterarStatus(StatusMesa.EM_ANDAMENTO);
         proximasFaces(20);
         var resultado = service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+        DesafioDto confirmado = service.confirmar(mesa, MESTRE, resultado.desafio().id(), null);
 
         assertTrue(resultado.rolagem().dados().isCritical());
-        assertEquals(EstadoDesafio.SUCESSO, participacao(resultado.desafio(), ARIA).estado());
+        assertEquals(EstadoDesafio.SUCESSO, participacao(confirmado, ARIA).estado());
     }
 
     @Test
@@ -354,12 +397,16 @@ class DesafioServiceTest {
         String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL), convocar(BROM, ModoRolagem.NORMAL)).id();
         proximasFaces(12);
         service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+        confirmar(MESTRE, desafioId, ARIA);
 
-        Map<Long, DesafioDto> visoes = service.finalizar(mesa, MESTRE, desafioId);
+        DesafioFinalizado finalizado = service.finalizar(mesa, MESTRE, desafioId);
+        Map<Long, DesafioDto> visoes = finalizado.envolvidos();
 
         assertEquals(Set.of(MESTRE.userId(), ARIA.userId(), BROM.userId()), visoes.keySet());
         assertEquals(EstadoDesafio.CANCELADO, participacao(visoes.get(BROM.userId()), BROM).estado());
         assertEquals(EstadoDesafio.SUCESSO, participacao(visoes.get(ARIA.userId()), ARIA).estado());
+        assertNull(finalizado.para(CAEL.userId()).cd());
+        assertEquals(15, finalizado.para(ARIA.userId()).cd());
         assertFalse(service.jogadorBloqueado(mesa, BROM.userId()));
         assertTrue(service.visiveisPara(mesa, MESTRE.userId()).isEmpty());
         assertTrue(service.visiveisPara(mesa, ARIA.userId()).isEmpty());
@@ -401,13 +448,32 @@ class DesafioServiceTest {
     }
 
     @Test
-    void deveMostrarDesafioApenasParaOMestreEOsJogadoresEnvolvidos() {
+    void deveAnunciarODesafioParaAMesaInteiraComACdSoParaQuemCriouEQuemRola() {
         desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL));
 
-        assertEquals(1, service.visiveisPara(mesa, MESTRE.userId()).size());
-        assertEquals(1, service.visiveisPara(mesa, ARIA.userId()).size());
-        assertTrue(service.visiveisPara(mesa, BROM.userId()).isEmpty());
-        assertTrue(service.visiveisPara(mesa, CAEL.userId()).isEmpty());
+        assertEquals(15, service.visiveisPara(mesa, MESTRE.userId()).get(0).cd());
+        assertEquals(15, service.visiveisPara(mesa, ARIA.userId()).get(0).cd());
+        DesafioDto paraBrom = service.visiveisPara(mesa, BROM.userId()).get(0);
+        assertNull(paraBrom.cd());
+        assertEquals("Mestre", paraBrom.criadorNome());
+        assertEquals("Escalar o muro", paraBrom.descricao());
+        assertEquals("Lyra", paraBrom.jogadores().get(0).nomePersonagem());
+        assertNull(service.visiveisPara(mesa, CAEL.userId()).get(0).cd());
+    }
+
+    @Test
+    void deveMostrarAndamentoEResultadoAosDemaisSemACdNemAsMensagens() {
+        String desafioId = desafioComAriaVencendoEBromFalhando();
+        service.enviarMensagem(mesa, MESTRE, desafioId, MensagemDeResultado.Destino.VENCEDORES, null, "Segredo.");
+
+        DesafioDto paraCael = service.visaoPara(mesa, desafioId, CAEL.userId());
+
+        assertNull(paraCael.cd());
+        assertTrue(paraCael.mensagens().isEmpty());
+        assertEquals(EstadoDesafio.SUCESSO, participacao(paraCael, ARIA).estado());
+        assertEquals(15, ultimaRolagem(paraCael, ARIA).total());
+        assertTrue(ultimaRolagem(paraCael, ARIA).sucesso());
+        assertEquals(EstadoDesafio.FALHA, participacao(paraCael, BROM).estado());
     }
 
     private String desafioComAriaVencendoEBromFalhando() {
@@ -415,6 +481,7 @@ class DesafioServiceTest {
         proximasFaces(12, 2);
         service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
         service.rolar(mesa, BROM, EscolhaTeste.deAtributo(Atributo.FORCA));
+        service.confirmar(mesa, MESTRE, desafioId, null);
         service.encerrarComFalha(mesa, MESTRE, desafioId, String.valueOf(BROM.userId()));
         return desafioId;
     }
@@ -446,7 +513,7 @@ class DesafioServiceTest {
         assertEquals(List.of("Há uma chave no topo."),
                 service.visaoPara(mesa, desafioId, ARIA.userId()).mensagens().stream().map(DesafioDto.MensagemDto::texto).toList());
         assertEquals(2, service.visaoPara(mesa, desafioId, MESTRE.userId()).mensagens().size());
-        assertThrows(IllegalArgumentException.class, () -> service.visaoPara(mesa, desafioId, CAEL.userId()));
+        assertTrue(service.visaoPara(mesa, desafioId, CAEL.userId()).mensagens().isEmpty());
     }
 
     @Test
@@ -483,6 +550,137 @@ class DesafioServiceTest {
     void deveExigirExatamenteUmAtributoOuUmaPericiaNaEscolha() {
         assertThrows(IllegalArgumentException.class, () -> new EscolhaTeste(null, null));
         assertThrows(IllegalArgumentException.class, () -> new EscolhaTeste(Atributo.FORCA, Pericia.ATLETISMO));
+    }
+
+    @Test
+    void deveAceitarQualquerTipoDeAjudaAntesDaRolagemCombinandoVantagemEDesvantagem() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
+
+        DesafioDto comDesvantagem = ajudar(BROM, desafioId, ARIA, TipoAjuda.DESVANTAGEM, null);
+        assertEquals(ModoRolagem.DESVANTAGEM, participacao(comDesvantagem, ARIA).modoEfetivo());
+
+        DesafioDto anulada = ajudar(CAEL, desafioId, ARIA, TipoAjuda.ANULAR_DESVANTAGEM, null);
+        assertEquals(ModoRolagem.NORMAL, participacao(anulada, ARIA).modoEfetivo());
+
+        DesafioDto comVantagem = ajudar(MESTRE, desafioId, ARIA, TipoAjuda.VANTAGEM, null);
+        assertEquals(ModoRolagem.VANTAGEM, participacao(comVantagem, ARIA).modoEfetivo());
+        assertEquals(ModoRolagem.NORMAL, participacao(comVantagem, ARIA).modo());
+
+        proximasFaces(4, 14);
+        var resultado = service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+        assertEquals(List.of(4, 14), resultado.rolagem().dados().getRolls());
+        assertEquals(14, resultado.rolagem().dados().getKept());
+    }
+
+    @Test
+    void deveAnularVantagemComDesvantagemSemAcumularFontes() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.VANTAGEM)).id();
+
+        ajudar(BROM, desafioId, ARIA, TipoAjuda.VANTAGEM, null);
+        DesafioDto comDesvantagem = ajudar(CAEL, desafioId, ARIA, TipoAjuda.DESVANTAGEM, null);
+
+        assertEquals(ModoRolagem.NORMAL, participacao(comDesvantagem, ARIA).modoEfetivo());
+        proximasFaces(9);
+        var resultado = service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+        assertEquals(List.of(9), resultado.rolagem().dados().getRolls());
+    }
+
+    @Test
+    void deveAceitarSoDadosDepoisDaRolagemESomarAoTotalNaConfirmacao() {
+        String desafioId = desafioPara(18, convocar(ARIA, ModoRolagem.NORMAL)).id();
+        proximasFaces(12);
+        service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+
+        assertThrows(IllegalStateException.class, () -> ajudar(BROM, desafioId, ARIA, TipoAjuda.VANTAGEM, null));
+        assertThrows(IllegalStateException.class, () ->
+                ajudar(BROM, desafioId, ARIA, TipoAjuda.ANULAR_DESVANTAGEM, null));
+
+        proximasFaces(5);
+        DesafioDto comBonus = ajudar(BROM, desafioId, ARIA, TipoAjuda.DADO_BONUS, 6);
+        Ajuda bonus = ajudaDe(comBonus, ARIA, BROM);
+        assertEquals(6, bonus.faces());
+        assertEquals(5, bonus.valor());
+        assertEquals("Brom", bonus.autorNome());
+
+        proximasFaces(3);
+        DesafioDto comPenalidade = ajudar(CAEL, desafioId, ARIA, TipoAjuda.DADO_PENALIDADE, 12);
+        assertEquals(4, ajudaDe(comPenalidade, ARIA, CAEL).faces());
+
+        DesafioDto confirmado = confirmar(MESTRE, desafioId, ARIA);
+        RolagemDeDesafio rolagem = ultimaRolagem(confirmado, ARIA);
+        assertEquals(15, rolagem.dados().getTotal());
+        assertEquals(17, rolagem.total());
+        assertFalse(rolagem.sucesso());
+        assertEquals(2, rolagem.ajudas().size());
+        assertTrue(participacao(confirmado, ARIA).ajudas().isEmpty());
+        assertThrows(IllegalStateException.class, () -> ajudar(MESTRE, desafioId, ARIA, TipoAjuda.DADO_BONUS, 4));
+    }
+
+    @Test
+    void deveLimitarAUmaAjudaPorPessoaPorParticipanteEPorTentativa() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL), convocar(BROM, ModoRolagem.NORMAL)).id();
+
+        DesafioDto comVantagem = ajudar(CAEL, desafioId, ARIA, TipoAjuda.VANTAGEM, null);
+        assertThrows(IllegalStateException.class, () -> ajudar(CAEL, desafioId, ARIA, TipoAjuda.DESVANTAGEM, null));
+        ajudar(CAEL, desafioId, BROM, TipoAjuda.DESVANTAGEM, null);
+
+        service.removerAjuda(mesa, ARIA, desafioId, String.valueOf(ARIA.userId()), ajudaDe(comVantagem, ARIA, CAEL).id());
+        assertThrows(IllegalStateException.class, () -> ajudar(CAEL, desafioId, ARIA, TipoAjuda.VANTAGEM, null));
+
+        proximasFaces(2);
+        service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+        confirmar(MESTRE, desafioId, ARIA);
+        service.liberarTentativaExtra(mesa, MESTRE, desafioId, String.valueOf(ARIA.userId()), ModoRolagem.NORMAL);
+
+        DesafioDto novaTentativa = ajudar(CAEL, desafioId, ARIA, TipoAjuda.VANTAGEM, null);
+        assertEquals(ModoRolagem.VANTAGEM, participacao(novaTentativa, ARIA).modoEfetivo());
+    }
+
+    @Test
+    void deveRecusarAjudaNoProprioTesteEDadoBonusInvalido() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
+
+        assertThrows(IllegalArgumentException.class, () -> ajudar(ARIA, desafioId, ARIA, TipoAjuda.VANTAGEM, null));
+        assertThrows(IllegalArgumentException.class, () -> ajudar(BROM, desafioId, ARIA, TipoAjuda.DADO_BONUS, 20));
+        assertThrows(IllegalArgumentException.class, () -> ajudar(BROM, desafioId, ARIA, TipoAjuda.DADO_BONUS, null));
+        assertThrows(IllegalArgumentException.class, () -> ajudar(BROM, desafioId, ARIA, null, null));
+        assertTrue(participacao(service.visaoPara(mesa, desafioId, MESTRE.userId()), ARIA).ajudas().isEmpty());
+    }
+
+    @Test
+    void devePermitirQueQuemRecebeRecuseAjudaEQueSoOMestreRemovaAtrapalhos() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
+        proximasFaces(4, 2);
+        ajudar(BROM, desafioId, ARIA, TipoAjuda.DADO_BONUS, 8);
+        DesafioDto comAmbos = ajudar(CAEL, desafioId, ARIA, TipoAjuda.DADO_PENALIDADE, null);
+        String alvo = String.valueOf(ARIA.userId());
+        String bonusId = ajudaDe(comAmbos, ARIA, BROM).id();
+        String penalidadeId = ajudaDe(comAmbos, ARIA, CAEL).id();
+
+        assertThrows(AccessDeniedException.class, () -> service.removerAjuda(mesa, ARIA, desafioId, alvo, penalidadeId));
+        assertThrows(AccessDeniedException.class, () -> service.removerAjuda(mesa, BROM, desafioId, alvo, bonusId));
+        assertThrows(AccessDeniedException.class, () -> service.removerAjuda(mesa, CAEL, desafioId, alvo, penalidadeId));
+
+        DesafioDto semBonus = service.removerAjuda(mesa, ARIA, desafioId, alvo, bonusId);
+        assertEquals(1, participacao(semBonus, ARIA).ajudas().size());
+
+        DesafioDto semPenalidade = service.removerAjuda(mesa, MESTRE, desafioId, alvo, penalidadeId);
+        assertTrue(participacao(semPenalidade, ARIA).ajudas().isEmpty());
+        assertThrows(IllegalArgumentException.class, () -> service.removerAjuda(mesa, MESTRE, desafioId, alvo, penalidadeId));
+    }
+
+    @Test
+    void deveManterAVantagemUsadaNaRolagemSemPermitirRemoverDepois() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
+        String vantagemId = ajudaDe(ajudar(BROM, desafioId, ARIA, TipoAjuda.VANTAGEM, null), ARIA, BROM).id();
+        proximasFaces(3, 16);
+        service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+
+        assertThrows(IllegalStateException.class, () ->
+                service.removerAjuda(mesa, MESTRE, desafioId, String.valueOf(ARIA.userId()), vantagemId));
+        DesafioDto confirmado = confirmar(MESTRE, desafioId, ARIA);
+        assertEquals(19, ultimaRolagem(confirmado, ARIA).total());
+        assertEquals(TipoAjuda.VANTAGEM, ultimaRolagem(confirmado, ARIA).ajudas().get(0).tipo());
     }
 
     @Test

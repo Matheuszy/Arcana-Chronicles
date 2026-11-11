@@ -105,7 +105,7 @@ class DesafioChatTest {
             valores.put(atributo, 14);
         }
         return new FichaDeParticipante(jogador.userId(), jogador.displayName(), 100L + jogador.userId(), personagem,
-                valores, Map.of(), Map.of(), 2);
+                valores, Map.of(), Map.of(), 0);
     }
 
     private WebSocketSession sessao(String id, AcessoMesaDto acesso) {
@@ -150,20 +150,33 @@ class DesafioChatTest {
         return ultimoDesafio(sessaoMestre).get("id").asText();
     }
 
+    private void confirmarTodos(String desafioId) throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"DESAFIO_CONFIRMAR","comandoDesafio":{"desafioId":"%s"}}
+                """.formatted(desafioId));
+    }
+
     @Test
-    void deveEntregarODesafioSoAoMestreEAosConvocados() throws Exception {
+    void deveAnunciarODesafioATodaAMesaComACdSoParaQuemCriouEQuemRola() throws Exception {
         criarDesafioParaAriaEBrom();
 
         assertEquals(1, recebidas(sessaoMestre, "DESAFIO").size());
         assertEquals(1, recebidas(sessaoAria, "DESAFIO").size());
         assertEquals(1, recebidas(sessaoBrom, "DESAFIO").size());
-        assertTrue(recebidas(sessaoCael, "DESAFIO").isEmpty());
+        assertEquals(1, recebidas(sessaoCael, "DESAFIO").size());
+        JsonNode visaoDoCael = ultimoDesafio(sessaoCael);
+        assertTrue(visaoDoCael.get("cd").isNull());
+        assertEquals("Mestre", visaoDoCael.get("criadorNome").asText());
+        assertEquals("Escalar o muro", visaoDoCael.get("descricao").asText());
+        assertEquals(2, visaoDoCael.get("jogadores").size());
+        assertEquals(15, ultimoDesafio(sessaoMestre).get("cd").asInt());
+        assertEquals(15, ultimoDesafio(sessaoBrom).get("cd").asInt());
         assertEquals(15, ultimoDesafio(sessaoAria).get("cd").asInt());
         assertEquals("VANTAGEM", ultimoDesafio(sessaoAria).get("jogadores").get(0).get("modo").asText());
     }
 
     @Test
-    void devePermitirJogadorDesafiarOutroForaDoCombateAvisandoSoOsDois() throws Exception {
+    void devePermitirJogadorDesafiarOutroForaDoCombateEscondendoACdDoMestreQueNaoParticipa() throws Exception {
         enviar(sessaoAria, """
                 {"type":"DESAFIO_CRIAR","comandoDesafio":{"cd":10,"jogadores":[{"jogadorId":30,"modo":"NORMAL"}]}}
                 """);
@@ -171,9 +184,10 @@ class DesafioChatTest {
         JsonNode visaoDoBrom = ultimoDesafio(sessaoBrom);
         assertEquals(20L, visaoDoBrom.get("criadorId").asLong());
         assertFalse(visaoDoBrom.get("doMestre").asBoolean());
+        assertEquals(10, visaoDoBrom.get("cd").asInt());
         assertEquals(1, recebidas(sessaoAria, "DESAFIO").size());
-        assertTrue(recebidas(sessaoMestre, "DESAFIO").isEmpty());
-        assertTrue(recebidas(sessaoCael, "DESAFIO").isEmpty());
+        assertTrue(ultimoDesafio(sessaoMestre).get("cd").isNull());
+        assertTrue(ultimoDesafio(sessaoCael).get("cd").isNull());
         assertTrue(recebidas(sessaoAria, "SISTEMA").isEmpty());
     }
 
@@ -188,20 +202,34 @@ class DesafioChatTest {
     }
 
     @Test
-    void deveRolarNoServidorEEntregarOResultadoSoAosEnvolvidos() throws Exception {
-        criarDesafioParaAriaEBrom();
+    void deveRolarNoServidorSegurarOResultadoEMostrarOAndamentoATodosSemACd() throws Exception {
+        String desafioId = criarDesafioParaAriaEBrom();
         faces.addAll(List.of(5, 17));
 
         enviar(sessaoAria, """
                 {"type":"DESAFIO_ROLAR","comandoDesafio":{"atributo":"destreza","pericia":null}}
                 """);
 
+        assertEquals("AGUARDANDO_CONFIRMACAO",
+                ultimoDesafio(sessaoAria).get("jogadores").get(0).get("estado").asText());
+        assertFalse(ultimoDesafio(sessaoAria).get("jogadores").get(0).get("rolagens").get(0).get("confirmada").asBoolean());
+
+        enviar(sessaoAria, """
+                {"type":"DESAFIO_CONFIRMAR","comandoDesafio":{"desafioId":"%s","jogadorId":20}}
+                """.formatted(desafioId));
+        assertEquals("Apenas o mestre pode administrar desafios.",
+                recebidas(sessaoAria, "SISTEMA").get(0).get("content").asText());
+        confirmarTodos(desafioId);
+
         JsonNode visaoDaAria = ultimoDesafio(sessaoAria).get("jogadores").get(0);
         assertEquals("SUCESSO", visaoDaAria.get("estado").asText());
         assertEquals(17, visaoDaAria.get("rolagens").get(0).get("dados").get("kept").asInt());
         assertEquals(19, visaoDaAria.get("rolagens").get(0).get("total").asInt());
         assertEquals("SUCESSO", ultimoDesafio(sessaoMestre).get("jogadores").get(0).get("estado").asText());
-        assertTrue(recebidas(sessaoCael, "DESAFIO").isEmpty());
+        JsonNode visaoDoCael = ultimoDesafio(sessaoCael);
+        assertTrue(visaoDoCael.get("cd").isNull());
+        assertEquals("SUCESSO", visaoDoCael.get("jogadores").get(0).get("estado").asText());
+        assertEquals(19, visaoDoCael.get("jogadores").get(0).get("rolagens").get(0).get("total").asInt());
         assertTrue(recebidas(sessaoCael, "ROLAGEM").isEmpty());
     }
 
@@ -238,6 +266,7 @@ class DesafioChatTest {
         enviar(sessaoBrom, """
                 {"type":"DESAFIO_ROLAR","comandoDesafio":{"pericia":"atletismo"}}
                 """);
+        confirmarTodos(desafioId);
         enviar(sessaoMestre, """
                 {"type":"DESAFIO_ENCERRAR_FALHA","comandoDesafio":{"desafioId":"%s","jogadorId":30}}
                 """.formatted(desafioId));
@@ -250,7 +279,7 @@ class DesafioChatTest {
         assertEquals(0, ultimoDesafio(sessaoBrom).get("mensagens").size());
         assertEquals(1, ultimoDesafio(sessaoMestre).get("mensagens").size());
         assertTrue(ultimoDesafio(sessaoAria).get("mensagens").get(0).get("destinatarios").isNull());
-        assertTrue(recebidas(sessaoCael, "DESAFIO").isEmpty());
+        assertEquals(0, ultimoDesafio(sessaoCael).get("mensagens").size());
     }
 
     @Test
@@ -263,7 +292,8 @@ class DesafioChatTest {
         assertEquals("CANCELADO", visaoDoMestre.get("jogadores").get(1).get("estado").asText());
         assertEquals("AGUARDANDO_ROLAGEM", visaoDoMestre.get("jogadores").get(0).get("estado").asText());
         assertEquals("CANCELADO", ultimoDesafio(sessaoAria).get("jogadores").get(1).get("estado").asText());
-        assertTrue(recebidas(sessaoCael, "DESAFIO").size() == 0);
+        assertEquals("CANCELADO", ultimoDesafio(sessaoCael).get("jogadores").get(1).get("estado").asText());
+        assertTrue(ultimoDesafio(sessaoCael).get("cd").isNull());
     }
 
     @Test
@@ -278,7 +308,9 @@ class DesafioChatTest {
         List<JsonNode> sincronizacaoDaAria = recebidas(novaDaAria, "DESAFIOS");
         assertEquals(1, sincronizacaoDaAria.size());
         assertEquals(1, sincronizacaoDaAria.get(0).get("desafios").size());
-        assertEquals(0, recebidas(novaDoCael, "DESAFIOS").get(0).get("desafios").size());
+        JsonNode doCael = recebidas(novaDoCael, "DESAFIOS").get(0).get("desafios");
+        assertEquals(1, doCael.size());
+        assertTrue(doCael.get(0).get("cd").isNull());
     }
 
     @Test
@@ -300,7 +332,7 @@ class DesafioChatTest {
     }
 
     @Test
-    void deveFinalizarODesafioEAvisarSoOsEnvolvidos() throws Exception {
+    void deveFinalizarODesafioEAvisarAMesaInteira() throws Exception {
         String desafioId = criarDesafioParaAriaEBrom();
 
         enviar(sessaoMestre, """
@@ -312,11 +344,40 @@ class DesafioChatTest {
         assertEquals(desafioId, doBrom.get(0).get("desafio").get("id").asText());
         assertEquals(1, recebidas(sessaoMestre, "DESAFIO_FINALIZADO").size());
         assertEquals(1, recebidas(sessaoAria, "DESAFIO_FINALIZADO").size());
-        assertTrue(recebidas(sessaoCael, "DESAFIO_FINALIZADO").isEmpty());
+        List<JsonNode> doCael = recebidas(sessaoCael, "DESAFIO_FINALIZADO");
+        assertEquals(1, doCael.size());
+        assertTrue(doCael.get(0).get("desafio").get("cd").isNull());
 
         WebSocketSession novaDaAria = sessao("a2", ARIA);
         handler.afterConnectionEstablished(novaDaAria);
         assertEquals(0, recebidas(novaDaAria, "DESAFIOS").get(0).get("desafios").size());
+    }
+
+    @Test
+    void devePermitirQueQualquerPessoaDaMesaAjudeEQueQuemRecebeRecuse() throws Exception {
+        String desafioId = criarDesafioParaAriaEBrom();
+        faces.add(3);
+
+        enviar(sessaoCael, """
+                {"type":"DESAFIO_AJUDAR","comandoDesafio":{"desafioId":"%s","jogadorId":20,"tipoAjuda":"DADO_BONUS","faces":4}}
+                """.formatted(desafioId));
+
+        JsonNode ajuda = ultimoDesafio(sessaoBrom).get("jogadores").get(0).get("ajudas").get(0);
+        assertEquals("DADO_BONUS", ajuda.get("tipo").asText());
+        assertEquals("Cael", ajuda.get("autorNome").asText());
+        assertEquals(3, ajuda.get("valor").asInt());
+        String ajudaId = ajuda.get("id").asText();
+
+        enviar(sessaoBrom, """
+                {"type":"DESAFIO_REMOVER_AJUDA","comandoDesafio":{"desafioId":"%s","jogadorId":20,"ajudaId":"%s"}}
+                """.formatted(desafioId, ajudaId));
+        assertEquals("Só quem recebe uma ajuda pode recusá-la, e só o mestre remove atrapalhos.",
+                recebidas(sessaoBrom, "SISTEMA").get(0).get("content").asText());
+
+        enviar(sessaoAria, """
+                {"type":"DESAFIO_REMOVER_AJUDA","comandoDesafio":{"desafioId":"%s","jogadorId":20,"ajudaId":"%s"}}
+                """.formatted(desafioId, ajudaId));
+        assertEquals(0, ultimoDesafio(sessaoCael).get("jogadores").get(0).get("ajudas").size());
     }
 
     @Test

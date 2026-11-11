@@ -19,7 +19,9 @@ import {
   challengeAuthor,
   isActiveState,
   isPendingRoll,
+  ROLL_MODE_LABEL,
 } from '../../types/challenge';
+import { HelpList, RollSummary } from './ChallengeHelps';
 
 const SKILL_KEYS = Object.keys(SKILL_LABEL) as SkillKey[];
 
@@ -30,6 +32,7 @@ interface ChallengePlayerPanelProps {
   paused: boolean;
   canSend: boolean;
   onRoll: (choice: ChallengeChoice) => void;
+  onRemoveHelp: (challengeId: string, targetId: string, helpId: string) => void;
 }
 
 function myEntry(challenge: Challenge, userId: string | null): ChallengePlayer | undefined {
@@ -81,13 +84,20 @@ function RollPicker({
         </div>
 
         <p className="muted">
-          {entry.modo === 'NORMAL'
+          {entry.modoEfetivo === 'NORMAL'
             ? 'Rolagem normal: 1d20 mais o modificador.'
-            : entry.modo === 'VANTAGEM'
+            : entry.modoEfetivo === 'VANTAGEM'
               ? 'Vantagem: você rola 2d20 e fica com o maior.'
               : 'Desvantagem: você rola 2d20 e fica com o menor.'}{' '}
           Total igual ou maior que a CD é sucesso.
         </p>
+
+        {entry.modoEfetivo !== entry.modo && (
+          <p className="muted">
+            O desafio pediu {ROLL_MODE_LABEL[entry.modo].toLowerCase()}, mas as ajudas e atrapalhos mudaram para{' '}
+            {ROLL_MODE_LABEL[entry.modoEfetivo].toLowerCase()}.
+          </p>
+        )}
 
         {entry.rolagens.length > 0 && (
           <p className="muted">
@@ -161,6 +171,7 @@ export default function ChallengePlayerPanel({
   paused,
   canSend,
   onRoll,
+  onRemoveHelp,
 }: ChallengePlayerPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -197,6 +208,14 @@ export default function ChallengePlayerPanel({
               <p className={`challenge-state challenge-state--${entry.estado.toLowerCase()}`}>
                 {CHALLENGE_STATE_LABEL[entry.estado]}
               </p>
+              <RollSummary player={entry} />
+              <HelpList
+                player={entry}
+                viewerId={userId}
+                isMaster={false}
+                canSend={canSend}
+                onRemove={(helpId) => onRemoveHelp(challenge.id, entry.id, helpId)}
+              />
               {isPendingRoll(entry.estado) && (
                 <button className="btn btn-primary" onClick={() => setPickerOpen(true)}>
                   Abrir teste

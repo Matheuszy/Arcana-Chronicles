@@ -159,11 +159,13 @@ class PersonagemSecoesServiceTest {
         salvarDevolvendoAFicha();
 
         var resposta = service.atualizarSecaoAtributos(10L, new SecaoAtributosRequestDto(
-                22, 22, null, 16, 2, 9, null, true, 0, 0, 2,
+                22, 22, null, 16, 2, 5, 9, null, true, 0, 0, 2,
                 new PersonagemRequestDto.AtributosDto(10, 14, 12, 10, 18, 8),
                 Map.of("sabedoria", 2), Map.of("percepcao", 2)), 1L);
 
         assertEquals(18, resposta.classeArmaduraTotal());
+        assertEquals(5, resposta.bonusIniciativa());
+        assertEquals(5, personagem.getBonusIniciativa());
         assertEquals(16, resposta.percepcaoPassiva());
         assertTrue(resposta.inspiracao());
         assertEquals(List.of("Comum"), personagem.getIdiomas());

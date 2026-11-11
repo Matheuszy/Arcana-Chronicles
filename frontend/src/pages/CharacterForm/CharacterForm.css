@@ -526,6 +526,7 @@
 }
 .character-sheet-form .actions .btn { flex: 1 1 8rem; }
 .class-row { padding-bottom: 0.75rem; border-bottom: 1px dashed var(--ink-700); }
+.class-row .btn-remove { align-self: flex-end; margin-bottom: 1.6rem; }
 .add-class { align-self: flex-start; }
 .proficiency-default { max-width: 12rem; }
 @media (min-width: 768px) {

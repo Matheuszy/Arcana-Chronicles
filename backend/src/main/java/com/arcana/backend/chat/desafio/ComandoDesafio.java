@@ -18,7 +18,10 @@ public record ComandoDesafio(
         String atributo,
         String pericia,
         MensagemDeResultado.Destino destino,
-        String texto
+        String texto,
+        TipoAjuda tipoAjuda,
+        Integer faces,
+        String ajudaId
 ) {
 
     public String alvo() {

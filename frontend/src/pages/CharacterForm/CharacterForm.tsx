@@ -34,6 +34,8 @@ import {
   MAX_ATTRIBUTE_ROLLS,
   MAX_BACKGROUND_LENGTH,
   MAX_EXTRA_ARMOR_CLASS,
+  MAX_INITIATIVE_BONUS,
+  MIN_INITIATIVE_BONUS,
   MAX_MOVEMENT,
   MAX_PERSONALITY_LENGTH,
   MAX_PROFICIENCY_ENTRIES,
@@ -146,6 +148,7 @@ const EMPTY_CHARACTER: Character = {
   defeitos: '',
   deslocamentosAdicionais: [],
   caAdicional: 0,
+  bonusIniciativa: 0,
   moedasCobre: 0,
   moedasPrata: 0,
   moedasElectro: 0,
@@ -695,7 +698,7 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
         </output>
       </div>
       {classes.map((entry, i) => (
-        <div className="row class-row" key={i}>
+        <div className="row row--aligned class-row" key={i}>
           <div className="field grow">
             <label htmlFor={`classe-${i}`} className="required-mark">Classe</label>
             <input
@@ -893,6 +896,24 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
             value={form.caAdicional ?? 0}
             onChange={(value) =>
               setField('caAdicional', Math.min(MAX_EXTRA_ARMOR_CLASS, Math.max(0, Math.trunc(value) || 0)))
+            }
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="bonusIniciativa" title="Somado à rolagem de iniciativa, para talentos como Alerta">
+            Bônus de iniciativa
+          </label>
+          <NumberInput
+            id="bonusIniciativa"
+            min={MIN_INITIATIVE_BONUS}
+            max={MAX_INITIATIVE_BONUS}
+            step={1}
+            value={form.bonusIniciativa ?? 0}
+            onChange={(value) =>
+              setField(
+                'bonusIniciativa',
+                Math.min(MAX_INITIATIVE_BONUS, Math.max(MIN_INITIATIVE_BONUS, Math.trunc(value) || 0)),
+              )
             }
           />
         </div>

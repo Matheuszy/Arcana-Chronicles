@@ -9,8 +9,21 @@ import { CharacterEditor } from '../CharacterForm/CharacterForm';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes, KIND_LABEL } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
-import { ChallengeTarget, isActiveState } from '../../types/challenge';
-import { BLOCKED_ROLL_DURING_COMBAT, isMyTurn } from '../../types/combat';
+import {
+  ChallengeTarget,
+  challengeAuthor,
+  challengeTargetsSentence,
+  isActiveState,
+  isViewerInvolved,
+} from '../../types/challenge';
+import {
+  BLOCKED_ROLL_DURING_COMBAT,
+  arrivalSentence,
+  canRollFreely,
+  combatOfPlayer,
+  helpReactionFor,
+  isMyTurn,
+} from '../../types/combat';
 import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
 import Tabs, { panelId, tabId } from '../../components/ui/Tabs';
@@ -20,8 +33,9 @@ import ChallengePlayerPanel from './ChallengePlayerPanel';
 import ChallengeMonsterRolls from './ChallengeMonsterRolls';
 import ChallengeRollOverlay from './ChallengeRollOverlay';
 import ChallengeMessageDialog from './ChallengeMessageDialog';
+import ChallengeTablePanel from './ChallengeTablePanel';
 import CombatStartPanel from './CombatStartPanel';
-import CombatTracker from './CombatTracker';
+import CombatBoard from './CombatBoard';
 import DiceRoller from './DiceRoller';
 import DiceRollMessage from './DiceRollMessage';
 import { useChallenges } from './useChallenges';
@@ -37,6 +51,7 @@ import JoinRequestsPanel from './JoinRequestsPanel';
 import ParticipantsPanel from './ParticipantsPanel';
 import InviteFriendsPanel from './InviteFriendsPanel';
 import PrivateSheetsPanel from './PrivateSheetsPanel';
+import CombatAlert, { CombatAlertKind } from './CombatAlert';
 import './TableRoom.css';
 import './Challenge.css';
 import './Combat.css';
@@ -162,6 +177,7 @@ export default function TableRoom() {
     challenges,
     reveal,
     incomingMessage,
+    announcement: challengeAnnouncement,
     handleMessage: handleChallengeMessage,
     reset: resetChallenges,
     dismissReveal,
@@ -178,21 +194,38 @@ export default function TableRoom() {
   } = useRoomResources((recipients) =>
     notify(`Trecho compartilhado com ${recipients}.`, 'success'),
   );
-  const { combat, handleMessage: handleCombatMessage, reset: resetCombat } = useCombat();
+  const {
+    combats,
+    summaries: combatSummaries,
+    arrival: combatArrival,
+    handleMessage: handleCombatMessage,
+    reset: resetCombat,
+  } = useCombat();
+  const myCombat = isMaster ? null : combatOfPlayer(combats, viewerId);
+  const turnCombat = combats.find((c) => isMyTurn(c, viewerId)) ?? null;
   const rollBlockedByChallenge =
     !isMaster &&
     challenges.some((c) =>
       c.jogadores.some((p) => p.tipo === 'JOGADOR' && String(p.jogadorId) === viewerId && isActiveState(p.estado)),
     );
-  const rollBlockedByCombat = combat !== null && !isMyTurn(combat, viewerId);
+  const rollBlockedByCombat = !canRollFreely(combats, viewerId);
   const rollBlocked = rollBlockedByChallenge || rollBlockedByCombat;
   const rollBlockedReason = rollBlockedByChallenge
     ? 'Você tem um desafio em andamento. A única rolagem permitida é a do desafio.'
     : BLOCKED_ROLL_DURING_COMBAT;
   const sideTabs = isMaster ? SIDE_TABS : SIDE_TABS.filter((tab) => tab !== 'COMBATE');
-  const turnKey = combat && isMyTurn(combat, viewerId) ? `${combat.id}-${combat.rodada}` : null;
+  const turnKey = turnCombat ? `${turnCombat.id}-${turnCombat.rodada}` : null;
 
-  const activeChallengeCount = challenges.filter((c) => c.jogadores.some((p) => isActiveState(p.estado))).length;
+  const activeChallengeCount = challenges.filter(
+    (c) => isViewerInvolved(c, viewerId) && c.jogadores.some((p) => isActiveState(p.estado)),
+  ).length;
+
+  useEffect(() => {
+    if (!challengeAnnouncement) return;
+    const { challenge } = challengeAnnouncement;
+    const description = challenge.descricao ? `: ${challenge.descricao}` : '';
+    notify(`${challengeAuthor(challenge)} desafiou ${challengeTargetsSentence(challenge)}${description}`, 'info');
+  }, [challengeAnnouncement, notify]);
   const previousChallengeCount = useRef(0);
 
   useEffect(() => {
@@ -202,9 +235,44 @@ export default function TableRoom() {
     previousChallengeCount.current = activeChallengeCount;
   }, [activeChallengeCount, isMaster]);
 
+  const turnCharacterName =
+    turnCombat?.participantes.find((entry) => entry.id === turnCombat.turnoDe)?.nomePersonagem ?? '';
+  const turnRound = turnCombat?.rodada ?? 0;
+  const [combatAlerts, setCombatAlerts] = useState<
+    { key: string; kind: CombatAlertKind; title: string; detail: string }[]
+  >([]);
+  const dismissCombatAlert = useCallback(() => setCombatAlerts((current) => current.slice(1)), []);
+  const lastAnnouncedTurn = useRef<string | null>(null);
+
   useEffect(() => {
-    if (turnKey) notify('É o seu turno!', 'success');
-  }, [turnKey, notify]);
+    if (!turnKey || lastAnnouncedTurn.current === turnKey) return;
+    lastAnnouncedTurn.current = turnKey;
+    if (isMaster) {
+      notify('É o seu turno!', 'success');
+      return;
+    }
+    setCombatAlerts((current) => [
+      ...current,
+      { key: `turno-${turnKey}`, kind: 'turn', title: 'Sua vez!', detail: `${turnCharacterName} · Rodada ${turnRound}` },
+    ]);
+  }, [turnKey, isMaster, notify, turnCharacterName, turnRound]);
+
+  useEffect(() => {
+    if (!combatArrival) return;
+    setCombatAlerts((current) =>
+      current.some((alert) => alert.key === combatArrival.key)
+        ? current
+        : [
+            ...current,
+            {
+              key: combatArrival.key,
+              kind: 'arrival',
+              title: arrivalSentence(combatArrival.nomes),
+              detail: combatArrival.combateNome,
+            },
+          ],
+    );
+  }, [combatArrival]);
 
   const loadTable = useCallback(() => {
     if (!id) return;
@@ -518,7 +586,7 @@ export default function TableRoom() {
         disabledReason: p.characterId ? undefined : 'sem personagem',
       };
     });
-  const combatChallengeTargets: ChallengeTarget[] = (combat?.participantes ?? [])
+  const combatChallengeTargets: ChallengeTarget[] = (myCombat?.participantes ?? [])
     .filter((entry) => !(entry.tipo === 'JOGADOR' && String(entry.controladorId) === viewerId))
     .map((entry) => ({
       id: entry.id,
@@ -529,13 +597,12 @@ export default function TableRoom() {
   const statusTargets: StatusTarget[] = (isMaster ? characters : activeCharacter ? [activeCharacter] : []).flatMap(
     (c) => (c.id ? [{ id: Number(c.id), label: isMaster ? `${c.name} (${KIND_LABEL[c.kind]})` : c.name }] : []),
   );
-  const myCreatedChallenges =challenges.filter((c) => String(c.criadorId) === viewerId);
   const playerChallengeTargets =
-    combat === null
+    myCombat === null
       ? masterChallengeTargets.filter((target) => target.id !== viewerId)
       : combatChallengeTargets;
   const playerChallengeHint =
-    combat !== null && !isMyTurn(combat, viewerId) ? 'Durante o combate, você só pode desafiar no seu turno.' : undefined;
+    myCombat !== null && !isMyTurn(myCombat, viewerId) ? 'Durante o combate, você só pode desafiar no seu turno.' : undefined;
 
   return (
     <section className="room">
@@ -678,6 +745,7 @@ export default function TableRoom() {
             challenges={challenges}
             targets={masterChallengeTargets}
             viewerId={viewerId}
+            isMaster
             title="Desafios de CD"
             canSend={canSend}
             connected={connected}
@@ -685,6 +753,8 @@ export default function TableRoom() {
             onAllowExtraAttempt={chatService.allowExtraAttempt.bind(chatService)}
             onEndWithFailure={chatService.endChallengeWithFailure.bind(chatService)}
             onCancel={chatService.cancelChallenge.bind(chatService)}
+            onConfirm={chatService.confirmChallengeResult.bind(chatService)}
+            onRemoveHelp={chatService.removeChallengeHelp.bind(chatService)}
             onFinish={chatService.finishChallenge.bind(chatService)}
             onSendMessage={chatService.sendChallengeMessage.bind(chatService)}
           />
@@ -693,10 +763,11 @@ export default function TableRoom() {
 
         {!isMaster && (
           <ChallengeMasterPanel
-            challenges={myCreatedChallenges}
+            challenges={challenges}
             targets={playerChallengeTargets}
             viewerId={viewerId}
-            title={combat !== null ? 'Meus desafios de combate' : 'Meus desafios'}
+            isMaster={false}
+            title={myCombat !== null ? 'Meus desafios de combate' : 'Meus desafios'}
             createHint={playerChallengeHint}
             canSend={canSend}
             connected={connected}
@@ -704,6 +775,8 @@ export default function TableRoom() {
             onAllowExtraAttempt={chatService.allowExtraAttempt.bind(chatService)}
             onEndWithFailure={chatService.endChallengeWithFailure.bind(chatService)}
             onCancel={chatService.cancelChallenge.bind(chatService)}
+            onConfirm={chatService.confirmChallengeResult.bind(chatService)}
+            onRemoveHelp={chatService.removeChallengeHelp.bind(chatService)}
             onFinish={chatService.finishChallenge.bind(chatService)}
             onSendMessage={chatService.sendChallengeMessage.bind(chatService)}
           />
@@ -717,8 +790,19 @@ export default function TableRoom() {
             paused={Boolean(isPaused)}
             canSend={connected}
             onRoll={chatService.rollChallenge.bind(chatService)}
+            onRemoveHelp={chatService.removeChallengeHelp.bind(chatService)}
           />
         )}
+
+        <ChallengeTablePanel
+          challenges={challenges}
+          viewerId={viewerId}
+          isMaster={isMaster}
+          reaction={helpReactionFor(myCombat, viewerId)}
+          canSend={canSend}
+          onHelp={chatService.helpChallenge.bind(chatService)}
+          onRemoveHelp={chatService.removeChallengeHelp.bind(chatService)}
+        />
 
         </div>
         {isMaster && (
@@ -727,9 +811,13 @@ export default function TableRoom() {
               participants={table.participants}
               npcs={characters.filter((c) => c.kind !== 'PLAYER' && table.npcIds.map(String).includes(String(c.id)))}
               onlineUserIds={onlineUsers.map((u) => String(u.userId))}
-              combatActive={combat !== null}
+              busyPlayerIds={combats.flatMap((c) =>
+                c.participantes.filter((entry) => entry.tipo === 'JOGADOR').map((entry) => String(entry.controladorId)),
+              )}
               canSend={canSend}
               onStart={chatService.startCombat.bind(chatService)}
+              onAdd={chatService.addToCombat.bind(chatService)}
+              activeCombats={combats.map((c) => ({ id: c.id, nome: c.nome }))}
               onManageLinks={() => setSideTab('FICHAS')}
             />
           </div>
@@ -795,19 +883,21 @@ export default function TableRoom() {
             A mesa está pausada pelo mestre. Mensagens e rolagens ficam bloqueadas até ela ser retomada.
           </div>
         )}
-        {combat && (
-          <CombatTracker
-            combat={combat}
-            viewerId={viewerId}
-            isMaster={isMaster}
-            canSend={canSend}
-            onRollInitiative={chatService.rollInitiative.bind(chatService)}
-            onRollMonsters={chatService.rollMonsterInitiative.bind(chatService)}
-            onPassTurn={chatService.passTurn.bind(chatService)}
-            onAllowReroll={chatService.allowInitiativeReroll.bind(chatService)}
-            onEnd={chatService.endCombat.bind(chatService)}
-          />
-        )}
+        <CombatBoard
+          combats={combats}
+          summaries={combatSummaries}
+          viewerId={viewerId}
+          isMaster={isMaster}
+          canSend={canSend}
+          onRollInitiative={chatService.rollInitiative.bind(chatService)}
+          onRollMonsters={chatService.rollMonsterInitiative.bind(chatService)}
+          onPassTurn={chatService.passTurn.bind(chatService)}
+          onReveal={chatService.revealInCombat.bind(chatService)}
+          onReact={chatService.react.bind(chatService)}
+          onEndReaction={chatService.endReaction.bind(chatService)}
+          onAllowReroll={chatService.allowInitiativeReroll.bind(chatService)}
+          onEnd={chatService.endCombat.bind(chatService)}
+        />
         <Tabs
           label="Canais da mesa"
           idPrefix={TABS_ID}
@@ -845,6 +935,9 @@ export default function TableRoom() {
                     </span>
                   </div>
 
+                  {m.reacao && (
+                    <span className="msg-reaction-tag">{m.type === 'REACAO' ? 'Reação' : m.reacao}</span>
+                  )}
                   {m.type === 'ROLAGEM' && m.diceResult ? (
                     <DiceRollMessage
                       result={m.diceResult}
@@ -966,6 +1059,16 @@ export default function TableRoom() {
           note={receivedNotes[0]}
           remaining={receivedNotes.length - 1}
           onClose={dismissReceivedNote}
+        />
+      )}
+
+      {combatAlerts.length > 0 && (
+        <CombatAlert
+          key={combatAlerts[0].key}
+          kind={combatAlerts[0].kind}
+          title={combatAlerts[0].title}
+          detail={combatAlerts[0].detail}
+          onClose={dismissCombatAlert}
         />
       )}
 

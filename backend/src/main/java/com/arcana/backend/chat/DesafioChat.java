@@ -2,6 +2,7 @@ package com.arcana.backend.chat;
 
 import com.arcana.backend.chat.desafio.ComandoDesafio;
 import com.arcana.backend.chat.desafio.DesafioDto;
+import com.arcana.backend.chat.desafio.DesafioFinalizado;
 import com.arcana.backend.chat.desafio.DesafioService;
 import com.arcana.backend.chat.desafio.NovoDesafio;
 import com.arcana.backend.chat.model.ChatMessage;
@@ -15,7 +16,7 @@ import org.springframework.web.socket.WebSocketSession;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.EnumSet;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -30,7 +31,10 @@ public class DesafioChat {
             ChatMessage.Type.DESAFIO_ENCERRAR_FALHA,
             ChatMessage.Type.DESAFIO_CANCELAR,
             ChatMessage.Type.DESAFIO_MENSAGEM,
-            ChatMessage.Type.DESAFIO_FINALIZAR);
+            ChatMessage.Type.DESAFIO_FINALIZAR,
+            ChatMessage.Type.DESAFIO_CONFIRMAR,
+            ChatMessage.Type.DESAFIO_AJUDAR,
+            ChatMessage.Type.DESAFIO_REMOVER_AJUDA);
 
     private final DesafioService desafioService;
     private final ObjectMapper objectMapper;
@@ -63,6 +67,12 @@ public class DesafioChat {
                     mesa, acesso, comando.desafioId(), comando.alvo()).id();
             case DESAFIO_CANCELAR -> desafioService.cancelar(
                     mesa, acesso, comando.desafioId(), comando.alvo()).id();
+            case DESAFIO_CONFIRMAR -> desafioService.confirmar(
+                    mesa, acesso, comando.desafioId(), comando.alvo()).id();
+            case DESAFIO_AJUDAR -> desafioService.ajudar(
+                    mesa, acesso, comando.desafioId(), comando.alvo(), comando.tipoAjuda(), comando.faces()).id();
+            case DESAFIO_REMOVER_AJUDA -> desafioService.removerAjuda(
+                    mesa, acesso, comando.desafioId(), comando.alvo(), comando.ajudaId()).id();
             case DESAFIO_MENSAGEM -> desafioService.enviarMensagem(
                     mesa, acesso, comando.desafioId(), comando.destino(), comando.alvo(), comando.texto())
                     .desafio().id();
@@ -82,8 +92,9 @@ public class DesafioChat {
         desafioService.cancelarDoJogador(mesa, jogadorId).forEach(desafio -> notificar(mesa, desafio.id()));
     }
 
-    public void aoCombateEncerrado(MesaAtiva mesa) {
-        desafioService.cancelarDoCombate(mesa).forEach(desafio -> notificar(mesa, desafio.id()));
+    public void aoCombatesEncerrados(MesaAtiva mesa, Set<String> combatesAtivos) {
+        desafioService.cancelarDeCombatesEncerrados(mesa, combatesAtivos)
+                .forEach(desafio -> notificar(mesa, desafio.id()));
     }
 
     public boolean jogadorBloqueado(MesaAtiva mesa, Long userId) {
@@ -91,22 +102,23 @@ public class DesafioChat {
     }
 
     private void notificar(MesaAtiva mesa, String desafioId) {
-        for (Long userId : desafioService.envolvidos(mesa, desafioId)) {
-            List<WebSocketSession> sessoes = mesa.sessoesDoUsuario(userId);
-            if (sessoes.isEmpty()) continue;
-
+        Map<Long, DesafioDto> visoes = new HashMap<>();
+        for (MesaAtiva.Conexao conexao : mesa.conexoes()) {
+            Long userId = conexao.acesso().userId();
+            DesafioDto visao = visoes.computeIfAbsent(userId,
+                    id -> desafioService.visaoPara(mesa, desafioId, id));
             ChatMessage evento = novoEvento(mesa, ChatMessage.Type.DESAFIO);
-            evento.setDesafio(desafioService.visaoPara(mesa, desafioId, userId));
-            sessoes.forEach(sessao -> enviar(sessao, evento));
+            evento.setDesafio(visao);
+            enviar(conexao.sessao(), evento);
         }
     }
 
-    private void notificarFinalizado(MesaAtiva mesa, Map<Long, DesafioDto> visoes) {
-        visoes.forEach((userId, visao) -> {
+    private void notificarFinalizado(MesaAtiva mesa, DesafioFinalizado finalizado) {
+        for (MesaAtiva.Conexao conexao : mesa.conexoes()) {
             ChatMessage evento = novoEvento(mesa, ChatMessage.Type.DESAFIO_FINALIZADO);
-            evento.setDesafio(visao);
-            mesa.sessoesDoUsuario(userId).forEach(sessao -> enviar(sessao, evento));
-        });
+            evento.setDesafio(finalizado.para(conexao.acesso().userId()));
+            enviar(conexao.sessao(), evento);
+        }
     }
 
     private void enviar(WebSocketSession sessao, ChatMessage evento) {

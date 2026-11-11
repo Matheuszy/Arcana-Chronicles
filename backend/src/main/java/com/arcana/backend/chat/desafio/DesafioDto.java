@@ -12,7 +12,7 @@ public record DesafioDto(
         String criadorNome,
         boolean doMestre,
         boolean doCombate,
-        int cd,
+        Integer cd,
         String descricao,
         Instant criadoEm,
         boolean ativo,
@@ -28,7 +28,9 @@ public record DesafioDto(
             String nomePersonagem,
             ModoRolagem modo,
             EstadoDesafio estado,
-            List<RolagemDeDesafio> rolagens
+            ModoRolagem modoEfetivo,
+            List<RolagemDeDesafio> rolagens,
+            List<Ajuda> ajudas
     ) {}
 
     public record MensagemDto(
@@ -47,19 +49,21 @@ public record DesafioDto(
 
     public static DesafioDto paraUsuario(Desafio desafio, Long userId) {
         boolean ehCriador = desafio.getCriadorId().equals(userId);
+        boolean envolvido = desafio.envolve(userId);
         return new DesafioDto(
                 desafio.getId(),
                 desafio.getCriadorId(),
                 desafio.getNomeDoCriador(),
                 desafio.isDoMestre(),
                 desafio.isDoCombate(),
-                desafio.getCd(),
+                envolvido ? desafio.getCd() : null,
                 desafio.getDescricao(),
                 desafio.getCriadoEm(),
                 desafio.ativo(),
                 desafio.participacoes().stream()
                         .map(p -> new ParticipacaoDto(p.getId(), p.getTipo(), p.getControladorId(), p.getNomeJogador(), p.getNomePersonagem(),
-                                p.getModo(), p.getEstado(), p.getRolagens()))
+                                p.getModo(), p.getEstado(), desafio.modoEfetivo(p.getId()), p.getRolagens(),
+                                p.getAjudas()))
                         .toList(),
                 desafio.mensagensVisiveisPara(userId).stream()
                         .map(m -> MensagemDto.paraUsuario(m, ehCriador))

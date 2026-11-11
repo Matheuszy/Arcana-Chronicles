@@ -15,6 +15,62 @@ export interface ReleaseNotes {
 
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: '1.2.0',
+    date: '2026-11-10',
+    title: 'Mesa de guerra',
+    intro: 'Forasteiro, a mesa ficou mais perigosa e mais divertida. Afie a espada e confira.',
+    news: [
+      {
+        title: 'Vários combates ao mesmo tempo',
+        text: 'O mestre conduz mais de uma luta na mesma mesa, cada uma com o seu nome. Você acompanha a sua em destaque e vê um resumo das outras.',
+      },
+      {
+        title: 'Aviso de sua vez',
+        text: 'Quando chega o seu turno, um aviso aparece no meio da tela e o celular vibra.',
+      },
+      {
+        title: 'Chegou reforço',
+        text: 'Dá para entrar numa luta que já começou. Você rola a iniciativa ao fim do turno atual e toda a mesa vê "Fulano entrou na partida".',
+      },
+      {
+        title: 'Monstros ocultos',
+        text: 'O mestre pode esconder criaturas na ordem de iniciativa. Na vez delas, você só vê "Turno do mestre"… até ela se revelar.',
+      },
+      {
+        title: 'Reações',
+        text: 'Uma por rodada, fora do seu turno, como um ataque de oportunidade. As rolagens aparecem no chat marcadas como reação, e ela volta no início do seu próximo turno.',
+      },
+      {
+        title: 'Desafios para a mesa inteira',
+        text: 'Todo desafio é anunciado para todos. A CD fica em segredo para quem só assiste.',
+      },
+      {
+        title: 'Ajudas e atrapalhos',
+        text: 'Dê um dado bônus, um dado de penalidade, vantagem ou desvantagem no teste de outro jogador. Em combate, isso gasta a sua reação. Quem recebe pode recusar uma ajuda.',
+      },
+    ],
+    improvements: [
+      {
+        title: 'Iniciativa pela ficha',
+        text: 'A iniciativa soma a Destreza e o novo bônus de iniciativa da ficha, para talentos como Alerta.',
+      },
+      {
+        title: 'Resultado confirmado',
+        text: 'O resultado do desafio só vale depois que quem desafiou confirma, para dar tempo de chegarem os dados de ajuda.',
+      },
+      {
+        title: 'Lista de combate mais legível',
+        text: 'A lista de jogadores do combate ficou mais fácil de ler no celular.',
+      },
+    ],
+    fixes: [
+      {
+        title: 'Ficha',
+        text: 'Os campos de nível, dado de vida e dados disponíveis da ficha agora ficam alinhados.',
+      },
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2026-11-08',
     title: 'A ficha completa',

@@ -1,18 +1,23 @@
 import { useState } from 'react';
 import NumberInput from '../../components/ui/NumberInput';
+import Select from '../../components/ui/Select';
 import { Character, KIND_LABEL } from '../../types/character';
-import { MAX_MONSTER_NAME_LENGTH, MAX_MONSTERS_PER_GROUP, MonsterGroup } from '../../types/combat';
+import { MAX_COMBAT_NAME_LENGTH, MAX_MONSTER_NAME_LENGTH, MAX_MONSTERS_PER_GROUP, MonsterGroup } from '../../types/combat';
 import { TableParticipant } from '../../types/table';
 
 interface CombatStartPanelProps {
   participants: TableParticipant[];
   npcs: Character[];
   onlineUserIds: string[];
-  combatActive: boolean;
+  busyPlayerIds: string[];
+  activeCombats: { id: string; nome: string }[];
   canSend: boolean;
-  onStart: (playerIds: number[], monsters: MonsterGroup[]) => void;
+  onStart: (name: string, playerIds: number[], monsters: MonsterGroup[]) => void;
+  onAdd: (combatId: string, playerIds: number[], monsters: MonsterGroup[]) => void;
   onManageLinks: () => void;
 }
+
+const NEW_COMBAT = '';
 
 function clampQuantity(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -23,19 +28,27 @@ export default function CombatStartPanel({
   participants,
   npcs,
   onlineUserIds,
-  combatActive,
+  busyPlayerIds,
+  activeCombats,
   canSend,
   onStart,
+  onAdd,
   onManageLinks,
 }: CombatStartPanelProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [names, setNames] = useState<Record<string, string>>({});
+  const [hidden, setHidden] = useState<Record<string, boolean>>({});
+  const [combatName, setCombatName] = useState('');
+  const [destination, setDestination] = useState(NEW_COMBAT);
   const [formError, setFormError] = useState<string | null>(null);
 
   const players = participants.filter((p) => p.role === 'JOGADOR');
-  const eligible = players.filter((p) => p.characterId);
+  const busy = (userId: string) => busyPlayerIds.includes(String(userId));
+  const eligible = players.filter((p) => p.characterId && !busy(p.userId));
   const linkedNpcs = npcs.filter((npc) => npc.id);
+  const target = activeCombats.some((combat) => combat.id === destination) ? destination : NEW_COMBAT;
+  const addingToCombat = target !== NEW_COMBAT;
 
   const toggle = (userId: string) =>
     setSelected((prev) => {
@@ -52,118 +65,171 @@ export default function CombatStartPanel({
 
   const start = () => {
     const chosen = eligible.filter((p) => selected.has(p.userId));
-    if (chosen.length === 0) {
-      setFormError('Selecione ao menos um jogador.');
-      return;
-    }
     const monsters = linkedNpcs
       .map((npc) => ({
         personagemId: Number(npc.id),
         quantidade: quantities[String(npc.id)] ?? 0,
         nome: names[String(npc.id)]?.trim() || undefined,
+        oculto: hidden[String(npc.id)] ?? false,
       }))
       .filter((group) => group.quantidade > 0);
-    setFormError(null);
-    onStart(
-      chosen.map((p) => Number(p.userId)),
-      monsters,
-    );
+    const playerIds = chosen.map((p) => Number(p.userId));
+    if (addingToCombat) {
+      if (playerIds.length === 0 && monsters.length === 0) {
+        setFormError('Escolha ao menos um jogador ou monstro para entrar no combate.');
+        return;
+      }
+      setFormError(null);
+      onAdd(target, playerIds, monsters);
+    } else {
+      if (playerIds.length === 0) {
+        setFormError('Selecione ao menos um jogador.');
+        return;
+      }
+      setFormError(null);
+      onStart(combatName.trim(), playerIds, monsters);
+    }
+    setCombatName('');
     setSelected(new Set());
     setQuantities({});
     setNames({});
+    setHidden({});
   };
 
   return (
     <div className="combat-start">
       <h3 className="section-title">Modo combate</h3>
 
-      {combatActive ? (
-        <p className="muted">Há um combate em andamento. Acompanhe e controle a ordem acima do chat.</p>
-      ) : (
+      {busyPlayerIds.length > 0 && (
+        <p className="muted">
+          Há combate em andamento, acompanhe acima do chat. Com quem estiver livre, você pode iniciar outro combate ou adicionar a um combate em andamento.
+        </p>
+      )}
+      {activeCombats.length > 0 && (
+        <Select
+          label="Destino"
+          value={target}
+          onChange={setDestination}
+          options={[
+            { value: NEW_COMBAT, label: 'Novo combate' },
+            ...activeCombats.map((combat) => ({ value: combat.id, label: `Entrar em ${combat.nome}` })),
+          ]}
+        />
+      )}
+      {addingToCombat && (
+        <p className="muted">
+          Quem entrar rola a iniciativa ao fim do turno atual e é encaixado na ordem sem travar o combate.
+        </p>
+      )}
+      <div className="field" hidden={addingToCombat}>
+        <label htmlFor="combat-name">Nome do combate</label>
+        <input
+          id="combat-name"
+          type="text"
+          placeholder="Opcional, como Emboscada na ponte"
+          maxLength={MAX_COMBAT_NAME_LENGTH}
+          value={combatName}
+          onChange={(e) => setCombatName(e.target.value)}
+        />
+      </div>
+      <p className="muted">Escolha quem participa. Quem ficar de fora não entra na ordem de iniciativa.</p>
+      {players.length === 0 && <p className="muted">Nenhum jogador na mesa.</p>}
+      <ul className="challenge-pick-list">
+        {players.map((p) => {
+          const noCharacter = !p.characterId;
+          const inCombat = busy(p.userId);
+          const unavailable = noCharacter || inCombat;
+          const online = onlineUserIds.includes(String(p.userId));
+          return (
+            <li key={p.userId} className="challenge-pick combat-player-pick">
+              <label>
+                <input
+                  type="checkbox"
+                  disabled={unavailable}
+                  checked={selected.has(p.userId) && !unavailable}
+                  onChange={() => toggle(p.userId)}
+                />
+                <span className="combat-player-info">
+                  <strong className="combat-player-name">{p.displayName}</strong>
+                  <span className="combat-player-meta">
+                    <span className="combat-player-presence">
+                      <span className={`presence-dot ${online ? 'online' : ''}`} aria-hidden="true" />
+                      {online ? 'online' : 'offline'}
+                    </span>
+                    {noCharacter && <span className="combat-player-status">sem personagem</span>}
+                    {!noCharacter && inCombat && <span className="combat-player-status">em combate</span>}
+                  </span>
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+
+      <h4 className="section-title">Monstros, NPCs e chefes</h4>
+      <p className="muted combat-link-hint">
+        {linkedNpcs.length === 0
+          ? 'Nenhuma ficha vinculada à mesa ainda. Só as fichas vinculadas entram no combate, e uma única ficha pode virar vários monstros.'
+          : 'Aparecem aqui as fichas vinculadas à mesa.'}{' '}
+        <button type="button" className="btn btn-ghost" onClick={onManageLinks}>
+          Vincular fichas
+        </button>
+      </p>
+      {linkedNpcs.length > 0 && (
         <>
-          <p className="muted">Escolha quem participa. Quem ficar de fora não entra na ordem de iniciativa.</p>
-          {players.length === 0 && <p className="muted">Nenhum jogador na mesa.</p>}
+          <p className="muted">
+            Informe quantos de cada ficha entram e, se quiser, um nome para os monstros (vazio usa o nome da ficha). Cada um rola o próprio d20 e a ficha não é duplicada. Monstros ocultos não aparecem para os jogadores até você revelar.
+          </p>
           <ul className="challenge-pick-list">
-            {players.map((p) => {
-              const noCharacter = !p.characterId;
-              const online = onlineUserIds.includes(String(p.userId));
+            {linkedNpcs.map((npc) => {
+              const characterId = String(npc.id);
               return (
-                <li key={p.userId} className="challenge-pick">
-                  <label>
+                <li key={characterId} className="challenge-pick combat-monster-pick">
+                  <label htmlFor={`combat-qty-${characterId}`}>
+                    {npc.name} <small className="muted">{KIND_LABEL[npc.kind]}</small>
+                  </label>
+                  <input
+                    className="combat-monster-name"
+                    type="text"
+                    aria-label={`Nome em combate de ${npc.name}`}
+                    placeholder={npc.name}
+                    maxLength={MAX_MONSTER_NAME_LENGTH}
+                    value={names[characterId] ?? ''}
+                    onChange={(e) => setNames((prev) => ({ ...prev, [characterId]: e.target.value }))}
+                  />
+                  <NumberInput
+                    id={`combat-qty-${characterId}`}
+                    className="combat-quantity"
+                    min={0}
+                    max={MAX_MONSTERS_PER_GROUP}
+                    value={quantities[characterId] ?? 0}
+                    onChange={(next) => changeQuantity(characterId, next)}
+                    onClear={() => changeQuantity(characterId, 0)}
+                  />
+                  <label className="combat-hidden-toggle">
                     <input
                       type="checkbox"
-                      disabled={noCharacter}
-                      checked={selected.has(p.userId) && !noCharacter}
-                      onChange={() => toggle(p.userId)}
+                      checked={hidden[characterId] ?? false}
+                      onChange={(e) => setHidden((prev) => ({ ...prev, [characterId]: e.target.checked }))}
                     />
-                    <span className={`presence-dot ${online ? 'online' : ''}`} aria-hidden="true" />
-                    {p.displayName}
-                    <small className="muted">{online ? ' (online)' : ' (offline)'}</small>
+                    Oculto
                   </label>
-                  {noCharacter && <small className="muted">sem personagem</small>}
                 </li>
               );
             })}
           </ul>
-
-          <h4 className="section-title">Monstros, NPCs e chefes</h4>
-          <p className="muted combat-link-hint">
-            {linkedNpcs.length === 0
-              ? 'Nenhuma ficha vinculada à mesa ainda. Só as fichas vinculadas entram no combate, e uma única ficha pode virar vários monstros.'
-              : 'Aparecem aqui as fichas vinculadas à mesa.'}{' '}
-            <button type="button" className="btn btn-ghost" onClick={onManageLinks}>
-              Vincular fichas
-            </button>
-          </p>
-          {linkedNpcs.length > 0 && (
-            <>
-              <p className="muted">
-                Informe quantos de cada ficha entram e, se quiser, um nome para o combate (vazio usa o nome da ficha). Cada um rola o próprio d20 e a ficha não é duplicada.
-              </p>
-              <ul className="challenge-pick-list">
-                {linkedNpcs.map((npc) => {
-                  const characterId = String(npc.id);
-                  return (
-                    <li key={characterId} className="challenge-pick combat-monster-pick">
-                      <label htmlFor={`combat-qty-${characterId}`}>
-                        {npc.name} <small className="muted">{KIND_LABEL[npc.kind]}</small>
-                      </label>
-                      <input
-                        className="combat-monster-name"
-                        type="text"
-                        aria-label={`Nome em combate de ${npc.name}`}
-                        placeholder={npc.name}
-                        maxLength={MAX_MONSTER_NAME_LENGTH}
-                        value={names[characterId] ?? ''}
-                        onChange={(e) => setNames((prev) => ({ ...prev, [characterId]: e.target.value }))}
-                      />
-                      <NumberInput
-                        id={`combat-qty-${characterId}`}
-                        className="combat-quantity"
-                        min={0}
-                        max={MAX_MONSTERS_PER_GROUP}
-                        value={quantities[characterId] ?? 0}
-                        onChange={(next) => changeQuantity(characterId, next)}
-                        onClear={() => changeQuantity(characterId, 0)}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-
-          {formError && <p className="roll-error">{formError}</p>}
-          <div className="roll-panel-actions">
-            <button className="btn btn-ghost" onClick={selectAll} disabled={eligible.length === 0}>
-              Selecionar todos
-            </button>
-            <button className="btn btn-primary" disabled={!canSend} onClick={start}>
-              Iniciar combate
-            </button>
-          </div>
         </>
       )}
+
+      {formError && <p className="roll-error">{formError}</p>}
+      <div className="roll-panel-actions">
+        <button className="btn btn-ghost" onClick={selectAll} disabled={eligible.length === 0}>
+          Selecionar todos
+        </button>
+        <button className="btn btn-primary" disabled={!canSend} onClick={start}>
+          {addingToCombat ? 'Adicionar ao combate' : 'Iniciar combate'}
+        </button>
+      </div>
     </div>
   );
 }

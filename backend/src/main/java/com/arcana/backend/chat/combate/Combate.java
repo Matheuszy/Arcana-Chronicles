@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class Combate {
 
@@ -19,6 +20,31 @@ public class Combate {
         MONSTRO
     }
 
+    public enum TipoReacao {
+        ATAQUE_DE_OPORTUNIDADE("Ataque de oportunidade"),
+        OUTRA("Reação");
+
+        private final String rotulo;
+
+        TipoReacao(String rotulo) {
+            this.rotulo = rotulo;
+        }
+
+        public String getRotulo() {
+            return rotulo;
+        }
+    }
+
+    public record Reacao(TipoReacao tipo, String descricao) {
+
+        public String rotulo() {
+            if (descricao == null) {
+                return tipo.getRotulo();
+            }
+            return tipo == TipoReacao.OUTRA ? descricao : tipo.getRotulo() + ": " + descricao;
+        }
+    }
+
     public static class Entrada {
 
         private final String id;
@@ -29,12 +55,16 @@ public class Combate {
         private final String nomeJogador;
         private final String nomePersonagem;
         private final int modificadorDestreza;
-        private final int bonusProficiencia;
+        private final int bonusIniciativa;
         private Iniciativa iniciativa;
         private boolean rerolagemLiberada;
+        private boolean aguardandoFimDoTurno;
+        private boolean oculto;
+        private boolean reacaoUsada;
+        private Reacao reacaoAberta;
 
         Entrada(String id, TipoEntrada tipo, Long controladorId, Long personagemId, String grupo,
-                String nomeJogador, String nomePersonagem, int modificadorDestreza, int bonusProficiencia) {
+                String nomeJogador, String nomePersonagem, int modificadorDestreza, int bonusIniciativa) {
             this.id = id;
             this.tipo = tipo;
             this.controladorId = controladorId;
@@ -43,7 +73,7 @@ public class Combate {
             this.nomeJogador = nomeJogador;
             this.nomePersonagem = nomePersonagem;
             this.modificadorDestreza = modificadorDestreza;
-            this.bonusProficiencia = bonusProficiencia;
+            this.bonusIniciativa = bonusIniciativa;
         }
 
         public String getId() {
@@ -78,8 +108,8 @@ public class Combate {
             return modificadorDestreza;
         }
 
-        public int getBonusProficiencia() {
-            return bonusProficiencia;
+        public int getBonusIniciativa() {
+            return bonusIniciativa;
         }
 
         public Iniciativa getIniciativa() {
@@ -90,6 +120,22 @@ public class Combate {
             return rerolagemLiberada;
         }
 
+        public boolean isAguardandoFimDoTurno() {
+            return aguardandoFimDoTurno;
+        }
+
+        public boolean isOculto() {
+            return oculto;
+        }
+
+        public boolean isReacaoUsada() {
+            return reacaoUsada;
+        }
+
+        public Reacao getReacaoAberta() {
+            return reacaoAberta;
+        }
+
         public boolean aguardandoRolagem() {
             return iniciativa == null || rerolagemLiberada;
         }
@@ -98,6 +144,7 @@ public class Combate {
     private static final String PREFIXO_MONSTRO = "monstro-";
 
     private final String id;
+    private final String nome;
     private final Long mestreId;
     private final Instant criadoEm;
     private final Map<String, Entrada> entradas = new LinkedHashMap<>();
@@ -107,8 +154,9 @@ public class Combate {
     private int rodada = 1;
     private int monstrosAdicionados;
 
-    public Combate(String id, Long mestreId, Instant criadoEm) {
+    public Combate(String id, String nome, Long mestreId, Instant criadoEm) {
         this.id = id;
+        this.nome = nome;
         this.mestreId = mestreId;
         this.criadoEm = criadoEm;
     }
@@ -119,6 +167,10 @@ public class Combate {
 
     public String getId() {
         return id;
+    }
+
+    public String getNome() {
+        return nome;
     }
 
     public Long getMestreId() {
@@ -153,11 +205,25 @@ public class Combate {
         return emAndamento() ? entradas.get(ordem.get(indiceDoTurno)).controladorId : null;
     }
 
+    public boolean turnoOculto() {
+        return emAndamento() && entradas.get(ordem.get(indiceDoTurno)).oculto;
+    }
+
     public List<Entrada> entradasEmOrdem() {
         if (!emAndamento()) {
             return List.copyOf(entradas.values());
         }
-        return ordem.stream().map(entradas::get).toList();
+        List<Entrada> emOrdem = new ArrayList<>(ordem.stream().map(entradas::get).toList());
+        entradas.values().stream()
+                .filter(entrada -> !ordem.contains(entrada.id))
+                .forEach(emOrdem::add);
+        return List.copyOf(emOrdem);
+    }
+
+    public long monstrosDoGrupo(String grupo) {
+        return entradas.values().stream()
+                .filter(entrada -> entrada.tipo == TipoEntrada.MONSTRO && grupo.equals(entrada.grupo))
+                .count();
     }
 
     public Entrada entrada(String entradaId) {
@@ -168,26 +234,114 @@ public class Combate {
         return entrada;
     }
 
+    public boolean temJogador(Long jogadorId) {
+        return entradas.containsKey(idDoJogador(jogadorId));
+    }
+
+    public boolean controlaAlgumaEntrada(Long userId) {
+        return entradas.values().stream().anyMatch(entrada -> entrada.controladorId.equals(userId));
+    }
+
+    public List<String> nomesDosJogadores() {
+        return entradasEmOrdem().stream()
+                .filter(entrada -> entrada.tipo == TipoEntrada.JOGADOR)
+                .map(Entrada::getNomePersonagem)
+                .toList();
+    }
+
     public boolean podeRolarLivremente(Long userId) {
-        return emAndamento() && userId != null && userId.equals(controladorDoTurno());
+        return emAndamento() && userId != null
+                && (userId.equals(controladorDoTurno()) || reacaoAbertaDe(userId).isPresent());
+    }
+
+    public Optional<Entrada> reacaoAbertaDe(Long userId) {
+        return entradas.values().stream()
+                .filter(entrada -> entrada.reacaoAberta != null && entrada.controladorId.equals(userId))
+                .findFirst();
     }
 
     void adicionarJogador(Long jogadorId, String nomeJogador, String nomePersonagem, int modificadorDestreza,
-                          int bonusProficiencia) {
+                          int bonusIniciativa) {
         String entradaId = idDoJogador(jogadorId);
-        entradas.put(entradaId, new Entrada(entradaId, TipoEntrada.JOGADOR, jogadorId, null, null, nomeJogador,
-                nomePersonagem, modificadorDestreza, bonusProficiencia));
+        if (entradas.containsKey(entradaId)) {
+            throw new IllegalStateException(nomePersonagem + " já está neste combate.");
+        }
+        adicionar(new Entrada(entradaId, TipoEntrada.JOGADOR, jogadorId, null, null, nomeJogador,
+                nomePersonagem, modificadorDestreza, bonusIniciativa));
     }
 
     void adicionarMonstro(Long personagemId, String grupo, String nomeMonstro, String nomeMestre,
-                          int modificadorDestreza, int bonusProficiencia) {
+                          int modificadorDestreza, int bonusIniciativa) {
+        adicionarMonstro(personagemId, grupo, nomeMonstro, nomeMestre, modificadorDestreza, bonusIniciativa, false);
+    }
+
+    void adicionarMonstro(Long personagemId, String grupo, String nomeMonstro, String nomeMestre,
+                          int modificadorDestreza, int bonusIniciativa, boolean oculto) {
         String entradaId = PREFIXO_MONSTRO + (++monstrosAdicionados);
-        entradas.put(entradaId, new Entrada(entradaId, TipoEntrada.MONSTRO, mestreId, personagemId, grupo,
-                nomeMestre, nomeMonstro, modificadorDestreza, bonusProficiencia));
+        Entrada monstro = new Entrada(entradaId, TipoEntrada.MONSTRO, mestreId, personagemId, grupo,
+                nomeMestre, nomeMonstro, modificadorDestreza, bonusIniciativa);
+        monstro.oculto = oculto;
+        adicionar(monstro);
+    }
+
+    List<String> revelar(List<String> entradaIds) {
+        List<Entrada> escolhidas = entradaIds.stream().map(this::entrada).toList();
+        for (Entrada entrada : escolhidas) {
+            if (!entrada.oculto) {
+                throw new IllegalStateException(entrada.nomePersonagem + " já está visível para os jogadores.");
+            }
+        }
+        escolhidas.forEach(entrada -> entrada.oculto = false);
+        return escolhidas.stream().map(Entrada::getNomePersonagem).toList();
+    }
+
+    void declararReacao(String entradaId, Reacao reacao) {
+        Entrada entrada = consumirReacao(entradaId);
+        entrada.reacaoAberta = reacao;
+    }
+
+    void usarReacaoParaAjudar(String entradaId) {
+        consumirReacao(entradaId);
+    }
+
+    private Entrada consumirReacao(String entradaId) {
+        Entrada entrada = entrada(entradaId);
+        if (!emAndamento() || !ordem.contains(entradaId)) {
+            throw new IllegalStateException("A reação só pode ser usada depois de rolar a iniciativa.");
+        }
+        if (entrada.oculto) {
+            throw new IllegalStateException("Revele " + entrada.nomePersonagem + " antes de usar a reação.");
+        }
+        if (entradaId.equals(idDoTurno())) {
+            throw new IllegalStateException("A reação é usada fora do próprio turno.");
+        }
+        if (entrada.reacaoUsada) {
+            throw new IllegalStateException(entrada.nomePersonagem
+                    + " já usou a reação nesta rodada. Ela volta no início do próximo turno.");
+        }
+        entrada.reacaoUsada = true;
+        return entrada;
+    }
+
+    void encerrarReacao(String entradaId) {
+        Entrada entrada = entrada(entradaId);
+        if (entrada.reacaoAberta == null) {
+            throw new IllegalStateException("Não há reação aberta para encerrar.");
+        }
+        entrada.reacaoAberta = null;
+    }
+
+    private void adicionar(Entrada entrada) {
+        entrada.aguardandoFimDoTurno = emAndamento();
+        entradas.put(entrada.id, entrada);
     }
 
     void exigirAguardandoRolagem(String entradaId) {
-        if (!entrada(entradaId).aguardandoRolagem()) {
+        Entrada entrada = entrada(entradaId);
+        if (entrada.aguardandoFimDoTurno) {
+            throw new IllegalStateException("Aguarde o fim do turno atual para rolar a iniciativa.");
+        }
+        if (!entrada.aguardandoRolagem()) {
             throw new IllegalStateException(
                     "Você já rolou a iniciativa. Peça ao mestre para liberar uma nova rolagem.");
         }
@@ -218,6 +372,11 @@ public class Combate {
             indiceDoTurno = 0;
             rodada++;
         }
+        entradas.values().forEach(entrada -> {
+            entrada.aguardandoFimDoTurno = false;
+            entrada.reacaoAberta = null;
+        });
+        entradas.get(ordem.get(indiceDoTurno)).reacaoUsada = false;
     }
 
     void removerJogador(Long jogadorId) {
@@ -233,6 +392,9 @@ public class Combate {
             return;
         }
         int posicao = ordem.indexOf(entradaId);
+        if (posicao < 0) {
+            return;
+        }
         List<String> restantes = new ArrayList<>(ordem);
         restantes.remove(entradaId);
         ordem = List.copyOf(restantes);
@@ -245,11 +407,12 @@ public class Combate {
     }
 
     private void reordenar() {
-        if (entradas.values().stream().anyMatch(entrada -> entrada.iniciativa == null)) {
+        if (!emAndamento() && entradas.values().stream().anyMatch(entrada -> entrada.iniciativa == null)) {
             return;
         }
         String atual = idDoTurno();
         ordem = entradas.values().stream()
+                .filter(entrada -> entrada.iniciativa != null)
                 .sorted(Comparator.comparingInt((Entrada entrada) -> entrada.iniciativa.total()).reversed()
                         .thenComparing(Comparator.comparingInt((Entrada entrada) -> entrada.modificadorDestreza)
                                 .reversed()))

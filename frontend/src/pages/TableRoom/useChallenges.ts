@@ -1,13 +1,27 @@
 import { useCallback, useRef, useState } from 'react';
 import { ChatMessage } from '../../types/chat';
-import { Challenge, IncomingChallengeMessage, RollReveal, challengeAuthor } from '../../types/challenge';
+import {
+  Challenge,
+  IncomingChallengeMessage,
+  RollReveal,
+  challengeAuthor,
+  isViewerInvolved,
+} from '../../types/challenge';
 
-function findNewRoll(previous: Challenge | undefined, updated: Challenge): RollReveal | null {
+export interface ChallengeAnnouncement {
+  key: string;
+  challenge: Challenge;
+}
+
+function findConfirmedRoll(previous: Challenge | undefined, updated: Challenge): RollReveal | null {
   if (!previous) return null;
   for (const player of updated.jogadores) {
-    const before = previous.jogadores.find((p) => p.id === player.id)?.rolagens.length ?? 0;
-    if (player.rolagens.length > before) {
-      const roll = player.rolagens[player.rolagens.length - 1];
+    const roll = player.rolagens[player.rolagens.length - 1];
+    if (!roll || !roll.confirmada) continue;
+    const before = previous.jogadores
+      .find((p) => p.id === player.id)
+      ?.rolagens.find((r) => r.tentativa === roll.tentativa);
+    if (!before || !before.confirmada) {
       return { key: `${updated.id}-${player.id}-${roll.tentativa}`, challenge: updated, player, roll };
     }
   }
@@ -26,6 +40,7 @@ export function useChallenges(viewerId: string | null) {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [reveal, setReveal] = useState<RollReveal | null>(null);
   const [incomingMessage, setIncomingMessage] = useState<IncomingChallengeMessage | null>(null);
+  const [announcement, setAnnouncement] = useState<ChallengeAnnouncement | null>(null);
   const known = useRef<Challenge[]>([]);
   const viewerRef = useRef(viewerId);
   viewerRef.current = viewerId;
@@ -54,10 +69,12 @@ export function useChallenges(viewerId: string | null) {
       const exists = Boolean(previous);
       replaceAll(exists ? known.current.map((c) => (c.id === updated.id ? updated : c)) : [...known.current, updated]);
 
-      const newRoll = findNewRoll(previous, updated);
+      const isCreator = String(updated.criadorId) === viewerRef.current;
+      if (!exists && !isCreator) setAnnouncement({ key: updated.id, challenge: updated });
+
+      const newRoll = isViewerInvolved(updated, viewerRef.current) ? findConfirmedRoll(previous, updated) : null;
       if (newRoll) setReveal(newRoll);
 
-      const isCreator = String(updated.criadorId) === viewerRef.current;
       const newMessage = isCreator ? null : findNewMessage(previous, updated);
       if (newMessage) setIncomingMessage(newMessage);
       return true;
@@ -69,10 +86,11 @@ export function useChallenges(viewerId: string | null) {
     replaceAll([]);
     setReveal(null);
     setIncomingMessage(null);
+    setAnnouncement(null);
   }, [replaceAll]);
 
   const dismissReveal = useCallback(() => setReveal(null), []);
   const dismissMessage = useCallback(() => setIncomingMessage(null), []);
 
-  return { challenges, reveal, incomingMessage, handleMessage, reset, dismissReveal, dismissMessage };
+  return { challenges, reveal, incomingMessage, announcement, handleMessage, reset, dismissReveal, dismissMessage };
 }

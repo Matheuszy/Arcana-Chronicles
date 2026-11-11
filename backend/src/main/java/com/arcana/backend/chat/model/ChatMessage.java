@@ -1,7 +1,8 @@
 package com.arcana.backend.chat.model;
 
 import com.arcana.backend.chat.combate.ComandoCombate;
-import com.arcana.backend.chat.combate.CombateDto;
+import com.arcana.backend.chat.combate.CombatesDaMesaDto;
+import com.arcana.backend.chat.combate.EntradaNoCombateDto;
 import com.arcana.backend.chat.desafio.ComandoDesafio;
 import com.arcana.backend.chat.desafio.DesafioDto;
 import com.arcana.backend.chat.dice.PedidoRolagem;
@@ -23,10 +24,11 @@ public class ChatMessage {
         PARTICIPANTES, REMOVIDO_DA_MESA,
         DESAFIO, DESAFIOS, DESAFIO_FINALIZADO,
         DESAFIO_CRIAR, DESAFIO_ROLAR, DESAFIO_TENTATIVA_EXTRA, DESAFIO_ENCERRAR_FALHA, DESAFIO_CANCELAR,
-        DESAFIO_MENSAGEM, DESAFIO_FINALIZAR,
+        DESAFIO_MENSAGEM, DESAFIO_FINALIZAR, DESAFIO_CONFIRMAR, DESAFIO_AJUDAR, DESAFIO_REMOVER_AJUDA,
         NOTA_SALVAR, NOTA, STATUS_DEFINIR, STATUS_REMOVER, STATUS, ITEM_CRIAR, ITEM_REMOVER, ITENS,
         NOTA_COMPARTILHAR, NOTA_RECEBIDA, NOTA_COMPARTILHADA,
-        COMBATE, COMBATE_INICIAR, COMBATE_ROLAR, COMBATE_ROLAR_MONSTROS, COMBATE_LIBERAR_REROLL, COMBATE_PASSAR_TURNO, COMBATE_ENCERRAR
+        COMBATE, COMBATE_INICIAR, COMBATE_ROLAR, COMBATE_ROLAR_MONSTROS, COMBATE_LIBERAR_REROLL, COMBATE_PASSAR_TURNO, COMBATE_ENCERRAR,
+        COMBATE_ADICIONAR, COMBATE_ENTRADA, COMBATE_REVELAR, COMBATE_REAGIR, COMBATE_ENCERRAR_REACAO, REACAO
     }
 
     private String id;
@@ -50,7 +52,9 @@ public class ChatMessage {
     private StatusDto status;
     private List<ItemDto> itens;
     private ComandoCombate comandoCombate;
-    private CombateDto combate;
+    private CombatesDaMesaDto combates;
+    private EntradaNoCombateDto entradaNoCombate;
+    private String reacao;
 
     // ── DiceRollResult aninhado ───────────────────────────────────────────────
 
@@ -144,6 +148,10 @@ public class ChatMessage {
     public void setItens(List<ItemDto> itens) { this.itens = itens; }
     public ComandoCombate getComandoCombate() { return comandoCombate; }
     public void setComandoCombate(ComandoCombate comandoCombate) { this.comandoCombate = comandoCombate; }
-    public CombateDto getCombate() { return combate; }
-    public void setCombate(CombateDto combate) { this.combate = combate; }
+    public CombatesDaMesaDto getCombates() { return combates; }
+    public void setCombates(CombatesDaMesaDto combates) { this.combates = combates; }
+    public EntradaNoCombateDto getEntradaNoCombate() { return entradaNoCombate; }
+    public void setEntradaNoCombate(EntradaNoCombateDto entradaNoCombate) { this.entradaNoCombate = entradaNoCombate; }
+    public String getReacao() { return reacao; }
+    public void setReacao(String reacao) { this.reacao = reacao; }
 }

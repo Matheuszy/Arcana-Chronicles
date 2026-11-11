@@ -70,7 +70,8 @@ public record PersonagemResponseDto(
         List<String> itensDoPacote,
         Integer caAdicional,
         int classeArmaduraTotal,
-        boolean moedasRoladas
+        boolean moedasRoladas,
+        Integer bonusIniciativa
 
 ) {
     public record ClasseDto(
@@ -171,7 +172,8 @@ public record PersonagemResponseDto(
                 List.copyOf(p.getItensDoPacote()),
                 p.getCaAdicional(),
                 p.getArmorClass() + p.getCaAdicional(),
-                p.isMoedasRoladas()
+                p.isMoedasRoladas(),
+                p.getBonusIniciativa()
         );
     }
 

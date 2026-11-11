@@ -1,8 +1,8 @@
 import { WS_BASE_URL } from './apiConfig';
 import { ChatMessage, ChatMessageType, OutgoingChatMessage, RollMode, RollRequest } from '../types/chat';
 import { RoomCommand } from '../types/room';
-import { ChallengeChoice, ChallengeCommand, ChallengeMessageTarget } from '../types/challenge';
-import { CombatCommand, MonsterGroup } from '../types/combat';
+import { ChallengeChoice, ChallengeCommand, ChallengeMessageTarget, HelpKind } from '../types/challenge';
+import { CombatCommand, MonsterGroup, ReactionKind } from '../types/combat';
 import { UserChannelMessage } from '../types/userChannel';
 
 const AUTH_PROTOCOL = 'arcana.jwt';
@@ -163,6 +163,18 @@ class ChatService {
     this.sendChallengeCommand('DESAFIO_TENTATIVA_EXTRA', { desafioId: challengeId, alvoId: targetId, modo: mode });
   }
 
+  confirmChallengeResult(challengeId: string, targetId?: string): void {
+    this.sendChallengeCommand('DESAFIO_CONFIRMAR', { desafioId: challengeId, alvoId: targetId });
+  }
+
+  helpChallenge(challengeId: string, targetId: string, kind: HelpKind, faces?: number): void {
+    this.sendChallengeCommand('DESAFIO_AJUDAR', { desafioId: challengeId, alvoId: targetId, tipoAjuda: kind, faces });
+  }
+
+  removeChallengeHelp(challengeId: string, targetId: string, helpId: string): void {
+    this.sendChallengeCommand('DESAFIO_REMOVER_AJUDA', { desafioId: challengeId, alvoId: targetId, ajudaId: helpId });
+  }
+
   endChallengeWithFailure(challengeId: string, targetId: string): void {
     this.sendChallengeCommand('DESAFIO_ENCERRAR_FALHA', { desafioId: challengeId, alvoId: targetId });
   }
@@ -189,32 +201,49 @@ class ChatService {
     });
   }
 
-  startCombat(playerIds: number[], monsters: MonsterGroup[]): void {
-    this.sendCombatCommand('COMBATE_INICIAR', { jogadores: playerIds, monstros: monsters });
+  startCombat(name: string, playerIds: number[], monsters: MonsterGroup[]): void {
+    this.sendCombatCommand('COMBATE_INICIAR', { nome: name, jogadores: playerIds, monstros: monsters });
   }
 
-  rollInitiative(mode: RollMode, addProficiency: boolean): void {
-    this.sendCombatCommand('COMBATE_ROLAR', { modo: mode, somarProficiencia: addProficiency });
+  addToCombat(combatId: string, playerIds: number[], monsters: MonsterGroup[]): void {
+    this.sendCombatCommand('COMBATE_ADICIONAR', { combateId: combatId, jogadores: playerIds, monstros: monsters });
   }
 
-  rollMonsterInitiative(entryIds: string[], mode: RollMode, addProficiency: boolean): void {
-    this.sendCombatCommand('COMBATE_ROLAR_MONSTROS', {
-      entradas: entryIds,
-      modo: mode,
-      somarProficiencia: addProficiency,
+  rollInitiative(mode: RollMode): void {
+    this.sendCombatCommand('COMBATE_ROLAR', { modo: mode });
+  }
+
+  rollMonsterInitiative(combatId: string, entryIds: string[], mode: RollMode): void {
+    this.sendCombatCommand('COMBATE_ROLAR_MONSTROS', { combateId: combatId, entradas: entryIds, modo: mode });
+  }
+
+  allowInitiativeReroll(combatId: string, entryIds: string[]): void {
+    this.sendCombatCommand('COMBATE_LIBERAR_REROLL', { combateId: combatId, entradas: entryIds });
+  }
+
+  passTurn(combatId: string): void {
+    this.sendCombatCommand('COMBATE_PASSAR_TURNO', { combateId: combatId });
+  }
+
+  revealInCombat(combatId: string, entryIds: string[]): void {
+    this.sendCombatCommand('COMBATE_REVELAR', { combateId: combatId, entradas: entryIds });
+  }
+
+  react(combatId: string, entryId: string | null, kind: ReactionKind, description: string): void {
+    this.sendCombatCommand('COMBATE_REAGIR', {
+      combateId: combatId,
+      entradaId: entryId ?? undefined,
+      tipoReacao: kind,
+      descricao: description,
     });
   }
 
-  allowInitiativeReroll(entryIds: string[]): void {
-    this.sendCombatCommand('COMBATE_LIBERAR_REROLL', { entradas: entryIds });
+  endReaction(combatId: string, entryId: string | null): void {
+    this.sendCombatCommand('COMBATE_ENCERRAR_REACAO', { combateId: combatId, entradaId: entryId ?? undefined });
   }
 
-  passTurn(): void {
-    this.sendCombatCommand('COMBATE_PASSAR_TURNO', {});
-  }
-
-  endCombat(): void {
-    this.sendCombatCommand('COMBATE_ENCERRAR', {});
+  endCombat(combatId: string): void {
+    this.sendCombatCommand('COMBATE_ENCERRAR', { combateId: combatId });
   }
 
   saveNote(text: string): void {

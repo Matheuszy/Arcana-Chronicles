@@ -18,6 +18,7 @@ import com.arcana.backend.table.FichaDeParticipante;
 import com.arcana.backend.table.model.StatusMesa;
 import com.arcana.backend.table.service.MesaService;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -85,7 +86,8 @@ class CombateChatTest {
                 Duration.ofSeconds(60));
 
         when(mesaService.buscarFichaDoJogadorNaMesa(1L, ARIA.userId())).thenReturn(ficha(ARIA, "Lyra", 14, 3));
-        when(mesaService.buscarFichaDoJogadorNaMesa(1L, BROM.userId())).thenReturn(ficha(BROM, "Thorn", 16, 2));
+        when(mesaService.buscarFichaDoJogadorNaMesa(1L, BROM.userId())).thenReturn(ficha(BROM, "Thorn", 16, 0));
+        when(mesaService.buscarFichaDoJogadorNaMesa(1L, CAEL.userId())).thenReturn(ficha(CAEL, "Mira", 12, 0));
 
         when(mesaService.buscarFichaDeNpcDaMesa(1L, 500L, MESTRE.userId())).thenReturn(fichaDeMonstro());
 
@@ -104,14 +106,14 @@ class CombateChatTest {
     }
 
     private static FichaDeParticipante ficha(AcessoMesaDto jogador, String personagem, int destreza,
-                                             int bonusProficiencia) {
+                                             int bonusIniciativa) {
         Map<Atributo, Integer> valores = new EnumMap<>(Atributo.class);
         for (Atributo atributo : Atributo.values()) {
             valores.put(atributo, 10);
         }
         valores.put(Atributo.DESTREZA, destreza);
         return new FichaDeParticipante(jogador.userId(), jogador.displayName(), 100L + jogador.userId(), personagem,
-                valores, Map.of(), Map.of(), bonusProficiencia);
+                valores, Map.of(), Map.of(), bonusIniciativa);
     }
 
     private static FichaDeParticipante fichaDeMonstro() {
@@ -121,7 +123,7 @@ class CombateChatTest {
         }
         valores.put(Atributo.DESTREZA, 14);
         return new FichaDeParticipante(MESTRE.userId(), MESTRE.displayName(), 500L, "Goblin", valores, Map.of(),
-                Map.of(), 2);
+                Map.of(), 1);
     }
 
     private WebSocketSession sessao(String id, AcessoMesaDto acesso) {
@@ -153,9 +155,20 @@ class CombateChatTest {
                 .toList();
     }
 
+    private JsonNode ultimosResumos(WebSocketSession sessao) throws Exception {
+        List<JsonNode> eventos = recebidas(sessao, "COMBATE");
+        return eventos.get(eventos.size() - 1).get("combates").get("resumos");
+    }
+
+    private JsonNode combatesDoMestre() throws Exception {
+        List<JsonNode> eventos = recebidas(sessaoMestre, "COMBATE");
+        return eventos.get(eventos.size() - 1).get("combates").get("completos");
+    }
+
     private JsonNode ultimoCombate(WebSocketSession sessao) throws Exception {
         List<JsonNode> eventos = recebidas(sessao, "COMBATE");
-        return eventos.get(eventos.size() - 1).get("combate");
+        JsonNode completos = eventos.get(eventos.size() - 1).get("combates").get("completos");
+        return completos.isEmpty() ? NullNode.getInstance() : completos.get(0);
     }
 
     private String ultimoAviso(WebSocketSession sessao) throws Exception {
@@ -169,17 +182,17 @@ class CombateChatTest {
                 """);
     }
 
-    private void rolarIniciativa(WebSocketSession sessao, String modo, boolean somarProficiencia) throws Exception {
+    private void rolarIniciativa(WebSocketSession sessao, String modo) throws Exception {
         enviar(sessao, """
-                {"type":"COMBATE_ROLAR","comandoCombate":{"modo":"%s","somarProficiencia":%s}}
-                """.formatted(modo, somarProficiencia));
+                {"type":"COMBATE_ROLAR","comandoCombate":{"modo":"%s"}}
+                """.formatted(modo));
     }
 
     private void iniciarComBromNoPrimeiroTurno() throws Exception {
         iniciarCombateComAriaEBrom();
         faces.addAll(List.of(10, 12));
-        rolarIniciativa(sessaoAria, "NORMAL", true);
-        rolarIniciativa(sessaoBrom, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
+        rolarIniciativa(sessaoBrom, "NORMAL");
     }
 
     @Test
@@ -194,43 +207,64 @@ class CombateChatTest {
     }
 
     @Test
-    void deveIniciarCombateMostrandoOPainelATodosSemAvisoNoChat() throws Exception {
+    void deveIniciarCombateMostrandoOPainelAosEnvolvidosEOResumoAosDemaisSemAvisoNoChat() throws Exception {
         iniciarCombateComAriaEBrom();
 
-        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom, sessaoCael)) {
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom)) {
             JsonNode combate = ultimoCombate(sessao);
+            assertEquals("Combate 1", combate.get("nome").asText());
             assertEquals("INICIATIVA", combate.get("fase").asText());
             assertEquals(2, combate.get("participantes").size());
             assertTrue(combate.get("participantes").get(0).get("aguardandoRolagem").asBoolean());
             assertTrue(recebidas(sessao, "SISTEMA").isEmpty());
         }
+        assertTrue(ultimoCombate(sessaoCael).isNull());
+        JsonNode resumo = ultimosResumos(sessaoCael).get(0);
+        assertEquals("Combate 1", resumo.get("nome").asText());
+        assertEquals(2, resumo.get("jogadores").size());
+        assertFalse(resumo.has("participantes"));
+        assertTrue(recebidas(sessaoCael, "SISTEMA").isEmpty());
     }
 
     @Test
     void deveNegarIniciativaParaQuemNaoFoiEscolhido() throws Exception {
         iniciarCombateComAriaEBrom();
 
-        rolarIniciativa(sessaoCael, "NORMAL", false);
+        rolarIniciativa(sessaoCael, "NORMAL");
 
         assertEquals("Este jogador não participa do combate.", ultimoAviso(sessaoCael));
     }
 
     @Test
-    void deveSomarDestrezaEProficienciaSoQuandoOJogadorEscolher() throws Exception {
+    void deveSomarDestrezaEBonusDeIniciativaDaFichaSemProficiencia() throws Exception {
         iniciarCombateComAriaEBrom();
         faces.addAll(List.of(10, 12));
 
-        rolarIniciativa(sessaoAria, "NORMAL", true);
-        rolarIniciativa(sessaoBrom, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
+        rolarIniciativa(sessaoBrom, "NORMAL");
 
         JsonNode participantes = ultimoCombate(sessaoMestre).get("participantes");
         JsonNode aria = participantes.get(1).get("iniciativa");
         JsonNode brom = participantes.get(0).get("iniciativa");
         assertEquals(15, aria.get("total").asInt());
         assertEquals(2, aria.get("modificadorDestreza").asInt());
-        assertEquals(3, aria.get("bonusProficiencia").asInt());
+        assertEquals(3, aria.get("bonusIniciativa").asInt());
+        assertFalse(aria.has("bonusProficiencia"));
         assertEquals(15, brom.get("total").asInt());
-        assertEquals(0, brom.get("bonusProficiencia").asInt());
+        assertEquals(0, brom.get("bonusIniciativa").asInt());
+    }
+
+    @Test
+    void deveIgnorarPedidoDeSomarProficienciaNaIniciativa() throws Exception {
+        iniciarCombateComAriaEBrom();
+        faces.add(12);
+
+        enviar(sessaoBrom, """
+                {"type":"COMBATE_ROLAR","comandoCombate":{"modo":"NORMAL","somarProficiencia":true}}
+                """);
+
+        JsonNode brom = participante(ultimoCombate(sessaoMestre), "30").get("iniciativa");
+        assertEquals(15, brom.get("total").asInt());
     }
 
     @Test
@@ -238,11 +272,11 @@ class CombateChatTest {
         iniciarCombateComAriaEBrom();
         faces.addAll(List.of(4, 15));
 
-        rolarIniciativa(sessaoAria, "VANTAGEM", false);
+        rolarIniciativa(sessaoAria, "VANTAGEM");
 
         JsonNode aria = ultimoCombate(sessaoAria).get("participantes").get(0).get("iniciativa");
         assertEquals(15, aria.get("mantido").asInt());
-        assertEquals(17, aria.get("total").asInt());
+        assertEquals(20, aria.get("total").asInt());
         assertEquals("VANTAGEM", aria.get("modo").asText());
     }
 
@@ -250,12 +284,12 @@ class CombateChatTest {
     void deveMostrarAListaOrdenadaSoQuandoTodosRolaremDesempatandoPelaDestreza() throws Exception {
         iniciarCombateComAriaEBrom();
         faces.add(10);
-        rolarIniciativa(sessaoAria, "NORMAL", true);
+        rolarIniciativa(sessaoAria, "NORMAL");
 
         assertEquals("INICIATIVA", ultimoCombate(sessaoBrom).get("fase").asText());
 
         faces.add(12);
-        rolarIniciativa(sessaoBrom, "NORMAL", false);
+        rolarIniciativa(sessaoBrom, "NORMAL");
 
         JsonNode combate = ultimoCombate(sessaoBrom);
         assertEquals("EM_ANDAMENTO", combate.get("fase").asText());
@@ -269,7 +303,7 @@ class CombateChatTest {
     void deveNegarSegundaRolagemAteOMestreLiberar() throws Exception {
         iniciarComBromNoPrimeiroTurno();
 
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
 
         assertEquals("Você já rolou a iniciativa. Peça ao mestre para liberar uma nova rolagem.",
                 ultimoAviso(sessaoAria));
@@ -287,7 +321,7 @@ class CombateChatTest {
         assertTrue(recebidas(sessaoAria, "SISTEMA").isEmpty());
 
         faces.add(20);
-        rolarIniciativa(sessaoAria, "NORMAL", true);
+        rolarIniciativa(sessaoAria, "NORMAL");
 
         JsonNode combate = ultimoCombate(sessaoMestre);
         assertEquals("Lyra", combate.get("participantes").get(0).get("nomePersonagem").asText());
@@ -331,22 +365,21 @@ class CombateChatTest {
     }
 
     @Test
-    void deveBloquearRolagemLivreForaDoTurnoIncluindoOMestre() throws Exception {
+    void deveBloquearRolagemLivreForaDoTurnoSoParaQuemEstaNoCombate() throws Exception {
         iniciarComBromNoPrimeiroTurno();
-        faces.add(9);
+        faces.addAll(List.of(9, 4, 6));
 
         enviar(sessaoBrom, ROLAGEM_LIVRE);
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
-        enviar(sessaoMestre, ROLAGEM_LIVRE);
-        enviar(sessaoCael, ROLAGEM_LIVRE);
-
-        String bloqueio = "Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.";
-        assertEquals(bloqueio, ultimoAviso(sessaoAria));
-        assertEquals(bloqueio, ultimoAviso(sessaoMestre));
-        assertEquals(bloqueio, ultimoAviso(sessaoCael));
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+                ultimoAviso(sessaoAria));
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
+
+        enviar(sessaoCael, ROLAGEM_LIVRE);
+        enviar(sessaoMestre, ROLAGEM_LIVRE);
+        assertEquals(3, recebidas(sessaoMestre, "ROLAGEM").size());
     }
 
     @Test
@@ -355,7 +388,7 @@ class CombateChatTest {
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
 
-        assertEquals("Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
                 ultimoAviso(sessaoAria));
         assertTrue(recebidas(sessaoMestre, "ROLAGEM").isEmpty());
     }
@@ -389,12 +422,85 @@ class CombateChatTest {
     }
 
     @Test
-    void deveRecusarSegundoCombateEnquantoUmEstiverAtivo() throws Exception {
+    void deveRecusarCombateComJogadorQueJaEstaEmOutroCombate() throws Exception {
         iniciarCombateComAriaEBrom();
 
         iniciarCombateComAriaEBrom();
 
-        assertEquals("Já existe um combate em andamento.", ultimoAviso(sessaoMestre));
+        assertEquals("Lyra já está em outro combate.", ultimoAviso(sessaoMestre));
+        assertEquals(1, combatesDoMestre().size());
+    }
+
+    @Test
+    void deveRodarDoisCombatesAoMesmoTempoComNomeEscolhidoETurnosIndependentes() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"nome":" Emboscada na ponte ","jogadores":[40]}}
+                """);
+
+        JsonNode combates = combatesDoMestre();
+        assertEquals(2, combates.size());
+        assertEquals("Emboscada na ponte", combates.get(1).get("nome").asText());
+        assertEquals("Emboscada na ponte", ultimoCombate(sessaoCael).get("nome").asText());
+        assertEquals("Combate 1", ultimosResumos(sessaoCael).get(0).get("nome").asText());
+        assertEquals("Emboscada na ponte", ultimosResumos(sessaoAria).get(0).get("nome").asText());
+
+        faces.add(15);
+        rolarIniciativa(sessaoCael, "NORMAL");
+        assertEquals("EM_ANDAMENTO", ultimoCombate(sessaoCael).get("fase").asText());
+        assertEquals(30L, ultimoCombate(sessaoBrom).get("turnoDe").asLong());
+
+        faces.add(8);
+        enviar(sessaoCael, ROLAGEM_LIVRE);
+        assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
+
+        enviar(sessaoCael, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertEquals(2, ultimoCombate(sessaoCael).get("rodada").asInt());
+        assertEquals(1, ultimoCombate(sessaoBrom).get("rodada").asInt());
+    }
+
+    @Test
+    void deveExigirQueOMestreEscolhaOCombateQuandoHaMaisDeUm() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[40]}}
+                """);
+
+        enviar(sessaoMestre, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertEquals("Escolha o combate.", ultimoAviso(sessaoMestre));
+
+        String primeiro = combatesDoMestre().get(0).get("id").asText();
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_PASSAR_TURNO","comandoCombate":{"combateId":"%s"}}
+                """.formatted(primeiro));
+        assertEquals(20L, ultimoCombate(sessaoAria).get("turnoDe").asLong());
+    }
+
+    @Test
+    void deveEncerrarUmCombateSemAfetarOOutro() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[40]}}
+                """);
+        String primeiro = combatesDoMestre().get(0).get("id").asText();
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_ENCERRAR","comandoCombate":{"combateId":"%s"}}
+                """.formatted(primeiro));
+
+        assertEquals(1, combatesDoMestre().size());
+        assertEquals("Combate 2", combatesDoMestre().get(0).get("nome").asText());
+        assertTrue(ultimoCombate(sessaoAria).isNull());
+        assertEquals("Combate 2", ultimoCombate(sessaoCael).get("nome").asText());
+    }
+
+    @Test
+    void deveRecusarNomeDeCombateLongoDemais() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"nome":"%s","jogadores":[20]}}
+                """.formatted("x".repeat(61)));
+
+        assertEquals("O nome do combate deve ter até 60 caracteres.", ultimoAviso(sessaoMestre));
     }
 
     @Test
@@ -407,21 +513,114 @@ class CombateChatTest {
     }
 
     @Test
-    void deveEnviarOCombateAtualAoNovoConectado() throws Exception {
+    void deveEnviarOCombateAtualAoNovoConectadoConformeOQueEleVe() throws Exception {
         iniciarComBromNoPrimeiroTurno();
-        WebSocketSession retornada = sessao("r", CAEL);
+        WebSocketSession aria = sessao("r", ARIA);
+        WebSocketSession cael = sessao("s", CAEL);
 
-        handler.afterConnectionEstablished(retornada);
+        handler.afterConnectionEstablished(aria);
+        handler.afterConnectionEstablished(cael);
 
-        JsonNode combate = ultimoCombate(retornada);
+        JsonNode combate = ultimoCombate(aria);
         assertEquals("EM_ANDAMENTO", combate.get("fase").asText());
         assertEquals(30L, combate.get("turnoDe").asLong());
+        assertTrue(ultimoCombate(cael).isNull());
+        assertEquals("EM_ANDAMENTO", ultimosResumos(cael).get(0).get("fase").asText());
     }
 
     private void iniciarComAriaETresGoblins() throws Exception {
         enviar(sessaoMestre, """
                 {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":3}]}}
                 """);
+    }
+
+    private JsonNode ultimaEntrada(WebSocketSession sessao) throws Exception {
+        List<JsonNode> eventos = recebidas(sessao, "COMBATE_ENTRADA");
+        return eventos.get(eventos.size() - 1).get("entradaNoCombate");
+    }
+
+    private void adicionarAoCombate(String comando) throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_ADICIONAR","comandoCombate":%s}
+                """.formatted(comando));
+    }
+
+    @Test
+    void deveAdicionarJogadorAoCombateEmAndamentoAnunciandoATodosMenosAQuemEntrou() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+
+        adicionarAoCombate("{\"jogadores\":[40]}");
+
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom)) {
+            JsonNode entrada = ultimaEntrada(sessao);
+            assertEquals("Combate 1", entrada.get("combateNome").asText());
+            assertEquals("Mira", entrada.get("nomes").get(0).asText());
+        }
+        assertTrue(recebidas(sessaoCael, "COMBATE_ENTRADA").isEmpty());
+
+        JsonNode mira = participante(ultimoCombate(sessaoCael), "40");
+        assertTrue(mira.get("aguardandoRolagem").asBoolean());
+        assertTrue(mira.get("aguardandoFimDoTurno").asBoolean());
+        assertEquals("EM_ANDAMENTO", ultimoCombate(sessaoCael).get("fase").asText());
+        assertEquals(30L, ultimoCombate(sessaoCael).get("turnoDe").asLong());
+    }
+
+    @Test
+    void deveLiberarAIniciativaDeQuemEntrouAoFimDoTurnoEEncaixarNaOrdem() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        adicionarAoCombate("{\"jogadores\":[40]}");
+
+        rolarIniciativa(sessaoCael, "NORMAL");
+        assertEquals("Aguarde o fim do turno atual para rolar a iniciativa.", ultimoAviso(sessaoCael));
+
+        enviar(sessaoBrom, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertFalse(participante(ultimoCombate(sessaoCael), "40").get("aguardandoFimDoTurno").asBoolean());
+
+        faces.add(5);
+        rolarIniciativa(sessaoCael, "NORMAL");
+
+        JsonNode combate = ultimoCombate(sessaoMestre);
+        assertEquals("Mira", combate.get("participantes").get(2).get("nomePersonagem").asText());
+        assertEquals(20L, combate.get("turnoDe").asLong());
+        enviar(sessaoAria, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertEquals(40L, ultimoCombate(sessaoCael).get("turnoDe").asLong());
+        assertEquals(1, ultimoCombate(sessaoCael).get("rodada").asInt());
+    }
+
+    @Test
+    void deveNumerarOsMonstrosQueEntramDepoisContinuandoOGrupo() throws Exception {
+        iniciarComAriaETresGoblins();
+
+        adicionarAoCombate("{\"monstros\":[{\"personagemId\":500,\"quantidade\":2}]}");
+
+        JsonNode entrada = ultimaEntrada(sessaoAria);
+        assertEquals("Goblin 4", entrada.get("nomes").get(0).asText());
+        assertEquals("Goblin 5", entrada.get("nomes").get(1).asText());
+        assertEquals(6, ultimoCombate(sessaoMestre).get("participantes").size());
+    }
+
+    @Test
+    void deveRecusarAdicaoSemNinguemOuFeitaPorJogador() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+
+        adicionarAoCombate("{}");
+        assertEquals("Escolha ao menos um jogador ou monstro para entrar no combate.", ultimoAviso(sessaoMestre));
+
+        enviar(sessaoAria, """
+                {"type":"COMBATE_ADICIONAR","comandoCombate":{"jogadores":[40]}}
+                """);
+        assertEquals("Apenas o mestre pode administrar o combate.", ultimoAviso(sessaoAria));
+        assertTrue(recebidas(sessaoMestre, "COMBATE_ENTRADA").isEmpty());
+    }
+
+    @Test
+    void deveRecusarAnuncioDeEntradaEnviadoPeloCliente() throws Exception {
+        enviar(sessaoAria, """
+                {"type":"COMBATE_ENTRADA","entradaNoCombate":{"combateNome":"Falso","nomes":["Ninguem"]}}
+                """);
+
+        assertEquals("Tipo de mensagem não permitido.", ultimoAviso(sessaoAria));
+        assertTrue(recebidas(sessaoMestre, "COMBATE_ENTRADA").isEmpty());
     }
 
     private void rolarMonstros(String comando) throws Exception {
@@ -491,34 +690,34 @@ class CombateChatTest {
     void deveRolarUmD20PorMonstroComUmUnicoComandoEFecharAOrdemComOsJogadores() throws Exception {
         iniciarComAriaETresGoblins();
         faces.add(10);
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
         assertEquals("INICIATIVA", ultimoCombate(sessaoAria).get("fase").asText());
 
         faces.addAll(List.of(3, 18, 11));
-        rolarMonstros("{\"modo\":\"NORMAL\",\"somarProficiencia\":false}");
+        rolarMonstros("{\"modo\":\"NORMAL\"}");
 
         JsonNode combate = ultimoCombate(sessaoAria);
         assertEquals("EM_ANDAMENTO", combate.get("fase").asText());
-        assertEquals(5, participante(combate, "monstro-1").get("iniciativa").get("total").asInt());
-        assertEquals(20, participante(combate, "monstro-2").get("iniciativa").get("total").asInt());
-        assertEquals(13, participante(combate, "monstro-3").get("iniciativa").get("total").asInt());
+        assertEquals(6, participante(combate, "monstro-1").get("iniciativa").get("total").asInt());
+        assertEquals(21, participante(combate, "monstro-2").get("iniciativa").get("total").asInt());
+        assertEquals(14, participante(combate, "monstro-3").get("iniciativa").get("total").asInt());
         assertEquals("monstro-2", combate.get("turnoDe").asText());
         assertEquals(10L, combate.get("controladorDoTurno").asLong());
         assertTrue(recebidas(sessaoCael, "SISTEMA").isEmpty());
     }
 
     @Test
-    void deveRolarSoOsMonstrosEscolhidosComVantagemEProficiencia() throws Exception {
+    void deveRolarSoOsMonstrosEscolhidosComVantagemEBonusDeIniciativaDaFicha() throws Exception {
         iniciarComAriaETresGoblins();
 
         faces.addAll(List.of(4, 15));
-        rolarMonstros("{\"entradas\":[\"monstro-2\"],\"modo\":\"VANTAGEM\",\"somarProficiencia\":true}");
+        rolarMonstros("{\"entradas\":[\"monstro-2\"],\"modo\":\"VANTAGEM\"}");
 
         JsonNode combate = ultimoCombate(sessaoMestre);
         JsonNode iniciativa = participante(combate, "monstro-2").get("iniciativa");
-        assertEquals(19, iniciativa.get("total").asInt());
+        assertEquals(18, iniciativa.get("total").asInt());
         assertEquals(15, iniciativa.get("mantido").asInt());
-        assertEquals(2, iniciativa.get("bonusProficiencia").asInt());
+        assertEquals(1, iniciativa.get("bonusIniciativa").asInt());
         assertTrue(participante(combate, "monstro-1").get("iniciativa").isNull());
         assertTrue(participante(combate, "monstro-3").get("iniciativa").isNull());
     }
@@ -554,14 +753,14 @@ class CombateChatTest {
                 ultimoAviso(sessaoMestre));
 
         faces.add(20);
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
         enviar(sessaoMestre, """
                 {"type":"COMBATE_LIBERAR_REROLL","comandoCombate":{"entradas":["monstro-2"]}}
                 """);
         faces.add(1);
         rolarMonstros("{\"entradas\":[\"monstro-2\"]}");
 
-        assertEquals(3, participante(ultimoCombate(sessaoMestre), "monstro-2").get("iniciativa").get("total").asInt());
+        assertEquals(4, participante(ultimoCombate(sessaoMestre), "monstro-2").get("iniciativa").get("total").asInt());
     }
 
     @Test
@@ -579,7 +778,7 @@ class CombateChatTest {
     void devePermitirAoMestreRolarLivrementeSoNoTurnoDeUmMonstro() throws Exception {
         iniciarComAriaETresGoblins();
         faces.add(10);
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
         faces.addAll(List.of(18, 3, 3));
         rolarMonstros("{}");
         faces.add(9);
@@ -588,7 +787,7 @@ class CombateChatTest {
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
-        assertEquals("Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
                 ultimoAviso(sessaoAria));
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
     }
@@ -597,7 +796,7 @@ class CombateChatTest {
     void devePassarOTurnoDoMonstroSoParaOMestre() throws Exception {
         iniciarComAriaETresGoblins();
         faces.add(10);
-        rolarIniciativa(sessaoAria, "NORMAL", false);
+        rolarIniciativa(sessaoAria, "NORMAL");
         faces.addAll(List.of(18, 3, 3));
         rolarMonstros("{}");
 
@@ -641,5 +840,216 @@ class CombateChatTest {
 
         assertEquals("Apenas o mestre pode administrar o combate.", ultimoAviso(sessaoAria));
         verify(mesaService, never()).buscarFichaDeNpcDaMesa(anyLong(), anyLong(), anyLong());
+    }
+
+    private List<String> payloads(WebSocketSession sessao) throws Exception {
+        ArgumentCaptor<TextMessage> captor = ArgumentCaptor.forClass(TextMessage.class);
+        verify(sessao, atLeast(0)).sendMessage(captor.capture());
+        return captor.getAllValues().stream().map(TextMessage::getPayload).toList();
+    }
+
+    private void iniciarComGoblinOculto() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20,30],"monstros":[{"personagemId":500,"quantidade":1,"oculto":true}]}}
+                """);
+        faces.addAll(List.of(10, 12, 18));
+        rolarIniciativa(sessaoAria, "NORMAL");
+        rolarIniciativa(sessaoBrom, "NORMAL");
+        rolarMonstros("{}");
+    }
+
+    @Test
+    void deveEsconderOMonstroOcultoDosJogadoresMostrandoApenasOTurnoDoMestre() throws Exception {
+        iniciarComGoblinOculto();
+
+        JsonNode doMestre = ultimoCombate(sessaoMestre);
+        assertEquals(3, doMestre.get("participantes").size());
+        assertTrue(participante(doMestre, "monstro-1").get("oculto").asBoolean());
+        assertEquals("monstro-1", doMestre.get("turnoDe").asText());
+        assertTrue(doMestre.get("turnoOculto").asBoolean());
+
+        JsonNode daAria = ultimoCombate(sessaoAria);
+        assertEquals(2, daAria.get("participantes").size());
+        assertTrue(daAria.get("turnoDe").isNull());
+        assertTrue(daAria.get("turnoOculto").asBoolean());
+        assertEquals(10L, daAria.get("controladorDoTurno").asLong());
+        assertEquals("EM_ANDAMENTO", daAria.get("fase").asText());
+
+        enviar(sessaoMestre, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertFalse(ultimoCombate(sessaoAria).get("turnoOculto").asBoolean());
+        assertEquals("30", ultimoCombate(sessaoAria).get("turnoDe").asText());
+
+        for (WebSocketSession jogador : List.of(sessaoAria, sessaoBrom, sessaoCael)) {
+            for (String payload : payloads(jogador)) {
+                assertFalse(payload.contains("Goblin"), payload);
+                assertFalse(payload.contains("monstro-1"), payload);
+            }
+            assertTrue(recebidas(jogador, "COMBATE_ENTRADA").isEmpty());
+        }
+    }
+
+    @Test
+    void deveEntrarOcultoSemAnuncioEAnunciarATodosQuandoORevelar() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+
+        adicionarAoCombate("{\"monstros\":[{\"personagemId\":500,\"quantidade\":1,\"oculto\":true}]}");
+
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom, sessaoCael)) {
+            assertTrue(recebidas(sessao, "COMBATE_ENTRADA").isEmpty());
+        }
+        assertEquals(2, ultimoCombate(sessaoAria).get("participantes").size());
+        assertEquals(3, ultimoCombate(sessaoMestre).get("participantes").size());
+
+        enviar(sessaoAria, """
+                {"type":"COMBATE_REVELAR","comandoCombate":{"entradas":["monstro-1"]}}
+                """);
+        assertEquals("Apenas o mestre pode administrar o combate.", ultimoAviso(sessaoAria));
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_REVELAR","comandoCombate":{"entradas":["monstro-1"]}}
+                """);
+
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom, sessaoCael)) {
+            assertEquals("Goblin", ultimaEntrada(sessao).get("nomes").get(0).asText());
+        }
+        JsonNode goblin = participante(ultimoCombate(sessaoAria), "monstro-1");
+        assertFalse(goblin.get("oculto").asBoolean());
+        assertTrue(goblin.get("aguardandoFimDoTurno").asBoolean());
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_REVELAR","comandoCombate":{"entradas":["monstro-1"]}}
+                """);
+        assertEquals("Goblin já está visível para os jogadores.", ultimoAviso(sessaoMestre));
+    }
+
+    @Test
+    void deveAnunciarSoOsMonstrosVisiveisQuandoEntramJuntoComOcultos() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        FichaDeParticipante goblin = fichaDeMonstro();
+        when(mesaService.buscarFichaDeNpcDaMesa(1L, 600L, MESTRE.userId())).thenReturn(new FichaDeParticipante(
+                MESTRE.userId(), MESTRE.displayName(), 600L, "Lobo", goblin.valores(), Map.of(), Map.of(), 0));
+
+        adicionarAoCombate("{\"monstros\":[{\"personagemId\":500,\"quantidade\":1,\"oculto\":true},{\"personagemId\":600,\"quantidade\":1}]}");
+
+        JsonNode entrada = ultimaEntrada(sessaoAria);
+        assertEquals(1, entrada.get("nomes").size());
+        assertEquals("Lobo", entrada.get("nomes").get(0).asText());
+    }
+
+    private void reagir(WebSocketSession sessao, String comando) throws Exception {
+        enviar(sessao, """
+                {"type":"COMBATE_REAGIR","comandoCombate":%s}
+                """.formatted(comando));
+    }
+
+    @Test
+    void deveLiberarRolagemForaDoTurnoDuranteAReacaoEPublicarNoChatComoReacao() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoBrom, sessaoCael)) {
+            JsonNode reacao = recebidas(sessao, "REACAO").get(0);
+            assertEquals("Lyra usa a reação: Ataque de oportunidade", reacao.get("content").asText());
+            assertEquals("ROLAGENS", reacao.get("canal").asText());
+        }
+        JsonNode lyra = participante(ultimoCombate(sessaoAria), "20");
+        assertTrue(lyra.get("reacaoUsada").asBoolean());
+        assertEquals("ATAQUE_DE_OPORTUNIDADE", lyra.get("reacaoAberta").get("tipo").asText());
+
+        faces.add(15);
+        enviar(sessaoAria, ROLAGEM_LIVRE);
+        JsonNode rolagem = recebidas(sessaoCael, "ROLAGEM").get(0);
+        assertEquals("Reação de Lyra · Ataque de oportunidade", rolagem.get("reacao").asText());
+
+        enviar(sessaoAria, "{\"type\":\"COMBATE_ENCERRAR_REACAO\"}");
+        assertTrue(participante(ultimoCombate(sessaoAria), "20").get("reacaoAberta").isNull());
+        enviar(sessaoAria, ROLAGEM_LIVRE);
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+                ultimoAviso(sessaoAria));
+        assertEquals(1, recebidas(sessaoCael, "ROLAGEM").size());
+    }
+
+    @Test
+    void deveNegarSegundaReacaoNaRodadaELiberarNoInicioDoProprioTurno() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        reagir(sessaoAria, "{\"tipoReacao\":\"OUTRA\",\"descricao\":\"Escudo arcano\"}");
+        enviar(sessaoAria, "{\"type\":\"COMBATE_ENCERRAR_REACAO\"}");
+
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("Lyra já usou a reação nesta rodada. Ela volta no início do próximo turno.",
+                ultimoAviso(sessaoAria));
+        assertEquals(1, recebidas(sessaoMestre, "REACAO").size());
+
+        enviar(sessaoBrom, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertFalse(participante(ultimoCombate(sessaoAria), "20").get("reacaoUsada").asBoolean());
+
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("A reação é usada fora do próprio turno.", ultimoAviso(sessaoAria));
+
+        enviar(sessaoAria, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals(2, recebidas(sessaoMestre, "REACAO").size());
+    }
+
+    @Test
+    void deveFecharAReacaoAbertaQuandoOTurnoPassa() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+
+        enviar(sessaoBrom, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        enviar(sessaoAria, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+
+        assertTrue(participante(ultimoCombate(sessaoAria), "20").get("reacaoAberta").isNull());
+        enviar(sessaoAria, ROLAGEM_LIVRE);
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+                ultimoAviso(sessaoAria));
+    }
+
+    @Test
+    void devePermitirAoMestreDeclararReacoesSoDosMonstrosVisiveis() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":2}]}}
+                """);
+        faces.addAll(List.of(18, 3, 4));
+        rolarIniciativa(sessaoAria, "NORMAL");
+        rolarMonstros("{}");
+
+        reagir(sessaoMestre, "{\"entradaId\":\"20\",\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("O mestre só declara reações dos monstros, NPCs e chefes.", ultimoAviso(sessaoMestre));
+
+        reagir(sessaoMestre, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("Escolha o monstro que vai reagir.", ultimoAviso(sessaoMestre));
+
+        reagir(sessaoMestre, "{\"entradaId\":\"monstro-2\",\"tipoReacao\":\"OUTRA\"}");
+        assertEquals("Descreva a reação.", ultimoAviso(sessaoMestre));
+
+        reagir(sessaoMestre, "{\"entradaId\":\"monstro-2\",\"tipoReacao\":\"OUTRA\",\"descricao\":\"Uiva para a lua\"}");
+        assertEquals("Goblin 2 usa a reação: Uiva para a lua",
+                recebidas(sessaoAria, "REACAO").get(0).get("content").asText());
+
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("A reação é usada fora do próprio turno.", ultimoAviso(sessaoAria));
+    }
+
+    @Test
+    void deveNegarReacaoDeMonstroOcultoAntesDeRevelar() throws Exception {
+        iniciarComGoblinOculto();
+        enviar(sessaoMestre, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+
+        reagir(sessaoMestre, "{\"entradaId\":\"monstro-1\",\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+
+        assertEquals("Revele Goblin antes de usar a reação.", ultimoAviso(sessaoMestre));
+        assertTrue(recebidas(sessaoAria, "REACAO").isEmpty());
+    }
+
+    @Test
+    void deveRecusarReacaoEnviadaPeloClienteComoMensagemPronta() throws Exception {
+        enviar(sessaoAria, """
+                {"type":"REACAO","content":"Falsa"}
+                """);
+
+        assertEquals("Tipo de mensagem não permitido.", ultimoAviso(sessaoAria));
+        assertTrue(recebidas(sessaoMestre, "REACAO").isEmpty());
     }
 }

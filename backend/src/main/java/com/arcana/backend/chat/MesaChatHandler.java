@@ -150,7 +150,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
         imagens.forEach(imagem -> enviarParaSessao(session, imagem));
         desafioChat.sincronizar(mesa, sessaoSegura, acesso.userId());
         salaChat.sincronizar(mesa, sessaoSegura, acesso);
-        combateChat.sincronizar(mesa, sessaoSegura);
+        combateChat.sincronizar(mesa, sessaoSegura, acesso);
 
         broadcast(mesa, presenca(mesa, tableId), sessaoSegura);
     }
@@ -322,7 +322,9 @@ public class MesaChatHandler extends TextWebSocketHandler {
         message.setDesafios(null);
         message.setStatus(null);
         message.setItens(null);
-        message.setCombate(null);
+        message.setCombates(null);
+        message.setEntradaNoCombate(null);
+        message.setReacao(null);
 
         if (message.getType() == ChatMessage.Type.SESSAO_ENCERRAR) {
             encerrarSessaoPeloMestre(session, acesso);
@@ -381,9 +383,10 @@ public class MesaChatHandler extends TextWebSocketHandler {
             }
             if (!combateChat.podeRolarLivremente(mesa, acesso.userId())) {
                 enviarParaSessao(session, systemMessage(tableId,
-                        "Durante o combate você só pode rolar dados no seu turno ou quando for desafiado."));
+                        "Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado."));
                 return;
             }
+            combateChat.rotuloDaReacaoAberta(mesa, acesso.userId()).ifPresent(message::setReacao);
             try {
                 aplicarRolagemDoServidor(message);
             } catch (IllegalArgumentException e) {
@@ -426,7 +429,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
                                           ChatMessage message) {
         String tableId = String.valueOf(acesso.mesaId());
         try {
-            desafioChat.executar(mesa, acesso, message);
+            combateChat.publicandoMudancas(mesa, () -> desafioChat.executar(mesa, acesso, message));
         } catch (IllegalArgumentException | IllegalStateException | AccessDeniedException
                  | RegraDeNegocioException | RecursoNaoEncontradoException e) {
             enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
@@ -466,9 +469,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
     }
 
     private void cancelarDesafiosSeCombateAcabou(MesaAtiva mesa) {
-        if (!combateChat.ativo(mesa)) {
-            desafioChat.aoCombateEncerrado(mesa);
-        }
+        desafioChat.aoCombatesEncerrados(mesa, combateChat.combatesAtivos(mesa));
     }
 
     private String validarTexto(String conteudo) {

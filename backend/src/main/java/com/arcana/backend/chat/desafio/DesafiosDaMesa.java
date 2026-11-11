@@ -49,22 +49,18 @@ public class DesafiosDaMesa {
         return DesafioDto.paraUsuario(desafio, visualizadorId);
     }
 
-    public synchronized Map<Long, DesafioDto> finalizar(String desafioId, Consumer<Desafio> validacao) {
+    public synchronized DesafioFinalizado finalizar(String desafioId, Consumer<Desafio> validacao) {
         Desafio desafio = buscar(desafioId);
         validacao.accept(desafio);
         desafio.cancelarTodos();
         desafios.remove(desafioId);
         Map<Long, DesafioDto> visoes = new LinkedHashMap<>();
         desafio.destinatarios().forEach(userId -> visoes.put(userId, DesafioDto.paraUsuario(desafio, userId)));
-        return visoes;
+        return new DesafioFinalizado(visoes, DesafioDto.paraUsuario(desafio, null));
     }
 
     public synchronized DesafioDto visaoPara(String desafioId, Long userId) {
-        Desafio desafio = buscar(desafioId);
-        if (!desafio.envolve(userId)) {
-            throw new IllegalArgumentException("Desafio não encontrado.");
-        }
-        return DesafioDto.paraUsuario(desafio, userId);
+        return DesafioDto.paraUsuario(buscar(desafioId), userId);
     }
 
     public synchronized Set<Long> envolvidos(String desafioId) {
@@ -73,7 +69,6 @@ public class DesafiosDaMesa {
 
     public synchronized List<DesafioDto> visiveisPara(Long userId) {
         return desafios.values().stream()
-                .filter(d -> d.envolve(userId))
                 .map(d -> DesafioDto.paraUsuario(d, userId))
                 .toList();
     }
@@ -92,10 +87,11 @@ public class DesafiosDaMesa {
         return alterados;
     }
 
-    public synchronized List<DesafioDto> cancelarDoCombate() {
+    public synchronized List<DesafioDto> cancelarDeCombatesEncerrados(Set<String> combatesAtivos) {
         List<DesafioDto> alterados = new ArrayList<>();
         for (Desafio desafio : desafios.values()) {
-            if (desafio.isDoCombate() && desafio.cancelarTodos()) {
+            if (desafio.isDoCombate() && !combatesAtivos.contains(desafio.getCombateId())
+                    && desafio.cancelarTodos()) {
                 alterados.add(DesafioDto.paraMestre(desafio));
             }
         }
