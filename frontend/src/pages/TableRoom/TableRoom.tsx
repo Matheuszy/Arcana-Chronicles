@@ -37,6 +37,7 @@ import JoinRequestsPanel from './JoinRequestsPanel';
 import ParticipantsPanel from './ParticipantsPanel';
 import InviteFriendsPanel from './InviteFriendsPanel';
 import PrivateSheetsPanel from './PrivateSheetsPanel';
+import TurnAlert from './TurnAlert';
 import './TableRoom.css';
 import './Challenge.css';
 import './Combat.css';
@@ -202,9 +203,21 @@ export default function TableRoom() {
     previousChallengeCount.current = activeChallengeCount;
   }, [activeChallengeCount, isMaster]);
 
+  const turnCharacterName = combat?.participantes.find((entry) => entry.id === combat.turnoDe)?.nomePersonagem ?? '';
+  const turnRound = combat?.rodada ?? 0;
+  const [turnAlert, setTurnAlert] = useState<{ key: string; characterName: string; round: number } | null>(null);
+  const dismissTurnAlert = useCallback(() => setTurnAlert(null), []);
+  const lastAnnouncedTurn = useRef<string | null>(null);
+
   useEffect(() => {
-    if (turnKey) notify('É o seu turno!', 'success');
-  }, [turnKey, notify]);
+    if (!turnKey || lastAnnouncedTurn.current === turnKey) return;
+    lastAnnouncedTurn.current = turnKey;
+    if (isMaster) {
+      notify('É o seu turno!', 'success');
+      return;
+    }
+    setTurnAlert({ key: turnKey, characterName: turnCharacterName, round: turnRound });
+  }, [turnKey, isMaster, notify, turnCharacterName, turnRound]);
 
   const loadTable = useCallback(() => {
     if (!id) return;
@@ -966,6 +979,15 @@ export default function TableRoom() {
           note={receivedNotes[0]}
           remaining={receivedNotes.length - 1}
           onClose={dismissReceivedNote}
+        />
+      )}
+
+      {turnAlert && (
+        <TurnAlert
+          key={turnAlert.key}
+          characterName={turnAlert.characterName}
+          round={turnAlert.round}
+          onClose={dismissTurnAlert}
         />
       )}
 

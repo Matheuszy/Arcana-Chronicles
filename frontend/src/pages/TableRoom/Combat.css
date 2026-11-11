@@ -139,3 +139,73 @@
 .combat-round-crest strong { font-family: var(--font-display); font-size: 1.1rem; color: var(--ember-bright); }
 .combat-torch { width: 1.3rem; height: 1.3rem; color: #a0703a; }
 .combat-torch .rpg-flame { fill: #f6a43c; }
+
+.turn-alert {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: none;
+}
+
+.turn-alert-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: min(320px, 100%);
+  padding: 1.5rem 1.25rem 1.25rem;
+  text-align: center;
+  background: linear-gradient(180deg, var(--ink-800), var(--ink-900));
+  border: 1px solid var(--ember-bright);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card), 0 0 40px rgba(230, 184, 89, 0.45);
+  animation: turn-alert-life 3s ease-in-out forwards;
+}
+
+.turn-alert-torch {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--ember-bright);
+}
+
+.turn-alert-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--ember-bright);
+  letter-spacing: 0.04em;
+}
+
+.turn-alert-detail {
+  margin: 0;
+  color: var(--parchment-dim);
+}
+.turn-alert-detail strong { color: var(--parchment); }
+
+@keyframes turn-alert-life {
+  0% { opacity: 0; transform: scale(0.85); }
+  10% { opacity: 1; transform: scale(1.04); }
+  16% { transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.96); }
+}
+
+@keyframes turn-alert-fade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (min-width: 640px) {
+  .turn-alert-card { width: 360px; padding: 1.75rem 1.5rem 1.5rem; }
+  .turn-alert-title { font-size: 2.4rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-alert-card { animation-name: turn-alert-fade; }
+}
