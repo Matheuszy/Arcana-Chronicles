@@ -373,7 +373,7 @@ class CombateChatTest {
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
-        assertEquals("Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
                 ultimoAviso(sessaoAria));
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
 
@@ -388,7 +388,7 @@ class CombateChatTest {
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
 
-        assertEquals("Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
                 ultimoAviso(sessaoAria));
         assertTrue(recebidas(sessaoMestre, "ROLAGEM").isEmpty());
     }
@@ -787,7 +787,7 @@ class CombateChatTest {
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
-        assertEquals("Durante o combate você só pode rolar dados no seu turno ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
                 ultimoAviso(sessaoAria));
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
     }
@@ -840,5 +840,216 @@ class CombateChatTest {
 
         assertEquals("Apenas o mestre pode administrar o combate.", ultimoAviso(sessaoAria));
         verify(mesaService, never()).buscarFichaDeNpcDaMesa(anyLong(), anyLong(), anyLong());
+    }
+
+    private List<String> payloads(WebSocketSession sessao) throws Exception {
+        ArgumentCaptor<TextMessage> captor = ArgumentCaptor.forClass(TextMessage.class);
+        verify(sessao, atLeast(0)).sendMessage(captor.capture());
+        return captor.getAllValues().stream().map(TextMessage::getPayload).toList();
+    }
+
+    private void iniciarComGoblinOculto() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20,30],"monstros":[{"personagemId":500,"quantidade":1,"oculto":true}]}}
+                """);
+        faces.addAll(List.of(10, 12, 18));
+        rolarIniciativa(sessaoAria, "NORMAL");
+        rolarIniciativa(sessaoBrom, "NORMAL");
+        rolarMonstros("{}");
+    }
+
+    @Test
+    void deveEsconderOMonstroOcultoDosJogadoresMostrandoApenasOTurnoDoMestre() throws Exception {
+        iniciarComGoblinOculto();
+
+        JsonNode doMestre = ultimoCombate(sessaoMestre);
+        assertEquals(3, doMestre.get("participantes").size());
+        assertTrue(participante(doMestre, "monstro-1").get("oculto").asBoolean());
+        assertEquals("monstro-1", doMestre.get("turnoDe").asText());
+        assertTrue(doMestre.get("turnoOculto").asBoolean());
+
+        JsonNode daAria = ultimoCombate(sessaoAria);
+        assertEquals(2, daAria.get("participantes").size());
+        assertTrue(daAria.get("turnoDe").isNull());
+        assertTrue(daAria.get("turnoOculto").asBoolean());
+        assertEquals(10L, daAria.get("controladorDoTurno").asLong());
+        assertEquals("EM_ANDAMENTO", daAria.get("fase").asText());
+
+        enviar(sessaoMestre, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertFalse(ultimoCombate(sessaoAria).get("turnoOculto").asBoolean());
+        assertEquals("30", ultimoCombate(sessaoAria).get("turnoDe").asText());
+
+        for (WebSocketSession jogador : List.of(sessaoAria, sessaoBrom, sessaoCael)) {
+            for (String payload : payloads(jogador)) {
+                assertFalse(payload.contains("Goblin"), payload);
+                assertFalse(payload.contains("monstro-1"), payload);
+            }
+            assertTrue(recebidas(jogador, "COMBATE_ENTRADA").isEmpty());
+        }
+    }
+
+    @Test
+    void deveEntrarOcultoSemAnuncioEAnunciarATodosQuandoORevelar() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+
+        adicionarAoCombate("{\"monstros\":[{\"personagemId\":500,\"quantidade\":1,\"oculto\":true}]}");
+
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom, sessaoCael)) {
+            assertTrue(recebidas(sessao, "COMBATE_ENTRADA").isEmpty());
+        }
+        assertEquals(2, ultimoCombate(sessaoAria).get("participantes").size());
+        assertEquals(3, ultimoCombate(sessaoMestre).get("participantes").size());
+
+        enviar(sessaoAria, """
+                {"type":"COMBATE_REVELAR","comandoCombate":{"entradas":["monstro-1"]}}
+                """);
+        assertEquals("Apenas o mestre pode administrar o combate.", ultimoAviso(sessaoAria));
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_REVELAR","comandoCombate":{"entradas":["monstro-1"]}}
+                """);
+
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoAria, sessaoBrom, sessaoCael)) {
+            assertEquals("Goblin", ultimaEntrada(sessao).get("nomes").get(0).asText());
+        }
+        JsonNode goblin = participante(ultimoCombate(sessaoAria), "monstro-1");
+        assertFalse(goblin.get("oculto").asBoolean());
+        assertTrue(goblin.get("aguardandoFimDoTurno").asBoolean());
+
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_REVELAR","comandoCombate":{"entradas":["monstro-1"]}}
+                """);
+        assertEquals("Goblin já está visível para os jogadores.", ultimoAviso(sessaoMestre));
+    }
+
+    @Test
+    void deveAnunciarSoOsMonstrosVisiveisQuandoEntramJuntoComOcultos() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        FichaDeParticipante goblin = fichaDeMonstro();
+        when(mesaService.buscarFichaDeNpcDaMesa(1L, 600L, MESTRE.userId())).thenReturn(new FichaDeParticipante(
+                MESTRE.userId(), MESTRE.displayName(), 600L, "Lobo", goblin.valores(), Map.of(), Map.of(), 0));
+
+        adicionarAoCombate("{\"monstros\":[{\"personagemId\":500,\"quantidade\":1,\"oculto\":true},{\"personagemId\":600,\"quantidade\":1}]}");
+
+        JsonNode entrada = ultimaEntrada(sessaoAria);
+        assertEquals(1, entrada.get("nomes").size());
+        assertEquals("Lobo", entrada.get("nomes").get(0).asText());
+    }
+
+    private void reagir(WebSocketSession sessao, String comando) throws Exception {
+        enviar(sessao, """
+                {"type":"COMBATE_REAGIR","comandoCombate":%s}
+                """.formatted(comando));
+    }
+
+    @Test
+    void deveLiberarRolagemForaDoTurnoDuranteAReacaoEPublicarNoChatComoReacao() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+
+        for (WebSocketSession sessao : List.of(sessaoMestre, sessaoBrom, sessaoCael)) {
+            JsonNode reacao = recebidas(sessao, "REACAO").get(0);
+            assertEquals("Lyra usa a reação: Ataque de oportunidade", reacao.get("content").asText());
+            assertEquals("ROLAGENS", reacao.get("canal").asText());
+        }
+        JsonNode lyra = participante(ultimoCombate(sessaoAria), "20");
+        assertTrue(lyra.get("reacaoUsada").asBoolean());
+        assertEquals("ATAQUE_DE_OPORTUNIDADE", lyra.get("reacaoAberta").get("tipo").asText());
+
+        faces.add(15);
+        enviar(sessaoAria, ROLAGEM_LIVRE);
+        JsonNode rolagem = recebidas(sessaoCael, "ROLAGEM").get(0);
+        assertEquals("Reação de Lyra · Ataque de oportunidade", rolagem.get("reacao").asText());
+
+        enviar(sessaoAria, "{\"type\":\"COMBATE_ENCERRAR_REACAO\"}");
+        assertTrue(participante(ultimoCombate(sessaoAria), "20").get("reacaoAberta").isNull());
+        enviar(sessaoAria, ROLAGEM_LIVRE);
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+                ultimoAviso(sessaoAria));
+        assertEquals(1, recebidas(sessaoCael, "ROLAGEM").size());
+    }
+
+    @Test
+    void deveNegarSegundaReacaoNaRodadaELiberarNoInicioDoProprioTurno() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        reagir(sessaoAria, "{\"tipoReacao\":\"OUTRA\",\"descricao\":\"Escudo arcano\"}");
+        enviar(sessaoAria, "{\"type\":\"COMBATE_ENCERRAR_REACAO\"}");
+
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("Lyra já usou a reação nesta rodada. Ela volta no início do próximo turno.",
+                ultimoAviso(sessaoAria));
+        assertEquals(1, recebidas(sessaoMestre, "REACAO").size());
+
+        enviar(sessaoBrom, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        assertFalse(participante(ultimoCombate(sessaoAria), "20").get("reacaoUsada").asBoolean());
+
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("A reação é usada fora do próprio turno.", ultimoAviso(sessaoAria));
+
+        enviar(sessaoAria, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals(2, recebidas(sessaoMestre, "REACAO").size());
+    }
+
+    @Test
+    void deveFecharAReacaoAbertaQuandoOTurnoPassa() throws Exception {
+        iniciarComBromNoPrimeiroTurno();
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+
+        enviar(sessaoBrom, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+        enviar(sessaoAria, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+
+        assertTrue(participante(ultimoCombate(sessaoAria), "20").get("reacaoAberta").isNull());
+        enviar(sessaoAria, ROLAGEM_LIVRE);
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+                ultimoAviso(sessaoAria));
+    }
+
+    @Test
+    void devePermitirAoMestreDeclararReacoesSoDosMonstrosVisiveis() throws Exception {
+        enviar(sessaoMestre, """
+                {"type":"COMBATE_INICIAR","comandoCombate":{"jogadores":[20],"monstros":[{"personagemId":500,"quantidade":2}]}}
+                """);
+        faces.addAll(List.of(18, 3, 4));
+        rolarIniciativa(sessaoAria, "NORMAL");
+        rolarMonstros("{}");
+
+        reagir(sessaoMestre, "{\"entradaId\":\"20\",\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("O mestre só declara reações dos monstros, NPCs e chefes.", ultimoAviso(sessaoMestre));
+
+        reagir(sessaoMestre, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("Escolha o monstro que vai reagir.", ultimoAviso(sessaoMestre));
+
+        reagir(sessaoMestre, "{\"entradaId\":\"monstro-2\",\"tipoReacao\":\"OUTRA\"}");
+        assertEquals("Descreva a reação.", ultimoAviso(sessaoMestre));
+
+        reagir(sessaoMestre, "{\"entradaId\":\"monstro-2\",\"tipoReacao\":\"OUTRA\",\"descricao\":\"Uiva para a lua\"}");
+        assertEquals("Goblin 2 usa a reação: Uiva para a lua",
+                recebidas(sessaoAria, "REACAO").get(0).get("content").asText());
+
+        reagir(sessaoAria, "{\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+        assertEquals("A reação é usada fora do próprio turno.", ultimoAviso(sessaoAria));
+    }
+
+    @Test
+    void deveNegarReacaoDeMonstroOcultoAntesDeRevelar() throws Exception {
+        iniciarComGoblinOculto();
+        enviar(sessaoMestre, "{\"type\":\"COMBATE_PASSAR_TURNO\"}");
+
+        reagir(sessaoMestre, "{\"entradaId\":\"monstro-1\",\"tipoReacao\":\"ATAQUE_DE_OPORTUNIDADE\"}");
+
+        assertEquals("Revele Goblin antes de usar a reação.", ultimoAviso(sessaoMestre));
+        assertTrue(recebidas(sessaoAria, "REACAO").isEmpty());
+    }
+
+    @Test
+    void deveRecusarReacaoEnviadaPeloClienteComoMensagemPronta() throws Exception {
+        enviar(sessaoAria, """
+                {"type":"REACAO","content":"Falsa"}
+                """);
+
+        assertEquals("Tipo de mensagem não permitido.", ultimoAviso(sessaoAria));
+        assertTrue(recebidas(sessaoMestre, "REACAO").isEmpty());
     }
 }

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class CombateDaMesa {
 
@@ -57,15 +58,42 @@ public class CombateDaMesa {
     }
 
     public synchronized Optional<CombateDto> estadoDoJogador(Long jogadorId) {
-        return doJogador(jogadorId).map(CombateDto::de);
+        return doJogador(jogadorId).map(CombateDto::paraJogador);
+    }
+
+    public synchronized <T> T consultar(String combateId, Function<Combate, T> consulta) {
+        return consulta.apply(escolher(combateId));
+    }
+
+    public synchronized <T> T consultarDoJogador(Long jogadorId, Function<Combate, T> consulta) {
+        Combate combate = doJogador(jogadorId)
+                .orElseThrow(() -> new IllegalStateException("Este jogador não participa do combate."));
+        return consulta.apply(combate);
+    }
+
+    public synchronized void usarReacaoParaAjudar(Long jogadorId) {
+        doJogador(jogadorId).ifPresent(combate -> combate.usarReacaoParaAjudar(Combate.idDoJogador(jogadorId)));
+    }
+
+    public synchronized Optional<ReacaoDeclarada> reacaoAbertaDe(Long userId) {
+        for (Combate combate : combates.values()) {
+            Optional<Combate.Entrada> entrada = combate.reacaoAbertaDe(userId);
+            if (entrada.isPresent()) {
+                return Optional.of(new ReacaoDeclarada(combate.getId(), entrada.get().getNomePersonagem(),
+                        entrada.get().getReacaoAberta()));
+            }
+        }
+        return Optional.empty();
     }
 
     public synchronized CombatesDaMesaDto visaoDo(Long userId, boolean ehMestre) {
         List<CombateDto> completos = new ArrayList<>();
         List<ResumoCombateDto> resumos = new ArrayList<>();
         for (Combate combate : combates.values()) {
-            if (ehMestre || combate.temJogador(userId)) {
+            if (ehMestre) {
                 completos.add(CombateDto.de(combate));
+            } else if (combate.temJogador(userId)) {
+                completos.add(CombateDto.paraJogador(combate));
             } else {
                 resumos.add(ResumoCombateDto.de(combate));
             }

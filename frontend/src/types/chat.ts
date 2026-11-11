@@ -44,7 +44,14 @@ export type ChatMessageType =
   | 'COMBATE_PASSAR_TURNO'
   | 'COMBATE_ENCERRAR'
   | 'COMBATE_ADICIONAR'
-  | 'COMBATE_ENTRADA';
+  | 'COMBATE_ENTRADA'
+  | 'COMBATE_REVELAR'
+  | 'COMBATE_REAGIR'
+  | 'COMBATE_ENCERRAR_REACAO'
+  | 'REACAO'
+  | 'DESAFIO_CONFIRMAR'
+  | 'DESAFIO_AJUDAR'
+  | 'DESAFIO_REMOVER_AJUDA';
 
 export type Channel = 'CONVERSA' | 'ROLAGENS' | 'IMAGENS';
 
@@ -125,6 +132,7 @@ export interface ChatMessage {
   itens?: SharedItem[] | null;
   combates?: CombatsView | null;
   entradaNoCombate?: CombatArrival | null;
+  reacao?: string | null;
   comandoCombate?: CombatCommand | null;
 }
 

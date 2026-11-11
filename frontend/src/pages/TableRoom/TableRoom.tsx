@@ -9,8 +9,21 @@ import { CharacterEditor } from '../CharacterForm/CharacterForm';
 import { GameTable, TABLE_STATUS_LABEL, TableStatus } from '../../types/table';
 import { Character, Attributes, KIND_LABEL } from '../../types/character';
 import { CHANNEL_LABEL, CHANNELS, Channel, ChatMessage, Presence, RollRequest } from '../../types/chat';
-import { ChallengeTarget, isActiveState } from '../../types/challenge';
-import { BLOCKED_ROLL_DURING_COMBAT, arrivalSentence, canRollFreely, combatOfPlayer, isMyTurn } from '../../types/combat';
+import {
+  ChallengeTarget,
+  challengeAuthor,
+  challengeTargetsSentence,
+  isActiveState,
+  isViewerInvolved,
+} from '../../types/challenge';
+import {
+  BLOCKED_ROLL_DURING_COMBAT,
+  arrivalSentence,
+  canRollFreely,
+  combatOfPlayer,
+  helpReactionFor,
+  isMyTurn,
+} from '../../types/combat';
 import { useConfirm } from '../../components/ui/Confirm';
 import Select from '../../components/ui/Select';
 import Tabs, { panelId, tabId } from '../../components/ui/Tabs';
@@ -20,6 +33,7 @@ import ChallengePlayerPanel from './ChallengePlayerPanel';
 import ChallengeMonsterRolls from './ChallengeMonsterRolls';
 import ChallengeRollOverlay from './ChallengeRollOverlay';
 import ChallengeMessageDialog from './ChallengeMessageDialog';
+import ChallengeTablePanel from './ChallengeTablePanel';
 import CombatStartPanel from './CombatStartPanel';
 import CombatBoard from './CombatBoard';
 import DiceRoller from './DiceRoller';
@@ -163,6 +177,7 @@ export default function TableRoom() {
     challenges,
     reveal,
     incomingMessage,
+    announcement: challengeAnnouncement,
     handleMessage: handleChallengeMessage,
     reset: resetChallenges,
     dismissReveal,
@@ -201,7 +216,16 @@ export default function TableRoom() {
   const sideTabs = isMaster ? SIDE_TABS : SIDE_TABS.filter((tab) => tab !== 'COMBATE');
   const turnKey = turnCombat ? `${turnCombat.id}-${turnCombat.rodada}` : null;
 
-  const activeChallengeCount = challenges.filter((c) => c.jogadores.some((p) => isActiveState(p.estado))).length;
+  const activeChallengeCount = challenges.filter(
+    (c) => isViewerInvolved(c, viewerId) && c.jogadores.some((p) => isActiveState(p.estado)),
+  ).length;
+
+  useEffect(() => {
+    if (!challengeAnnouncement) return;
+    const { challenge } = challengeAnnouncement;
+    const description = challenge.descricao ? `: ${challenge.descricao}` : '';
+    notify(`${challengeAuthor(challenge)} desafiou ${challengeTargetsSentence(challenge)}${description}`, 'info');
+  }, [challengeAnnouncement, notify]);
   const previousChallengeCount = useRef(0);
 
   useEffect(() => {
@@ -573,7 +597,6 @@ export default function TableRoom() {
   const statusTargets: StatusTarget[] = (isMaster ? characters : activeCharacter ? [activeCharacter] : []).flatMap(
     (c) => (c.id ? [{ id: Number(c.id), label: isMaster ? `${c.name} (${KIND_LABEL[c.kind]})` : c.name }] : []),
   );
-  const myCreatedChallenges =challenges.filter((c) => String(c.criadorId) === viewerId);
   const playerChallengeTargets =
     myCombat === null
       ? masterChallengeTargets.filter((target) => target.id !== viewerId)
@@ -722,6 +745,7 @@ export default function TableRoom() {
             challenges={challenges}
             targets={masterChallengeTargets}
             viewerId={viewerId}
+            isMaster
             title="Desafios de CD"
             canSend={canSend}
             connected={connected}
@@ -729,6 +753,8 @@ export default function TableRoom() {
             onAllowExtraAttempt={chatService.allowExtraAttempt.bind(chatService)}
             onEndWithFailure={chatService.endChallengeWithFailure.bind(chatService)}
             onCancel={chatService.cancelChallenge.bind(chatService)}
+            onConfirm={chatService.confirmChallengeResult.bind(chatService)}
+            onRemoveHelp={chatService.removeChallengeHelp.bind(chatService)}
             onFinish={chatService.finishChallenge.bind(chatService)}
             onSendMessage={chatService.sendChallengeMessage.bind(chatService)}
           />
@@ -737,9 +763,10 @@ export default function TableRoom() {
 
         {!isMaster && (
           <ChallengeMasterPanel
-            challenges={myCreatedChallenges}
+            challenges={challenges}
             targets={playerChallengeTargets}
             viewerId={viewerId}
+            isMaster={false}
             title={myCombat !== null ? 'Meus desafios de combate' : 'Meus desafios'}
             createHint={playerChallengeHint}
             canSend={canSend}
@@ -748,6 +775,8 @@ export default function TableRoom() {
             onAllowExtraAttempt={chatService.allowExtraAttempt.bind(chatService)}
             onEndWithFailure={chatService.endChallengeWithFailure.bind(chatService)}
             onCancel={chatService.cancelChallenge.bind(chatService)}
+            onConfirm={chatService.confirmChallengeResult.bind(chatService)}
+            onRemoveHelp={chatService.removeChallengeHelp.bind(chatService)}
             onFinish={chatService.finishChallenge.bind(chatService)}
             onSendMessage={chatService.sendChallengeMessage.bind(chatService)}
           />
@@ -761,8 +790,19 @@ export default function TableRoom() {
             paused={Boolean(isPaused)}
             canSend={connected}
             onRoll={chatService.rollChallenge.bind(chatService)}
+            onRemoveHelp={chatService.removeChallengeHelp.bind(chatService)}
           />
         )}
+
+        <ChallengeTablePanel
+          challenges={challenges}
+          viewerId={viewerId}
+          isMaster={isMaster}
+          reaction={helpReactionFor(myCombat, viewerId)}
+          canSend={canSend}
+          onHelp={chatService.helpChallenge.bind(chatService)}
+          onRemoveHelp={chatService.removeChallengeHelp.bind(chatService)}
+        />
 
         </div>
         {isMaster && (
@@ -852,6 +892,9 @@ export default function TableRoom() {
           onRollInitiative={chatService.rollInitiative.bind(chatService)}
           onRollMonsters={chatService.rollMonsterInitiative.bind(chatService)}
           onPassTurn={chatService.passTurn.bind(chatService)}
+          onReveal={chatService.revealInCombat.bind(chatService)}
+          onReact={chatService.react.bind(chatService)}
+          onEndReaction={chatService.endReaction.bind(chatService)}
           onAllowReroll={chatService.allowInitiativeReroll.bind(chatService)}
           onEnd={chatService.endCombat.bind(chatService)}
         />
@@ -892,6 +935,9 @@ export default function TableRoom() {
                     </span>
                   </div>
 
+                  {m.reacao && (
+                    <span className="msg-reaction-tag">{m.type === 'REACAO' ? 'Reação' : m.reacao}</span>
+                  )}
                   {m.type === 'ROLAGEM' && m.diceResult ? (
                     <DiceRollMessage
                       result={m.diceResult}

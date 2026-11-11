@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -27,6 +28,7 @@ public class CombateService {
 
     static final int MAXIMO_MONSTROS_POR_GRUPO = 20;
     static final int MAXIMO_CARACTERES_DO_NOME = 60;
+    static final int MAXIMO_CARACTERES_DA_REACAO = 80;
 
     private final MesaService mesaService;
     private final RolagemDadosService rolagemDados;
@@ -88,6 +90,7 @@ public class CombateService {
             fichasDosGrupos.forEach((grupo, ficha) -> adicionarGrupo(alvo, grupo, ficha));
             alvo.entradasEmOrdem().stream()
                     .filter(entrada -> !anteriores.contains(entrada.getId()))
+                    .filter(entrada -> !entrada.isOculto())
                     .map(Combate.Entrada::getNomePersonagem)
                     .forEach(nomes::add);
         });
@@ -142,6 +145,52 @@ public class CombateService {
         });
     }
 
+    public EntradaNoCombateDto revelar(MesaAtiva mesa, AcessoMesaDto mestre, String combateId,
+                                       List<String> entradaIds) {
+        exigirMestre(mestre);
+        exigirMesaEmAndamento(mesa);
+        List<String> escolhidas = validarEntradas(entradaIds);
+        List<String> nomes = new ArrayList<>();
+        CombateDto combate = mesa.combate().alterar(combateId, alvo -> nomes.addAll(alvo.revelar(escolhidas)));
+        return new EntradaNoCombateDto(combate.id(), combate.nome(), List.copyOf(nomes));
+    }
+
+    public ReacaoDeclarada reagir(MesaAtiva mesa, AcessoMesaDto acesso, String combateId, String entradaId,
+                                  Combate.TipoReacao tipo, String descricao) {
+        exigirMesaEmAndamento(mesa);
+        Combate.Reacao reacao = validarReacao(tipo, descricao);
+        if (ehMestre(acesso)) {
+            String monstroId = exigirMonstroInformado(entradaId);
+            return mesa.combate().consultar(combateId, combate -> {
+                exigirMonstro(combate.entrada(monstroId));
+                combate.declararReacao(monstroId, reacao);
+                return new ReacaoDeclarada(combate.getId(), combate.entrada(monstroId).getNomePersonagem(), reacao);
+            });
+        }
+        String proprioId = Combate.idDoJogador(acesso.userId());
+        return mesa.combate().consultarDoJogador(acesso.userId(), combate -> {
+            combate.declararReacao(proprioId, reacao);
+            return new ReacaoDeclarada(combate.getId(), combate.entrada(proprioId).getNomePersonagem(), reacao);
+        });
+    }
+
+    public void encerrarReacao(MesaAtiva mesa, AcessoMesaDto acesso, String combateId, String entradaId) {
+        if (ehMestre(acesso)) {
+            String monstroId = exigirMonstroInformado(entradaId);
+            mesa.combate().alterar(combateId, combate -> {
+                exigirMonstro(combate.entrada(monstroId));
+                combate.encerrarReacao(monstroId);
+            });
+            return;
+        }
+        mesa.combate().alterarDoJogador(acesso.userId(),
+                combate -> combate.encerrarReacao(Combate.idDoJogador(acesso.userId())));
+    }
+
+    public Optional<ReacaoDeclarada> reacaoAbertaDe(MesaAtiva mesa, Long userId) {
+        return mesa.combate().reacaoAbertaDe(userId);
+    }
+
     public void encerrar(MesaAtiva mesa, AcessoMesaDto mestre, String combateId) {
         exigirMestre(mestre);
         mesa.combate().encerrar(combateId);
@@ -179,7 +228,7 @@ public class CombateService {
             boolean unico = existentes == 0 && grupo.quantidade() == 1;
             String nome = unico ? nomeBase : nomeBase + " " + (existentes + numero);
             combate.adicionarMonstro(ficha.personagemId(), nomeBase, nome, ficha.nomeJogador(),
-                    destreza, ficha.bonusIniciativa());
+                    destreza, ficha.bonusIniciativa(), grupo.ehOculto());
         }
     }
 
@@ -208,6 +257,34 @@ public class CombateService {
         int total = dados.getKept() + entrada.getModificadorDestreza() + entrada.getBonusIniciativa();
         return new Iniciativa(dados.getRolls(), dados.getKept(), entrada.getModificadorDestreza(),
                 entrada.getBonusIniciativa(), total, modo);
+    }
+
+    private Combate.Reacao validarReacao(Combate.TipoReacao tipo, String descricao) {
+        if (tipo == null) {
+            throw new IllegalArgumentException("Escolha o tipo da reação.");
+        }
+        String limpa = descricao == null || descricao.isBlank() ? null : descricao.trim();
+        if (tipo == Combate.TipoReacao.OUTRA && limpa == null) {
+            throw new IllegalArgumentException("Descreva a reação.");
+        }
+        if (limpa != null && limpa.length() > MAXIMO_CARACTERES_DA_REACAO) {
+            throw new IllegalArgumentException(
+                    "A descrição da reação deve ter até " + MAXIMO_CARACTERES_DA_REACAO + " caracteres.");
+        }
+        return new Combate.Reacao(tipo, limpa);
+    }
+
+    private String exigirMonstroInformado(String entradaId) {
+        if (entradaId == null || entradaId.isBlank()) {
+            throw new IllegalArgumentException("Escolha o monstro que vai reagir.");
+        }
+        return entradaId;
+    }
+
+    private void exigirMonstro(Combate.Entrada entrada) {
+        if (entrada.getTipo() != Combate.TipoEntrada.MONSTRO) {
+            throw new AccessDeniedException("O mestre só declara reações dos monstros, NPCs e chefes.");
+        }
     }
 
     private boolean ehMestre(AcessoMesaDto acesso) {

@@ -28,6 +28,8 @@ public class DesafioService {
     public static final int LIMITE_DESCRICAO = 120;
 
     public static final int LIMITE_MENSAGEM = 120;
+    public static final Set<Integer> FACES_DO_DADO_BONUS = Set.of(4, 6, 8, 10, 12);
+    public static final int FACES_DO_DADO_DE_PENALIDADE = 4;
 
     public record ResultadoRolagem(DesafioDto desafio, RolagemDeDesafio rolagem) {}
 
@@ -91,7 +93,7 @@ public class DesafioService {
         DesafioDto atualizado = mesa.desafios().alterar(ativo.id(), jogadorId, desafio -> {
             desafio.validarRolagem(alvoId);
             Desafio.Participacao participacao = desafio.participacao(alvoId);
-            feita[0] = rolarParticipacao(desafio, participacao, participacao.getModo(), modificador, escolha);
+            feita[0] = rolarParticipacao(desafio, participacao, modificador, escolha);
         });
         return new ResultadoRolagem(atualizado, feita[0]);
     }
@@ -114,7 +116,7 @@ public class DesafioService {
                 FichaDeParticipante ficha = mesaService.buscarFichaDeNpcDaMesa(mesa.getMesaId(),
                         monstro.getPersonagemId(), mestre.userId());
                 monstro.definirModo(modoEscolhido);
-                rolarParticipacao(desafio, monstro, modoEscolhido, escolha.modificadorEm(ficha), escolha);
+                rolarParticipacao(desafio, monstro, escolha.modificadorEm(ficha), escolha);
             }
         });
     }
@@ -151,7 +153,68 @@ public class DesafioService {
         });
     }
 
-    public Map<Long, DesafioDto> finalizar(MesaAtiva mesa, AcessoMesaDto criador, String desafioId) {
+    public DesafioDto confirmar(MesaAtiva mesa, AcessoMesaDto criador, String desafioId, String alvoIdOuTodos) {
+        exigirMesaEmAndamento(mesa);
+        return mesa.desafios().alterar(desafioId, criador.userId(), desafio -> {
+            exigirCriadorDoDesafio(desafio, criador);
+            boolean confirmou = alvoIdOuTodos == null
+                    ? desafio.confirmarTodos()
+                    : desafio.confirmar(alvoIdOuTodos);
+            if (!confirmou) {
+                throw new IllegalStateException("Não há resultado aguardando confirmação.");
+            }
+        });
+    }
+
+    public DesafioDto ajudar(MesaAtiva mesa, AcessoMesaDto autor, String desafioId, String alvoId, TipoAjuda tipo,
+                             Integer faces) {
+        if (autor == null) {
+            throw new AccessDeniedException("Apenas quem está na mesa pode ajudar ou atrapalhar.");
+        }
+        exigirMesaEmAndamento(mesa);
+        if (tipo == null) {
+            throw new IllegalArgumentException("Escolha como vai ajudar ou atrapalhar.");
+        }
+        if (alvoId == null) {
+            throw new IllegalArgumentException("Escolha quem vai receber a ajuda ou o atrapalho.");
+        }
+        Integer facesDoDado = facesDaAjuda(tipo, faces);
+        return mesa.desafios().alterar(desafioId, autor.userId(), desafio -> {
+            desafio.validarAjuda(alvoId, autor.userId(), tipo);
+            if (!"MESTRE".equals(autor.role())) {
+                mesa.combate().usarReacaoParaAjudar(autor.userId());
+            }
+            Integer valor = facesDoDado == null ? null
+                    : rolagemDados.rolar(new PedidoRolagem(facesDoDado, 1, 0, ModoRolagem.NORMAL)).getKept();
+            desafio.aplicarAjuda(alvoId, new Ajuda(UUID.randomUUID().toString(), tipo, autor.userId(),
+                    autor.displayName(), facesDoDado, valor));
+        });
+    }
+
+    public DesafioDto removerAjuda(MesaAtiva mesa, AcessoMesaDto acesso, String desafioId, String alvoId,
+                                   String ajudaId) {
+        if (acesso == null) {
+            throw new AccessDeniedException("Apenas quem está na mesa pode alterar ajudas.");
+        }
+        exigirMesaEmAndamento(mesa);
+        if (ajudaId == null || ajudaId.isBlank()) {
+            throw new IllegalArgumentException("Escolha a ajuda ou o atrapalho.");
+        }
+        return mesa.desafios().alterar(desafioId, acesso.userId(), desafio -> {
+            boolean ehMestre = "MESTRE".equals(acesso.role());
+            if (!ehMestre) {
+                Desafio.Participacao participacao = desafio.participacao(alvoId);
+                Ajuda ajuda = desafio.ajuda(alvoId, ajudaId);
+                if (!participacao.getControladorId().equals(acesso.userId()) || !ajuda.tipo().beneficia()) {
+                    throw new AccessDeniedException(
+                            "Só quem recebe uma ajuda pode recusá-la, e só o mestre remove atrapalhos.");
+                }
+            }
+            desafio.removerAjuda(alvoId, ajudaId);
+        });
+    }
+
+    public DesafioFinalizado finalizar(MesaAtiva mesa, AcessoMesaDto criador, String desafioId) {
         return mesa.desafios().finalizar(desafioId, desafio -> exigirCriadorDoDesafio(desafio, criador));
     }
 
@@ -266,14 +329,25 @@ public class DesafioService {
         return escolhidos;
     }
 
-    private RolagemDeDesafio rolarParticipacao(Desafio desafio, Desafio.Participacao participacao, ModoRolagem modo,
+    private RolagemDeDesafio rolarParticipacao(Desafio desafio, Desafio.Participacao participacao,
                                                int modificador, EscolhaTeste escolha) {
-        DiceRollResult dados = rolarD20(modo, modificador, escolha);
-        int total = dados.getTotal();
-        RolagemDeDesafio rolagem = new RolagemDeDesafio(participacao.proximaTentativa(), escolha,
-                escolha.descricao(), dados, total, total >= desafio.getCd());
+        DiceRollResult dados = rolarD20(desafio.modoEfetivo(participacao.getId()), modificador, escolha);
+        RolagemDeDesafio rolagem = RolagemDeDesafio.pendente(participacao.proximaTentativa(), escolha, dados);
         desafio.registrarRolagem(participacao.getId(), rolagem);
         return rolagem;
+    }
+
+    private Integer facesDaAjuda(TipoAjuda tipo, Integer faces) {
+        return switch (tipo) {
+            case DADO_BONUS -> {
+                if (faces == null || !FACES_DO_DADO_BONUS.contains(faces)) {
+                    throw new IllegalArgumentException("O dado bônus deve ser d4, d6, d8, d10 ou d12.");
+                }
+                yield faces;
+            }
+            case DADO_PENALIDADE -> FACES_DO_DADO_DE_PENALIDADE;
+            default -> null;
+        };
     }
 
     private DiceRollResult rolarD20(ModoRolagem modo, int modificador, EscolhaTeste escolha) {

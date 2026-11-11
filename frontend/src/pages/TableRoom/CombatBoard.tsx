@@ -3,6 +3,7 @@ import { RollMode } from '../../types/chat';
 import {
   Combat,
   CombatSummary,
+  ReactionKind,
   combatOfPlayer,
   currentTurnName,
   pendingInitiatives,
@@ -19,6 +20,9 @@ interface CombatBoardProps {
   onRollMonsters: (combatId: string, entryIds: string[], mode: RollMode) => void;
   onPassTurn: (combatId: string) => void;
   onAllowReroll: (combatId: string, entryIds: string[]) => void;
+  onReveal: (combatId: string, entryIds: string[]) => void;
+  onReact: (combatId: string, entryId: string | null, kind: ReactionKind, description: string) => void;
+  onEndReaction: (combatId: string, entryId: string | null) => void;
   onEnd: (combatId: string) => void;
 }
 
@@ -83,6 +87,9 @@ export default function CombatBoard({
   onRollMonsters,
   onPassTurn,
   onAllowReroll,
+  onReveal,
+  onReact,
+  onEndReaction,
   onEnd,
 }: CombatBoardProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -119,6 +126,9 @@ export default function CombatBoard({
           onRollMonsters={(entryIds, mode) => onRollMonsters(shown.id, entryIds, mode)}
           onPassTurn={() => onPassTurn(shown.id)}
           onAllowReroll={(entryIds) => onAllowReroll(shown.id, entryIds)}
+          onReveal={(entryIds) => onReveal(shown.id, entryIds)}
+          onReact={(entryId, kind, description) => onReact(shown.id, entryId, kind, description)}
+          onEndReaction={(entryId) => onEndReaction(shown.id, entryId)}
           onEnd={() => onEnd(shown.id)}
         />
       )}

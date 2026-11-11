@@ -288,3 +288,103 @@
 @media (min-width: 640px) {
   .turn-alert-card--arrival .turn-alert-title { font-size: 1.6rem; }
 }
+
+.combat-monster-pick { flex-wrap: wrap; }
+.combat-hidden-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--parchment-dim);
+}
+
+.combat-entry--hidden { border-style: dashed; opacity: 0.85; }
+.combat-hidden-badge {
+  margin-left: 0.4rem;
+  padding: 0.05em 0.45em;
+  border: 1px dashed var(--parchment-dim);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: normal;
+  color: var(--parchment-dim);
+  vertical-align: middle;
+}
+
+.combat-hidden-turn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--ember-bright);
+  border-radius: var(--radius-lg);
+  background: var(--ink-900);
+  font-family: var(--font-display);
+  color: var(--ember-bright);
+}
+
+.combat-reaction { display: flex; flex-direction: column; gap: 0.5rem; }
+.combat-reaction-open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--ember);
+  border-radius: var(--radius-lg);
+  background: var(--ink-900);
+}
+.combat-reaction-open p { margin: 0; overflow-wrap: anywhere; }
+.combat-reaction-open .btn { align-self: flex-start; }
+.combat-reaction-form summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  color: var(--ember-bright);
+}
+.combat-reaction-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.combat-reaction-form form p { margin: 0; font-size: 0.85rem; }
+.combat-reaction-form .btn { align-self: flex-start; }
+
+.msg-reaction-tag {
+  display: inline-block;
+  margin: 0.15rem 0 0.25rem;
+  padding: 0.05em 0.55em;
+  border: 1px solid var(--ember);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--ember-bright);
+  overflow-wrap: anywhere;
+}
+.msg--reacao .content { font-style: italic; }
+
+.combat-player-pick label { align-items: flex-start; min-width: 0; }
+.combat-player-pick input[type='checkbox'] { margin-top: 0.2rem; flex-shrink: 0; }
+.combat-player-info { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.combat-player-name { font-weight: 600; overflow-wrap: anywhere; }
+.combat-player-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--parchment-dim); }
+.combat-player-meta > * { flex-shrink: 0; white-space: nowrap; }
+.combat-player-presence { display: inline-flex; align-items: center; gap: 0.3rem; }
+.combat-player-status {
+  padding: 0.05em 0.5em;
+  border: 1px solid var(--ink-700);
+  border-radius: 999px;
+}
+
+.combat-entry { flex-wrap: wrap; }
+.combat-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex-basis: 100%;
+}
+.combat-hidden-badge, .combat-hidden-toggle { white-space: nowrap; }
+.combat-reaction-open .btn, .combat-reaction-form .btn { min-height: 2.5rem; }
+@media (min-width: 640px) {
+  .combat-entry { flex-wrap: nowrap; }
+  .combat-entry-actions { flex-basis: auto; flex-wrap: nowrap; }
+}

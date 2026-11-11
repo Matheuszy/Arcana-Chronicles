@@ -4,12 +4,14 @@ public enum EstadoDesafio {
     AGUARDANDO_ROLAGEM,
     AGUARDANDO_DECISAO_DO_MESTRE,
     AGUARDANDO_TENTATIVA_EXTRA,
+    AGUARDANDO_CONFIRMACAO,
     SUCESSO,
     FALHA,
     CANCELADO;
 
     public boolean ativo() {
-        return this == AGUARDANDO_ROLAGEM || this == AGUARDANDO_DECISAO_DO_MESTRE || this == AGUARDANDO_TENTATIVA_EXTRA;
+        return this == AGUARDANDO_ROLAGEM || this == AGUARDANDO_DECISAO_DO_MESTRE || this == AGUARDANDO_TENTATIVA_EXTRA
+                || this == AGUARDANDO_CONFIRMACAO;
     }
 
     public boolean aguardandoRolagem() {
