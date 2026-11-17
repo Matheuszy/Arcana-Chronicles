@@ -77,8 +77,8 @@ public record PersonagemRequestDto(
         List<@NotBlank(message = "Item não pode ser vazio")
              @Size(max = 100, message = "Item não pode ter mais de 100 caracteres") String> items,
 
-        @Size(max = 5000, message = "Habilidades não podem ter mais de 5000 caracteres")
-        String habilidades,
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 habilidades de classe e subclasse")
+        List<@Valid HabilidadeDto> habilidades,
 
         @NotBlank(message = "Raça é obrigatória")
         @Size(max = 60, message = "Raça não pode ter mais de 60 caracteres")
@@ -88,11 +88,11 @@ public record PersonagemRequestDto(
         @Size(max = 60, message = "Alinhamento não pode ter mais de 60 caracteres")
         String alinhamento,
 
-        @Size(max = 5000, message = "Habilidades de raça não podem ter mais de 5000 caracteres")
-        String habilidadesRaca,
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 habilidades de raça")
+        List<@Valid HabilidadeDto> habilidadesRaca,
 
-        @Size(max = 5000, message = "Talentos não podem ter mais de 5000 caracteres")
-        String talentos,
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 talentos")
+        List<@Valid HabilidadeDto> talentos,
 
         @Min(value = 0, message = "Vida temporária não pode ser negativa")
         Integer vidaTemporaria,
@@ -200,6 +200,15 @@ public record PersonagemRequestDto(
             this(classe, subclasse, nivel, null, null);
         }
     }
+
+    public record HabilidadeDto(
+            @NotBlank(message = "Toda habilidade precisa de um nome")
+            @Size(max = 100, message = "O nome da habilidade não pode ter mais de 100 caracteres")
+            String nome,
+
+            @Size(max = 1000, message = "A descrição da habilidade não pode ter mais de 1000 caracteres")
+            String descricao
+    ) {}
 
     public record EquipamentoDto(
             @NotNull(message = "Escolha se o equipamento é arma ou armadura")

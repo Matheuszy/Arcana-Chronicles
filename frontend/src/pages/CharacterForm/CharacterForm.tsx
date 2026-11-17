@@ -12,6 +12,7 @@ import Select from '../../components/ui/Select';
 import NumberInput from '../../components/ui/NumberInput';
 import SwipeTabs from '../../components/ui/SwipeTabs';
 import TextListEditor from './TextListEditor';
+import AbilityListEditor from './AbilityListEditor';
 import AdditionalMovementsEditor from './AdditionalMovementsEditor';
 import EquipmentPackPicker from './EquipmentPackPicker';
 import HitPointRolls from '../../components/sheet/HitPointRolls';
@@ -53,7 +54,6 @@ import {
   formatModifier,
   KIND_LABEL,
   KINDS_BY_ROLE,
-  MAX_ABILITIES_LENGTH,
   MAX_ALIGNMENT_LENGTH,
   MAX_CLASS_LENGTH,
   MAX_CLASS_LEVEL,
@@ -126,11 +126,11 @@ const EMPTY_CHARACTER: Character = {
   spells: [],
   spellSlots: { ...EMPTY_SPELL_SLOTS },
   classes: [newClassEntry()],
-  habilidades: '',
-  talentos: '',
+  habilidades: [],
+  talentos: [],
   raca: '',
   alinhamento: '',
-  habilidadesRaca: '',
+  habilidadesRaca: [],
   proficiencyBonus: DEFAULT_PROFICIENCY_BONUS,
   savingThrows: {},
   items: [],
@@ -156,12 +156,11 @@ const EMPTY_CHARACTER: Character = {
   moedasPlatina: 0,
 };
 
+const ABILITY_FIELDS = ['habilidades', 'habilidadesRaca', 'talentos'] as const;
+
 const TEXT_FIELDS = [
-  'habilidades',
-  'talentos',
   'raca',
   'alinhamento',
-  'habilidadesRaca',
   'antecedente',
   'tracosPersonalidade',
   'ideais',
@@ -177,6 +176,9 @@ const normalizeSheet = (data: Partial<Character>): Partial<Character> => {
   if ('deslocamento' in data) normalized.deslocamento = data.deslocamento ?? undefined;
   TEXT_FIELDS.forEach((field) => {
     if (field in data) normalized[field] = data[field] ?? '';
+  });
+  ABILITY_FIELDS.forEach((field) => {
+    if (field in data) normalized[field] = data[field] ?? [];
   });
   if ('classes' in data) {
     const loaded = (data.classes ?? []).map((entry) => ({ ...entry, subclasse: entry.subclasse ?? '' }));
@@ -1095,53 +1097,38 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
 
   const renderHabilidades = () => (
     <>
-      <h3 className="section-title">Habilidades de classe e subclasse</h3>
-      <div className="field">
-        <label htmlFor="habilidades">Habilidades</label>
-        <textarea
-          id="habilidades"
-          rows={5}
-          maxLength={MAX_ABILITIES_LENGTH}
-          value={form.habilidades ?? ''}
-          onChange={(e) => setField('habilidades', e.target.value)}
-          placeholder="Escreva livremente as habilidades da classe e da subclasse, com nível, efeito e usos."
-        />
-        <span className="muted">
-          {(form.habilidades ?? '').length}/{MAX_ABILITIES_LENGTH}
-        </span>
-      </div>
+      <AbilityListEditor
+        id="habilidades"
+        title="Habilidades de classe e subclasse"
+        addLabel="Adicionar habilidade"
+        values={form.habilidades ?? []}
+        onChange={(values) => setField('habilidades', values)}
+        emptyText="Nenhuma habilidade de classe ou subclasse na ficha."
+        namePlaceholder="ex: Ataque Furtivo"
+        descriptionPlaceholder="Nível, efeito, alcance e usos por descanso."
+      />
 
-      <h3 className="section-title">Habilidades de raça</h3>
-      <div className="field">
-        <label htmlFor="habilidadesRaca">Habilidades de raça</label>
-        <textarea
-          id="habilidadesRaca"
-          rows={4}
-          maxLength={MAX_ABILITIES_LENGTH}
-          value={form.habilidadesRaca ?? ''}
-          onChange={(e) => setField('habilidadesRaca', e.target.value)}
-          placeholder="Escreva livremente as habilidades da raça, com efeito e usos."
-        />
-        <span className="muted">
-          {(form.habilidadesRaca ?? '').length}/{MAX_ABILITIES_LENGTH}
-        </span>
-      </div>
+      <AbilityListEditor
+        id="habilidadesRaca"
+        title="Habilidades de raça"
+        addLabel="Adicionar habilidade de raça"
+        values={form.habilidadesRaca ?? []}
+        onChange={(values) => setField('habilidadesRaca', values)}
+        emptyText="Nenhuma habilidade de raça na ficha."
+        namePlaceholder="ex: Visão no Escuro"
+        descriptionPlaceholder="Efeito e usos da habilidade."
+      />
 
-      <h3 className="section-title">Talentos</h3>
-      <div className="field">
-        <label htmlFor="talentos">Talentos</label>
-        <textarea
-          id="talentos"
-          rows={4}
-          maxLength={MAX_ABILITIES_LENGTH}
-          value={form.talentos ?? ''}
-          onChange={(e) => setField('talentos', e.target.value)}
-          placeholder="Escreva livremente os talentos do personagem, com efeito e usos."
-        />
-        <span className="muted">
-          {(form.talentos ?? '').length}/{MAX_ABILITIES_LENGTH}
-        </span>
-      </div>
+      <AbilityListEditor
+        id="talentos"
+        title="Talentos"
+        addLabel="Adicionar talento"
+        values={form.talentos ?? []}
+        onChange={(values) => setField('talentos', values)}
+        emptyText="Nenhum talento na ficha."
+        namePlaceholder="ex: Alerta"
+        descriptionPlaceholder="Efeito e usos do talento."
+      />
 
       <h3 className="section-title">Idiomas e proficiências</h3>
       <div className="proficiency-lists">

@@ -1,20 +1,22 @@
 package com.arcana.backend.character.secao;
 
 import com.arcana.backend.character.PersonagemRequestDto;
+import com.arcana.backend.character.PersonagemRequestDto.HabilidadeDto;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
 public record SecaoHabilidadesRequestDto(
-        @Size(max = 5000, message = "Habilidades não podem ter mais de 5000 caracteres")
-        String habilidades,
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 habilidades de classe e subclasse")
+        List<@Valid HabilidadeDto> habilidades,
 
-        @Size(max = 5000, message = "Habilidades de raça não podem ter mais de 5000 caracteres")
-        String habilidadesRaca,
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 habilidades de raça")
+        List<@Valid HabilidadeDto> habilidadesRaca,
 
-        @Size(max = 5000, message = "Talentos não podem ter mais de 5000 caracteres")
-        String talentos,
+        @Size(max = 30, message = "A ficha pode ter no máximo 30 talentos")
+        List<@Valid HabilidadeDto> talentos,
 
         @Size(max = 30, message = "A ficha pode ter no máximo 30 idiomas")
         List<@NotBlank(message = "Idioma não pode ser vazio")

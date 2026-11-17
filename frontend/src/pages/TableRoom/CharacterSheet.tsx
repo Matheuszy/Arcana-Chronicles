@@ -41,6 +41,12 @@ import './CharacterSheet.css';
 
 const SKILL_KEYS = Object.keys(SKILL_LABEL) as SkillKey[];
 
+const ABILITY_SECTIONS = [
+  { key: 'habilidades', title: 'Habilidades' },
+  { key: 'habilidadesRaca', title: 'Habilidades de raça' },
+  { key: 'talentos', title: 'Talentos' },
+] as const;
+
 interface CharacterSheetProps {
   character: Character;
   origin?: string;
@@ -362,26 +368,25 @@ export default function CharacterSheet({
           )}
           {tab === 'habilidades' && (
             <>
-              {character.habilidades && (
-                <>
-                  <h3 className="paper-title">Habilidades</h3>
-                  <p className="paper-text paper-abilities">{character.habilidades}</p>
-                </>
-              )}
-
-              {character.habilidadesRaca && (
-                <>
-                  <h3 className="paper-title">Habilidades de raça</h3>
-                  <p className="paper-text paper-abilities">{character.habilidadesRaca}</p>
-                </>
-              )}
-
-              {character.talentos && (
-                <>
-                  <h3 className="paper-title">Talentos</h3>
-                  <p className="paper-text paper-abilities">{character.talentos}</p>
-                </>
-              )}
+              {ABILITY_SECTIONS.map(({ key, title }) => {
+                const abilities = character[key] ?? [];
+                if (abilities.length === 0) return null;
+                return (
+                  <section key={key} aria-labelledby={`sheet-${key}`}>
+                    <h3 id={`sheet-${key}`} className="paper-title">
+                      {title}
+                    </h3>
+                    <ul className="paper-abilities">
+                      {abilities.map((ability, index) => (
+                        <li key={`${ability.nome}-${index}`} className="paper-ability">
+                          <strong className="paper-ability-name">{ability.nome}</strong>
+                          {ability.descricao && <p className="paper-ability-description">{ability.descricao}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
 
               <h3 className="paper-title">Idiomas e proficiências</h3>
               <div className="paper-inventory paper-proficiencies">

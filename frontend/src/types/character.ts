@@ -118,6 +118,11 @@ export interface HitDiceSpendRequest {
 
 export type EquipmentType = 'ARMA' | 'ARMADURA';
 
+export interface Ability {
+  nome: string;
+  descricao?: string | null;
+}
+
 export interface Equipment {
   tipo: EquipmentType;
   nome: string;
@@ -230,11 +235,11 @@ export interface Character {
   spellSlotsCurrent?: SpellSlots;
 
   classes?: ClassEntry[];
-  habilidades?: string;
-  talentos?: string;
+  habilidades?: Ability[];
+  talentos?: Ability[];
   raca?: string;
   alinhamento?: string;
-  habilidadesRaca?: string;
+  habilidadesRaca?: Ability[];
   proficiencyBonus?: number;
   savingThrows?: AttributeBonuses;
   items?: string[];
@@ -358,7 +363,9 @@ export const MAX_CLASSES = 10;
 export const MAX_CLASS_LEVEL = 20;
 export const MAX_RACE_LENGTH = 60;
 export const MAX_ALIGNMENT_LENGTH = 60;
-export const MAX_ABILITIES_LENGTH = 5000;
+export const MAX_ABILITIES = 30;
+export const MAX_ABILITY_NAME_LENGTH = 100;
+export const MAX_ABILITY_DESCRIPTION_LENGTH = 1000;
 export const MAX_EQUIPMENT = 30;
 export const MAX_EQUIPMENT_NAME_LENGTH = 100;
 export const MAX_EQUIPMENT_PROPERTIES_LENGTH = 200;

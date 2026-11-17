@@ -1,6 +1,7 @@
 package com.arcana.backend.character;
 
 import com.arcana.backend.character.model.Atributo;
+import com.arcana.backend.character.model.Habilidade;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoDeslocamento;
@@ -40,11 +41,11 @@ public record PersonagemResponseDto(
         Integer proficiencyBonus,
         Map<String, Integer> savingThrows,
         List<String> items,
-        String habilidades,
+        List<HabilidadeDto> habilidades,
         String raca,
         String alinhamento,
-        String habilidadesRaca,
-        String talentos,
+        List<HabilidadeDto> habilidadesRaca,
+        List<HabilidadeDto> talentos,
         Integer vidaTemporaria,
         Integer deslocamento,
         boolean inspiracao,
@@ -81,6 +82,8 @@ public record PersonagemResponseDto(
             Integer dadoVida,
             Integer dadosVidaDisponiveis
     ) {}
+
+    public record HabilidadeDto(String nome, String descricao) {}
 
     public record EquipamentoDto(
             TipoEquipamento tipo,
@@ -142,11 +145,11 @@ public record PersonagemResponseDto(
                 p.getBonusProficiencia(),
                 salvaguardasEmOrdem(p),
                 List.copyOf(p.getItens()),
-                p.getHabilidades(),
+                habilidades(p.getHabilidades()),
                 p.getRaca(),
                 p.getAlinhamento(),
-                p.getHabilidadesRaca(),
-                p.getTalentos(),
+                habilidades(p.getHabilidadesRaca()),
+                habilidades(p.getTalentos()),
                 p.getVidaTemporaria(),
                 p.getDeslocamento(),
                 p.isInspiracao(),
@@ -202,6 +205,12 @@ public record PersonagemResponseDto(
 
     public static Map<String, Integer> espacosDeMagiaRestantes(Personagem p) {
         return p.getSpellSlotsCurrent() == null ? espacosDeMagia(p) : lerEspacos(p.getSpellSlotsCurrent());
+    }
+
+    public static List<HabilidadeDto> habilidades(List<Habilidade> habilidades) {
+        return habilidades.stream()
+                .map(h -> new HabilidadeDto(h.getNome(), h.getDescricao()))
+                .toList();
     }
 
     public static List<EquipamentoDto> equipamentos(Personagem p) {
