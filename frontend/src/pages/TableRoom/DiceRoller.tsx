@@ -86,7 +86,7 @@ export default function DiceRoller({ disabled, onRoll }: DiceRollerProps) {
               />
             </div>
             <div className="field">
-              <label htmlFor="rollModifier">Modificador?</label>
+              <label htmlFor="rollModifier">Modificador</label>
               <NumberInput
                 id="rollModifier"
                 min={-MAX_MODIFIER}

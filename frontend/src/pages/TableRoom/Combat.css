@@ -356,7 +356,7 @@
   border: 1px solid var(--ember);
   border-radius: 999px;
   font-size: 0.75rem;
-  color: var(--ember-bright);
+  color: var(--on-surface-accent);
   overflow-wrap: anywhere;
 }
 .msg--reacao .content { font-style: italic; }

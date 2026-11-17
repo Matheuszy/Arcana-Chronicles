@@ -161,6 +161,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.5;
+  white-space: nowrap;
 }
 .ui-badge--neutral { color: var(--parchment-dim); }
 .ui-badge--gold { color: var(--ember-bright); }
@@ -215,7 +216,7 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--parchment-dim);
+  color: var(--on-surface-muted);
 }
 .ui-select-trigger {
   display: flex;
@@ -224,16 +225,16 @@
   gap: 0.5rem;
   min-height: 2.5rem;
   padding: 0.6em 0.8em;
-  background: var(--ink-800);
-  border: 1px solid var(--ink-700);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-sm);
-  color: var(--parchment);
+  color: var(--field-text);
   font-size: 0.95rem;
   text-align: left;
 }
 .ui-select-trigger:disabled { opacity: 0.5; cursor: not-allowed; }
 .ui-select-trigger--required { border-color: rgba(201, 150, 47, 0.6); box-shadow: var(--required-glow); }
-.ui-select-placeholder { color: var(--parchment-dim); }
+.ui-select-placeholder { opacity: 0.7; }
 .ui-select-list {
   position: absolute;
   top: 100%;
@@ -245,7 +246,8 @@
   padding: 0.25rem;
   overflow-y: auto;
   list-style: none;
-  background: var(--surface-raised);
+  background: var(--field-bg);
+  color: var(--field-text);
   border: 1px solid var(--leather);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-card);
@@ -260,7 +262,7 @@
   cursor: pointer;
 }
 .ui-select-option > span:nth-last-child(2) { flex: 1; }
-.ui-select-option--highlighted { background: var(--ink-700); color: var(--ember-bright); }
+.ui-select-option--highlighted { background: var(--field-highlight); color: var(--on-surface-accent); }
 .ui-select-option[aria-disabled='true'] { opacity: 0.4; cursor: not-allowed; }
 
 @keyframes ui-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -296,18 +298,18 @@
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--parchment-dim);
+  opacity: 0.75;
 }
 
 .ui-checklist {
   margin: 0.5rem 0;
   padding: 0.75rem;
-  border: 1px solid var(--ink-700);
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-md);
   min-width: 0;
 }
-.ui-checklist legend { padding: 0 0.35rem; font-size: 0.85rem; color: var(--parchment); }
-.ui-checklist-hint { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--parchment-dim); }
+.ui-checklist legend { padding: 0 0.35rem; font-size: 0.85rem; color: var(--on-surface); }
+.ui-checklist-hint { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--on-surface-muted); }
 .ui-checklist-items {
   list-style: none;
   margin: 0;
@@ -316,7 +318,7 @@
   grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
   gap: 0.35rem 0.75rem;
 }
-.ui-checklist-item { display: flex; align-items: baseline; gap: 0.4rem; font-size: 0.88rem; cursor: pointer; overflow-wrap: anywhere; }
+.ui-checklist-item { display: flex; align-items: baseline; gap: 0.4rem; font-size: 0.88rem; cursor: pointer; overflow-wrap: break-word; }
 .ui-checklist-item small { flex-shrink: 0; }
 
 input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
@@ -342,12 +344,12 @@ input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; marg
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--ember);
+  color: var(--stepper-color);
   cursor: pointer;
 }
 .number-input-steps button:first-child { border-radius: 0 var(--radius-sm) 0 0; }
 .number-input-steps button:last-child { border-radius: 0 0 var(--radius-sm) 0; }
-.number-input-steps button:hover:not(:disabled) { color: var(--ember-bright); background: rgba(201, 150, 47, 0.16); }
+.number-input-steps button:hover:not(:disabled) { color: var(--on-surface-accent); background: rgba(201, 150, 47, 0.16); }
 .number-input-steps button:active:not(:disabled) { background: rgba(201, 150, 47, 0.28); }
 .number-input-steps button:disabled { opacity: 0.3; cursor: default; }
 .number-input-steps svg { width: 0.6rem; height: 0.4rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
