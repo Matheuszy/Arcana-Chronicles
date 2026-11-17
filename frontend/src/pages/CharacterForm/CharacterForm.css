@@ -42,7 +42,7 @@
   gap: 1rem;
   flex-wrap: wrap;
 }
-.row .field { flex: 1; min-width: 110px; }
+.row .field { flex: 1; min-width: 110px; justify-content: flex-end; }
 .row .grow { flex: 2; min-width: 220px; }
 .row--aligned .field { justify-content: flex-end; }
 
@@ -67,7 +67,7 @@
 
 .muted-hint {
   font-size: 0.78rem;
-  color: var(--ink-400, #888);
+  color: var(--parchment-dim);
   margin: -0.5rem 0 0.8rem;
 }
 
@@ -110,7 +110,7 @@
   white-space: nowrap;
   transition: background 0.15s;
 }
-.btn-roll:hover { background: var(--ink-600, #333); }
+.btn-roll:hover { background: var(--leather); }
 
 /* ── Perícias ── */
 .skills-grid {
@@ -148,7 +148,7 @@
 .skill-name { flex: 1; }
 .skill-attr {
   font-size: 0.72rem;
-  color: var(--ink-400, #888);
+  color: var(--parchment-dim);
 }
 
 /* ── Spell slots ── */
@@ -161,7 +161,7 @@
 
 .slot-field label {
   font-size: 0.75rem;
-  color: var(--ink-400, #888);
+  color: var(--parchment-dim);
 }
 .slot-field input { text-align: center; }
 
@@ -174,7 +174,7 @@
 }
 
 .spell-card {
-  border: 1px solid var(--ink-600, #444);
+  border: 1px solid var(--ink-700);
   border-radius: 8px;
   padding: 0.6rem 0.8rem;
 }
@@ -197,7 +197,7 @@
 
 .spell-desc {
   font-size: 0.82rem;
-  color: var(--ink-400, #888);
+  color: var(--parchment-dim);
   margin: 0.4rem 0 0;
   line-height: 1.4;
 }
@@ -205,14 +205,14 @@
 .btn-remove {
   background: none;
   border: none;
-  color: var(--ink-400, #888);
+  color: var(--parchment-dim);
   cursor: pointer;
   font-size: 0.85rem;
   padding: 0.15rem 0.3rem;
   border-radius: 4px;
   transition: color 0.12s;
 }
-.btn-remove:hover { color: #e05555; }
+.btn-remove:hover { color: var(--danger-text); }
 
 .attr-field .saving-throw {
   display: flex;
@@ -222,7 +222,7 @@
   margin-top: 0.25rem;
   font-size: 0.75rem;
   text-transform: none;
-  color: var(--ink-400, #888);
+  color: var(--parchment-dim);
   cursor: pointer;
 }
 .attr-field .saving-throw.proficient { color: var(--ember-bright, #ff7a3d); }
@@ -262,7 +262,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.35rem 0.6rem;
-  border: 1px solid var(--ink-600, #444);
+  border: 1px solid var(--ink-700);
   border-radius: 6px;
   overflow-wrap: anywhere;
 }
@@ -296,14 +296,14 @@
 
 /* ── Adicionar magia ── */
 .add-spell {
-  border: 1px dashed var(--ink-600, #444);
+  border: 1px dashed var(--ink-700);
   border-radius: 10px;
   padding: 1rem;
   margin-bottom: 0.5rem;
 }
 .add-spell h4 {
   font-size: 0.85rem;
-  color: var(--ink-400, #888);
+  color: var(--parchment-dim);
   margin-bottom: 0.75rem;
 }
 
@@ -459,7 +459,7 @@
 .text-list-warning {
   margin: 0.3rem 0 0;
   font-size: 0.8rem;
-  color: var(--danger-text);
+  color: var(--on-surface-danger);
 }
 
 .personality-grid {

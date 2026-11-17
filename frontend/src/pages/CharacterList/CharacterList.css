@@ -22,7 +22,7 @@
   margin-bottom: 0.4rem;
 }
 
-.muted { color: var(--parchment-dim); }
+.muted { color: var(--on-surface-muted); }
 
 .empty {
   text-align: center;

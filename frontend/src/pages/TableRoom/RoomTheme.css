@@ -35,6 +35,7 @@
 .room-chat .composer-error.roll-error { color: #8c2a22; }
 .room-chat .image-composer { background: var(--paper-200); }
 .room-chat .image-composer-hint { color: #4f3d2a; }
+.room-chat .image-composer .btn-ghost:hover { background: rgba(107, 68, 41, 0.12); }
 
 .dice-roll {
   background:
@@ -107,7 +108,7 @@
 }
 
 .room { grid-template-columns: 320px minmax(0, 1fr) 300px; }
-.room-side-body { overflow-x: hidden; overflow-wrap: anywhere; }
+.room-side-body { overflow-x: hidden; overflow-wrap: break-word; }
 .room-side-body * { min-width: 0; }
 .room-side-body .row { flex-direction: column; gap: 0; }
 .room-side-body .row .field,
