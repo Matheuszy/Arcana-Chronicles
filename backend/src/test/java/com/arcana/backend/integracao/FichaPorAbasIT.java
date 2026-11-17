@@ -69,9 +69,11 @@ class FichaPorAbasIT extends IntegracaoTest {
                 .andExpect(jsonPath("$.items", hasSize(2)))
                 .andExpect(jsonPath("$.moedasOuro").value(12));
 
-        putComo(dono.token(), base + "habilidades", Map.of("idiomas", List.of("Comum", "Élfico"), "talentos", "Alerta"))
+        putComo(dono.token(), base + "habilidades", Map.of("idiomas", List.of("Comum", "Élfico"),
+                "talentos", List.of(Map.of("nome", "Alerta", "descricao", "+5 em iniciativa"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.idiomas[1]").value("Élfico"));
+                .andExpect(jsonPath("$.idiomas[1]").value("Élfico"))
+                .andExpect(jsonPath("$.talentos[0].nome").value("Alerta"));
 
         getComo(dono.token(), "/api/characters/" + id)
                 .andExpect(status().isOk())
@@ -109,7 +111,7 @@ class FichaPorAbasIT extends IntegracaoTest {
             getComo(outro.token(), "/api/characters/" + id + "/ficha/" + aba).andExpect(status().isForbidden());
             getComo(null, "/api/characters/" + id + "/ficha/" + aba).andExpect(status().isUnauthorized());
         }
-        putComo(outro.token(), "/api/characters/" + id + "/ficha/habilidades", Map.of("talentos", "Roubado"))
+        putComo(outro.token(), "/api/characters/" + id + "/ficha/habilidades", Map.of("talentos", List.of(Map.of("nome", "Roubado"))))
                 .andExpect(status().isForbidden());
     }
 }

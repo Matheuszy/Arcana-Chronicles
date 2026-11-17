@@ -7,6 +7,7 @@ import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.ClassePersonagem;
 import com.arcana.backend.character.model.DeslocamentoAdicional;
 import com.arcana.backend.character.model.Equipamento;
+import com.arcana.backend.character.model.Habilidade;
 import com.arcana.backend.character.model.Magia;
 import com.arcana.backend.character.model.Moeda;
 import com.arcana.backend.character.model.Pericia;
@@ -303,13 +304,22 @@ public class PersonagemService {
     }
 
     private void aplicarHabilidades(SecaoHabilidadesRequestDto dto, Personagem personagem) {
-        personagem.setHabilidades(textoOuNulo(dto.habilidades()));
-        personagem.setHabilidadesRaca(textoOuNulo(dto.habilidadesRaca()));
-        personagem.setTalentos(textoOuNulo(dto.talentos()));
+        substituirHabilidades(personagem.getHabilidades(), dto.habilidades());
+        substituirHabilidades(personagem.getHabilidadesRaca(), dto.habilidadesRaca());
+        substituirHabilidades(personagem.getTalentos(), dto.talentos());
         substituirLista(personagem.getIdiomas(), dto.idiomas(), "Idioma repetido");
         substituirLista(personagem.getProficienciasFerramentas(), dto.proficienciasFerramentas(), "Proficiência em ferramenta repetida");
         substituirLista(personagem.getProficienciasArmas(), dto.proficienciasArmas(), "Proficiência em arma repetida");
         substituirLista(personagem.getProficienciasArmaduras(), dto.proficienciasArmaduras(), "Proficiência em armadura repetida");
+    }
+
+    private void substituirHabilidades(List<Habilidade> atuais, List<PersonagemRequestDto.HabilidadeDto> novas) {
+        atuais.clear();
+        if (novas != null) {
+            novas.stream()
+                    .map(h -> new Habilidade(h.nome().trim(), textoOuNulo(h.descricao())))
+                    .forEach(atuais::add);
+        }
     }
 
     private void aplicarEquipamento(SecaoEquipamentoRequestDto dto, Personagem personagem) {

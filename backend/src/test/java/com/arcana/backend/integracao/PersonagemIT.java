@@ -86,7 +86,7 @@ class PersonagemIT extends IntegracaoTest {
                 Map.of("name", "Bola de Fogo", "level", 3)));
         ficha.put("spellSlots", Map.of("3", 3));
         ficha.put("spellSlotsCurrent", Map.of("3", 1));
-        ficha.put("habilidades", "Surto de Ação: uma ação extra por descanso");
+        ficha.put("habilidades", List.of(Map.of("nome", "Surto de Ação", "descricao", "Uma ação extra por descanso")));
         putComo(dono.token(), "/api/characters/" + id, ficha).andExpect(status().isOk());
 
         getComo(dono.token(), "/api/characters/" + id)
@@ -94,7 +94,8 @@ class PersonagemIT extends IntegracaoTest {
                 .andExpect(jsonPath("$.spells", hasSize(2)))
                 .andExpect(jsonPath("$.spellSlots.3").value(3))
                 .andExpect(jsonPath("$.spellSlotsCurrent.3").value(1))
-                .andExpect(jsonPath("$.habilidades").value("Surto de Ação: uma ação extra por descanso"));
+                .andExpect(jsonPath("$.habilidades[0].nome").value("Surto de Ação"))
+                .andExpect(jsonPath("$.habilidades[0].descricao").value("Uma ação extra por descanso"));
 
         ficha.put("spellSlots", Map.of("1", 2));
         putComo(dono.token(), "/api/characters/" + id, ficha).andExpect(status().isBadRequest());
@@ -220,8 +221,8 @@ class PersonagemIT extends IntegracaoTest {
         Map<String, Object> ficha = new HashMap<>(fichaDoTipo("PLAYER"));
         ficha.put("raca", "Meio-elfo");
         ficha.put("alinhamento", "Caótico e Bom");
-        ficha.put("habilidadesRaca", "Ancestral feérico: vantagem contra encantamento");
-        ficha.put("talentos", "Sentinela: ataque de oportunidade ao sair do alcance");
+        ficha.put("habilidadesRaca", List.of(Map.of("nome", "Ancestral feérico", "descricao", "Vantagem contra encantamento")));
+        ficha.put("talentos", List.of(Map.of("nome", "Sentinela", "descricao", "Ataque de oportunidade ao sair do alcance")));
 
         Long id = corpo(postComo(dono.token(), "/api/characters", ficha).andExpect(status().isCreated()))
                 .get("id").asLong();
@@ -230,8 +231,24 @@ class PersonagemIT extends IntegracaoTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.raca").value("Meio-elfo"))
                 .andExpect(jsonPath("$.alinhamento").value("Caótico e Bom"))
-                .andExpect(jsonPath("$.habilidadesRaca").value("Ancestral feérico: vantagem contra encantamento"))
-                .andExpect(jsonPath("$.talentos").value("Sentinela: ataque de oportunidade ao sair do alcance"));
+                .andExpect(jsonPath("$.habilidadesRaca[0].nome").value("Ancestral feérico"))
+                .andExpect(jsonPath("$.habilidadesRaca[0].descricao").value("Vantagem contra encantamento"))
+                .andExpect(jsonPath("$.talentos[0].nome").value("Sentinela"))
+                .andExpect(jsonPath("$.talentos[0].descricao").value("Ataque de oportunidade ao sair do alcance"));
+    }
+
+    @Test
+    void deveRecusarHabilidadeSemNomeOuComDescricaoLongaDemais() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Map<String, Object> ficha = new HashMap<>(fichaDoTipo("PLAYER"));
+        ficha.put("habilidades", List.of(Map.of("nome", " ", "descricao", "Sem nome")));
+        postComo(dono.token(), "/api/characters", ficha).andExpect(status().isBadRequest());
+
+        ficha.put("habilidades", List.of(Map.of("nome", "Fúria", "descricao", "x".repeat(1001))));
+        postComo(dono.token(), "/api/characters", ficha).andExpect(status().isBadRequest());
+
+        ficha.put("habilidades", List.of(Map.of("nome", "Fúria", "descricao", "x".repeat(1000))));
+        postComo(dono.token(), "/api/characters", ficha).andExpect(status().isCreated());
     }
 
     @Test
