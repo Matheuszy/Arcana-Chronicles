@@ -92,11 +92,15 @@ public class Personagem {
     @OrderColumn(name = "posicao")
     private List<ClassePersonagem> classes = new ArrayList<>();
 
-    @Column(columnDefinition = "TEXT")
-    private String habilidades;
+    @ElementCollection
+    @CollectionTable(name = "personagem_habilidades_classe", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    private List<Habilidade> habilidades = new ArrayList<>();
 
-    @Column(columnDefinition = "TEXT")
-    private String talentos;
+    @ElementCollection
+    @CollectionTable(name = "personagem_talentos", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    private List<Habilidade> talentos = new ArrayList<>();
 
     @Column(length = 60)
     private String raca;
@@ -104,8 +108,10 @@ public class Personagem {
     @Column(length = 60)
     private String alinhamento;
 
-    @Column(name = "habilidades_raca", columnDefinition = "TEXT")
-    private String habilidadesRaca;
+    @ElementCollection
+    @CollectionTable(name = "personagem_habilidades_raca", joinColumns = @JoinColumn(name = "personagem_id"))
+    @OrderColumn(name = "posicao")
+    private List<Habilidade> habilidadesRaca = new ArrayList<>();
 
     @Column(length = 60)
     private String antecedente;

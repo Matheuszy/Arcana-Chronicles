@@ -269,6 +269,15 @@
 
 .add-item { align-items: flex-end; }
 
+.ability-row { align-items: flex-start; }
+.ability-summary { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.ability-description {
+  font-size: 0.85rem;
+  color: var(--on-surface-muted);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
 .equipment-summary {
   display: flex;
   flex-wrap: wrap;

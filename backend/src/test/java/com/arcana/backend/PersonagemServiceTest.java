@@ -215,9 +215,12 @@ class PersonagemServiceTest {
                 Map.of("persuasao", 3, "atletismo", 6), null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto(" Guerreiro ", "Campeão", 3),
                         new PersonagemRequestDto.ClasseDto("Artífice", "  ", 2)), 3, Map.of("constituicao", 3, "forca", 6),
-                List.of(" Corda de 15 m ", "Tocha"), "  Fúria: dobra o dano  ",
-                " Elfo ", "Neutro e Bom", "  Visão no escuro até 18 m  ",
-                "  Atleta: +1 em Força  ", 5, 12, true, 2, 1, null, null, null, null,
+                List.of(" Corda de 15 m ", "Tocha"),
+                List.of(new PersonagemRequestDto.HabilidadeDto("  Fúria  ", "  Dobra o dano  ")),
+                " Elfo ", "Neutro e Bom",
+                List.of(new PersonagemRequestDto.HabilidadeDto(" Visão no escuro ", "Até 18 m"),
+                        new PersonagemRequestDto.HabilidadeDto("Ancestral feérico", "   ")),
+                List.of(new PersonagemRequestDto.HabilidadeDto("Atleta", "+1 em Força")), 5, 12, true, 2, 1, null, null, null, null,
                 " Soldado ", "  Sempre fico de olho nas saídas  ", "Honra", "Minha companhia", "   ", null, null, null, null, null, null, null, null, null);
 
         var resposta = service.atualizar(10L, dto, 1L);
@@ -225,17 +228,18 @@ class PersonagemServiceTest {
         assertEquals(List.of(new PersonagemResponseDto.ClasseDto("Guerreiro", "Campeão", 3, 8, 3),
                 new PersonagemResponseDto.ClasseDto("Artífice", null, 2, 8, 2)), resposta.classes());
         assertEquals(5, resposta.level());
-        assertEquals("Atleta: +1 em Força", resposta.talentos());
+        assertEquals(List.of(new PersonagemResponseDto.HabilidadeDto("Atleta", "+1 em Força")), resposta.talentos());
         assertEquals(3, resposta.proficiencyBonus());
         assertEquals(List.of(Map.entry("forca", 6), Map.entry("constituicao", 3)),
                 List.copyOf(resposta.savingThrows().entrySet()));
         assertEquals(List.of(Map.entry("atletismo", 6), Map.entry("persuasao", 3)),
                 List.copyOf(resposta.skills().entrySet()));
         assertEquals(List.of("Corda de 15 m", "Tocha"), resposta.items());
-        assertEquals("Fúria: dobra o dano", resposta.habilidades());
+        assertEquals(List.of(new PersonagemResponseDto.HabilidadeDto("Fúria", "Dobra o dano")), resposta.habilidades());
         assertEquals("Elfo", resposta.raca());
         assertEquals("Neutro e Bom", resposta.alinhamento());
-        assertEquals("Visão no escuro até 18 m", resposta.habilidadesRaca());
+        assertEquals(List.of(new PersonagemResponseDto.HabilidadeDto("Visão no escuro", "Até 18 m"),
+                new PersonagemResponseDto.HabilidadeDto("Ancestral feérico", null)), resposta.habilidadesRaca());
         assertEquals(5, resposta.vidaTemporaria());
         assertEquals(12, resposta.deslocamento());
         assertTrue(resposta.inspiracao());
