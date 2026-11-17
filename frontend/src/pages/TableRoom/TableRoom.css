@@ -155,7 +155,7 @@
   align-self: start;
 }
 
-.muted { color: var(--parchment-dim); font-size: 0.9rem; }
+.muted { color: var(--on-surface-muted); font-size: 0.9rem; }
 .center { text-align: center; margin: auto; }
 
 .conn {
@@ -163,7 +163,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.conn--conectado { color: var(--ok); }
+.conn--conectado { color: var(--positive-text); }
 .conn--conectando,
 .conn--reconectando { color: var(--ember-bright); }
 .conn--desconectado { color: var(--danger-text); }
@@ -362,9 +362,12 @@
 }
 .roll-panel-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
   gap: 0.5rem;
 }
+.roll-panel-row .field { margin-bottom: 0; }
+.roll-panel-row .field label { letter-spacing: 0.05em; }
 .roll-panel-row input { width: 100%; }
 .roll-modes { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .roll-mode { padding: 0.35em 0.6em; font-size: 0.78rem; }
@@ -373,7 +376,7 @@
   color: var(--arcane-bright);
 }
 .roll-panel-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
-.roll-error { color: var(--danger-text); font-size: 0.82rem; margin: 0; }
+.roll-error { color: var(--on-surface-danger); font-size: 0.82rem; margin: 0; }
 .composer-error { padding: 0 1.25rem; }
 
 .dice-roll {

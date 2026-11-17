@@ -29,7 +29,7 @@
   gap: 0.25rem;
 }
 
-.muted { color: var(--parchment-dim); }
+.muted { color: var(--on-surface-muted); }
 
 .table-filters {
   display: flex;
@@ -97,7 +97,7 @@
   border-radius: 999px;
   border: 1px solid var(--ink-700);
 }
-.status--aberta { border-color: var(--ok); color: var(--ok); }
+.status--aberta { border-color: var(--ok); color: var(--positive-text); }
 .status--em_andamento { border-color: var(--ember); color: var(--ember-bright); }
 .status--pausada { border-color: var(--parchment-dim); color: var(--parchment-dim); }
 .status--encerrada { border-color: var(--seal); color: var(--danger-text); }
@@ -113,7 +113,7 @@
   flex-direction: column;
   gap: 0.45rem;
 }
-.join-panel label { font-size: 0.8rem; color: var(--parchment-dim); }
+.join-panel label { font-size: 0.8rem; color: var(--on-surface-muted); }
 
 .join-note { font-size: 0.85rem; margin: 0; }
 .join-note--pending { color: var(--ember-bright); }
@@ -121,7 +121,7 @@
 
 .join-error {
   font-size: 0.82rem;
-  color: var(--danger-text);
+  color: var(--on-surface-danger);
   margin: 0;
 }
 

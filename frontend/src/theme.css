@@ -113,7 +113,6 @@ body {
 .poster .ui-badge--info,
 .sheet-card .ui-badge--info { color: #1f4f7a; }
 
-.poster .ui-select-label,
 .poster .join-panel label,
 .poster .join-note,
 .contract .field label { color: #4f3d2a; }
@@ -389,4 +388,62 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .scenery-embers { display: none; }
+}
+
+.paper-sheet,
+.poster,
+.sheet-card,
+.contract,
+.release-poster,
+.notes-panel--notebook,
+.room-chat .messages,
+.room-chat .composer,
+.room-chat .composer-error {
+  --on-surface: var(--paper-ink);
+  --on-surface-muted: #5a4632;
+  --on-surface-accent: #7a3d12;
+  --on-surface-danger: #8c2a22;
+  --on-surface-positive: #2f6b3b;
+  --field-bg: #fffaf0;
+  --field-text: var(--paper-ink);
+  --field-border: var(--leather);
+  --field-highlight: rgba(107, 68, 41, 0.16);
+  --stepper-color: #7a5200;
+}
+.dice-roll {
+  --on-surface: #f0e6d0;
+  --on-surface-muted: #cfd9c4;
+  --on-surface-accent: #f6d98a;
+}
+.dice-roll .roll-mode-tag { color: #e3dcff; border-color: #b5a8ee; }
+
+.poster,
+.sheet-card { overflow-wrap: break-word; }
+.table-card-top,
+.sheet-card-top { align-items: center; gap: 0.5rem; }
+.ui-checklist-item > span { min-width: 0; }
+
+.nav a,
+.brand,
+.who-role,
+.players,
+.level,
+.stats-row span,
+.sheet-card .attrs span,
+.participant-role,
+.sheet-linked,
+.roll-mode-tag,
+.msg-head .time,
+.equipment-type,
+.spell-level,
+.item-from-pack,
+.paper-slot,
+.paper-attribute-save,
+.sheet-roll-time { white-space: nowrap; }
+
+.field label,
+.ui-select-label,
+.hit-point-field > span {
+  overflow-wrap: normal;
+  text-wrap: balance;
 }

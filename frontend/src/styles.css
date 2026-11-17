@@ -13,7 +13,7 @@
   --ember-bright: #e6b859;
   --seal: #8c3b3b;
   --arcane: #5b4b9e;
-  --arcane-bright: #7c68c9;
+  --arcane-bright: #a594ea;
   --ok: #4f8a5b;
 
   --wood-950: #130d08;
@@ -37,6 +37,17 @@
   --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.65);
   --required-glow: 0 0 0 1px rgba(230, 184, 89, 0.35), 0 0 10px rgba(201, 150, 47, 0.3);
   --touch-target: 2.5rem;
+
+  --on-surface: var(--parchment);
+  --on-surface-muted: var(--parchment-dim);
+  --on-surface-accent: var(--ember-bright);
+  --on-surface-danger: var(--danger-text);
+  --on-surface-positive: var(--positive-text);
+  --field-bg: var(--ink-800);
+  --field-text: var(--parchment);
+  --field-border: var(--ink-700);
+  --field-highlight: var(--ink-700);
+  --stepper-color: var(--ember);
 
   --font-display: 'Cinzel', serif;
   --font-body: 'Spectral', serif;
@@ -83,11 +94,25 @@ h1, h2, h3, h4 {
   font-family: var(--font-display);
   letter-spacing: 0.02em;
   margin: 0 0 0.5em;
-  color: var(--parchment);
+  color: var(--on-surface);
+  text-wrap: balance;
 }
 
-a { color: var(--ember-bright); }
-button { font-family: var(--font-body); cursor: pointer; }
+p { text-wrap: pretty; }
+
+a { color: var(--on-surface-accent); }
+button { font-family: var(--font-body); color: inherit; cursor: pointer; }
+::placeholder { color: currentColor; opacity: 0.6; }
+
+:where(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']), select, textarea) {
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-sm);
+  padding: 0.5em 0.7em;
+  color: var(--field-text);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
 ::selection { background: var(--ember); color: var(--ink-950); }
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-track { background: var(--ink-950); }
@@ -103,6 +128,9 @@ button { font-family: var(--font-body); cursor: pointer; }
   border: 1px solid transparent;
   font-weight: 600;
   font-size: 0.95rem;
+  line-height: 1.25;
+  text-align: center;
+  text-wrap: balance;
   transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
 }
 
@@ -115,14 +143,14 @@ button { font-family: var(--font-body); cursor: pointer; }
 
 .btn-ghost {
   background: transparent;
-  color: var(--parchment);
-  border-color: var(--ink-700);
+  color: var(--on-surface);
+  border-color: var(--field-border);
 }
-.btn-ghost:hover { border-color: var(--ember); color: var(--ember-bright); }
+.btn-ghost:hover { border-color: var(--ember); color: var(--on-surface-accent); }
 
 .btn-danger {
   background: transparent;
-  color: var(--danger-text);
+  color: var(--on-surface-danger);
   border-color: var(--seal);
 }
 .btn-danger:hover { background: rgba(140, 59, 59, 0.15); }
@@ -148,15 +176,15 @@ button { font-family: var(--font-body); cursor: pointer; }
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--parchment-dim);
+  color: var(--on-surface-muted);
 }
 
 .field input, .field select, .field textarea {
-  background: var(--ink-800);
-  border: 1px solid var(--ink-700);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-sm);
   padding: 0.6em 0.8em;
-  color: var(--parchment);
+  color: var(--field-text);
   font-family: var(--font-body);
   font-size: 0.95rem;
 }
@@ -179,6 +207,7 @@ button { font-family: var(--font-body); cursor: pointer; }
   padding: 0.4em 0.9em;
   border-radius: 999px;
   font-size: 0.82rem;
+  white-space: nowrap;
 }
 .chip.active, .chip:hover {
   border-color: var(--ember);
@@ -197,14 +226,14 @@ button { font-family: var(--font-body); cursor: pointer; }
 .load-error-message { color: var(--danger-text); margin: 0; }
 
 .form-error {
-  color: var(--danger-text);
+  color: var(--on-surface-danger);
   font-size: 0.85rem;
   margin: 0;
 }
 
 .required-mark::after {
   content: ' *';
-  color: var(--ember-bright);
+  color: var(--on-surface-accent);
   font-weight: 700;
   text-shadow: 0 0 6px rgba(230, 184, 89, 0.85);
 }
