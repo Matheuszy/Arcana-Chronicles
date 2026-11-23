@@ -33,8 +33,61 @@ export type SkillKey =
 export interface Spell {
   name: string;
   level: number; // 0 = truque (cantrip)
-  description: string;
+  description?: string | null;
+  school?: string | null;
+  castingTime?: string | null;
+  range?: string | null;
+  components?: string | null;
+  material?: string | null;
+  duration?: string | null;
+  concentration?: boolean;
+  ritual?: boolean;
+  higherLevels?: string | null;
+  classes?: string | null;
+  catalogKey?: string | null;
+  editada?: boolean;
 }
+
+export interface CatalogSpellSummary {
+  chave: string;
+  nome: string;
+  nivel: number;
+  escola: string;
+  classes: string[];
+}
+
+export interface CatalogSpell extends CatalogSpellSummary {
+  versaoRegras: string;
+  tempoConjuracao: string;
+  alcance: string;
+  componentes: string;
+  material: string | null;
+  duracao: string;
+  concentracao: boolean;
+  ritual: boolean;
+  descricao: string;
+  niveisSuperiores: string | null;
+}
+
+export const spellFromCatalog = (catalog: CatalogSpell): Spell => ({
+  name: catalog.nome,
+  level: catalog.nivel,
+  description: catalog.descricao,
+  school: catalog.escola,
+  castingTime: catalog.tempoConjuracao,
+  range: catalog.alcance,
+  components: catalog.componentes,
+  material: catalog.material,
+  duration: catalog.duracao,
+  concentration: catalog.concentracao,
+  ritual: catalog.ritual,
+  higherLevels: catalog.niveisSuperiores,
+  classes: catalog.classes.join(', '),
+  catalogKey: catalog.chave,
+  editada: false,
+});
+
+export const MAX_SPELL_NAME_LENGTH = 100;
 
 /** Slots de magia por círculo (1–9) */
 export type SpellSlots = Record<string, number>; // { "1": 4, "2": 3, ... }

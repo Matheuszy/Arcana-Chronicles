@@ -114,7 +114,19 @@ public record PersonagemResponseDto(
             Long id,
             String name,
             Integer level,
-            String description
+            String description,
+            String school,
+            String castingTime,
+            String range,
+            String components,
+            String material,
+            String duration,
+            boolean concentration,
+            boolean ritual,
+            String higherLevels,
+            String classes,
+            String catalogKey,
+            boolean editada
     ) {}
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -195,7 +207,11 @@ public record PersonagemResponseDto(
     public static List<SpellDto> magias(Personagem p) {
         if (p.getSpells() == null) return Collections.emptyList();
         return p.getSpells().stream()
-                .map(m -> new SpellDto(m.getId(), m.getName(), m.getLevel(), m.getDescription()))
+                .map(m -> new SpellDto(m.getId(), m.getName(), m.getLevel(), m.getDescription(), m.getSchool(),
+                        m.getCastingTime(), m.getRange(), m.getComponents(), m.getMaterial(), m.getDuration(),
+                        m.isConcentration(), m.isRitual(), m.getHigherLevels(), m.getClasses(),
+                        m.getCatalogo() == null ? null : m.getCatalogo().getChave(),
+                        m.editadaEmRelacaoAoCatalogo()))
                 .toList();
     }
 
