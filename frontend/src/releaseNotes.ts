@@ -15,6 +15,42 @@ export interface ReleaseNotes {
 
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: '1.3.0',
+    date: '2026-11-22',
+    title: 'O grimório',
+    intro: 'Forasteiro, os magos da guilda abriram a biblioteca. Seu grimório nunca foi tão fácil de escrever.',
+    news: [
+      {
+        title: 'Catálogo de magias',
+        text: 'Comece a digitar o nome de uma magia ou truque e o app sugere as do SRD 5.1. Escolha uma e todos os campos são preenchidos na hora. As magias das classes da sua ficha aparecem primeiro.',
+      },
+      {
+        title: 'Cada coisa no seu lugar',
+        text: 'Escola, tempo de conjuração, alcance, componentes, material, duração, concentração, ritual, níveis superiores e classes agora têm campo próprio na ficha, também na mesa.',
+      },
+      {
+        title: 'Sua versão da magia',
+        text: 'Todos os campos podem ser editados, antes e depois de salvar. A mudança fica só na sua ficha, a magia ganha o selo "Editada" e dá para restaurar o original quando quiser.',
+      },
+    ],
+    improvements: [
+      {
+        title: 'Habilidades em lista',
+        text: 'Habilidades de classe e subclasse, habilidades de raça e talentos viraram listas, como os itens. Cada um tem nome e uma descrição de até 1000 caracteres.',
+      },
+      {
+        title: 'Textos do catálogo',
+        text: 'As magias do catálogo vêm em inglês, como no SRD original. Magias que você já tinha continuam do jeito que estavam.',
+      },
+    ],
+    fixes: [
+      {
+        title: 'Leitura',
+        text: 'Textos com pouco contraste ficaram mais legíveis, e as quebras de linha que você escreve agora aparecem na ficha.',
+      },
+    ],
+  },
+  {
     version: '1.2.0',
     date: '2026-11-10',
     title: 'Mesa de guerra',
