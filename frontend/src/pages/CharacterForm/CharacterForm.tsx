@@ -15,9 +15,12 @@ import TextListEditor from './TextListEditor';
 import AbilityListEditor from './AbilityListEditor';
 import AdditionalMovementsEditor from './AdditionalMovementsEditor';
 import EquipmentPackPicker from './EquipmentPackPicker';
+import SpellEditor from './SpellEditor';
 import HitPointRolls from '../../components/sheet/HitPointRolls';
 import CoinRolls from '../../components/sheet/CoinRolls';
 import SheetRollHistory from '../../components/sheet/SheetRollHistory';
+import SpellDetails from '../../components/sheet/SpellDetails';
+import { spellCatalogService } from '../../services/spellCatalogService';
 import {
   attributeModifier,
   attributeRollModifier,
@@ -81,16 +84,16 @@ import {
   SKILL_LABEL,
   skillRollModifier,
   SkillKey,
+  Spell,
   SPELL_CIRCLES,
+  spellFromCatalog,
   totalSpellSlots,
 } from '../../types/character';
 import './CharacterForm.css';
 
 const ALL_SKILLS = Object.keys(SKILL_LABEL) as SkillKey[];
 
-const NEW_SPELL = { name: '', circle: '', slots: 1, description: '' };
-
-const NEW_CANTRIP = { name: '', description: '' };
+const EMPTY_SPELL: Spell = { name: '', level: 0, description: '' };
 
 const newClassEntry = (nivel = 1): ClassEntry => ({
   classe: '',
@@ -225,8 +228,12 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
   const [newItem, setNewItem] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [newSpell, setNewSpell] = useState({ ...NEW_SPELL });
-  const [newCantrip, setNewCantrip] = useState({ ...NEW_CANTRIP });
+  const [newSpell, setNewSpell] = useState<Spell>({ ...EMPTY_SPELL });
+  const [newSpellSlots, setNewSpellSlots] = useState(1);
+  const [newCantrip, setNewCantrip] = useState<Spell>({ ...EMPTY_SPELL });
+  const [editingSpell, setEditingSpell] = useState<number | null>(null);
+  const [restoringSpell, setRestoringSpell] = useState<number | null>(null);
+  const [spellError, setSpellError] = useState<string | null>(null);
   const [newEquipment, setNewEquipment] = useState<Equipment>({ ...NEW_EQUIPMENT });
   const [myTables, setMyTables] = useState<GameTable[]>([]);
   const [linkedTableIds, setLinkedTableIds] = useState<string[]>([]);
@@ -534,31 +541,73 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
   const removeCircle = (circle: string) =>
     setForm((prev) => withSlotTotal(prev, circle, 0));
 
-  const chooseSpellCircle = (circle: string) =>
-    setNewSpell((current) => ({ ...current, circle, slots: Math.max(1, totalSpellSlots(form, circle)) }));
+  const sheetClasses = (form.classes ?? []).map((entry) => entry.classe.trim()).filter(Boolean);
 
-  const canAddSpell = newSpell.name.trim().length > 0 && newSpell.circle !== '' && newSpell.slots >= 1;
+  const catalogKeysExcept = (index: number | null) =>
+    spells.flatMap((spell, i) => (i !== index && spell.catalogKey ? [spell.catalogKey] : []));
+
+  const newSpellCircle = newSpell.level > 0 ? String(newSpell.level) : '';
+
+  const changeNewSpell = (spell: Spell) => {
+    if (spell.level > 0 && spell.level !== newSpell.level) {
+      setNewSpellSlots(Math.max(1, totalSpellSlots(form, String(spell.level))));
+    }
+    setNewSpell(spell);
+  };
+
+  const chooseSpellCircle = (circle: string) => {
+    setNewSpell((current) => ({
+      ...current,
+      level: circle === '' ? 0 : Number(circle),
+      editada: current.catalogKey ? true : current.editada,
+    }));
+    if (circle !== '') setNewSpellSlots(Math.max(1, totalSpellSlots(form, circle)));
+  };
+
+  const canAddSpell = newSpell.name.trim().length > 0 && newSpell.level >= 1 && newSpellSlots >= 1;
 
   const addSpell = () => {
     if (!canAddSpell) return;
-    const level = Number(newSpell.circle);
     setForm((prev) => ({
-      ...withSlotTotal(prev, newSpell.circle, clampSlots(newSpell.slots, 1)),
-      spells: [...(prev.spells ?? []), { name: newSpell.name.trim(), level, description: newSpell.description }],
+      ...withSlotTotal(prev, newSpellCircle, clampSlots(newSpellSlots, 1)),
+      spells: [...(prev.spells ?? []), { ...newSpell, name: newSpell.name.trim() }],
     }));
-    setNewSpell({ ...NEW_SPELL });
+    setNewSpell({ ...EMPTY_SPELL });
+    setNewSpellSlots(1);
   };
 
   const addCantrip = () => {
     if (!newCantrip.name.trim()) return;
     setForm((prev) => ({
       ...prev,
-      spells: [...(prev.spells ?? []), { name: newCantrip.name.trim(), level: 0, description: newCantrip.description }],
+      spells: [...(prev.spells ?? []), { ...newCantrip, name: newCantrip.name.trim(), level: 0 }],
     }));
-    setNewCantrip({ ...NEW_CANTRIP });
+    setNewCantrip({ ...EMPTY_SPELL });
+  };
+
+  const updateSpell = (index: number, spell: Spell) =>
+    setForm((prev) => {
+      const circle = String(spell.level);
+      const withSlots = spell.level > 0 && totalSpellSlots(prev, circle) < 1 ? withSlotTotal(prev, circle, 1) : prev;
+      return { ...withSlots, spells: (prev.spells ?? []).map((current, i) => (i === index ? spell : current)) };
+    });
+
+  const restoreSpell = async (index: number) => {
+    const key = spells[index]?.catalogKey;
+    if (!key) return;
+    setRestoringSpell(index);
+    setSpellError(null);
+    try {
+      updateSpell(index, spellFromCatalog(await spellCatalogService.detail(key)));
+    } catch (e: unknown) {
+      setSpellError(e instanceof Error ? e.message : 'Não foi possível restaurar a magia original.');
+    } finally {
+      setRestoringSpell(null);
+    }
   };
 
   const removeSpell = (index: number) => {
+    setEditingSpell(null);
     setForm((prev) => ({
       ...prev,
       spells: (prev.spells ?? []).filter((_, i) => i !== index),
@@ -1348,55 +1397,96 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
     </>
   );
 
+  const renderSpellCard = (spell: Spell, index: number) =>
+    editingSpell === index ? (
+      <div key={index} className="spell-card spell-card--editing">
+        <SpellEditor
+          id={`spell-edit-${index}`}
+          spell={spell}
+          onChange={(changed) => updateSpell(index, changed)}
+          cantrip={spell.level === 0}
+          sheetClasses={sheetClasses}
+          takenCatalogKeys={catalogKeysExcept(index)}
+          namePlaceholder="Nome"
+        />
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setEditingSpell(null)}
+          disabled={!spell.name.trim()}
+        >
+          Concluir edição
+        </button>
+      </div>
+    ) : (
+      <div key={index} className="spell-card">
+        <div className="spell-card-header">
+          <span className="spell-name">{spell.name}</span>
+          <span className="spell-level">{spell.level === 0 ? 'Truque' : `${spell.level}º círculo`}</span>
+          {spell.catalogKey && (
+            <span className={`spell-origin ${spell.editada ? 'spell-origin--edited' : ''}`}>
+              {spell.editada ? 'Editada' : 'SRD 5.1'}
+            </span>
+          )}
+          <button type="button" className="btn btn-ghost spell-action" onClick={() => setEditingSpell(index)}>
+            Editar
+          </button>
+          {spell.catalogKey && spell.editada && (
+            <button
+              type="button"
+              className="btn btn-ghost spell-action"
+              onClick={() => void restoreSpell(index)}
+              disabled={restoringSpell === index}
+            >
+              {restoringSpell === index ? 'Restaurando…' : 'Restaurar original'}
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn-remove"
+            onClick={() => removeSpell(index)}
+            aria-label={`Remover ${spell.name}`}
+          >
+            ✕
+          </button>
+        </div>
+        <SpellDetails spell={spell} />
+      </div>
+    );
+
   const renderMagias = () => (
     <>
+      <p className="muted-hint spell-attribution">
+        Ao digitar o nome, o app sugere magias e truques do{' '}
+        <a href="https://dnd.wizards.com/resources/systems-reference-document" target="_blank" rel="noreferrer">
+          SRD 5.1
+        </a>
+        , da Wizards of the Coast LLC, licenciado sob a{' '}
+        <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noreferrer">
+          CC-BY-4.0
+        </a>
+        . Os textos estão em inglês, com ajustes de formatação, e todos os campos podem ser editados na ficha.
+      </p>
+      {spellError && <p className="text-list-warning">{spellError}</p>}
+
       <h3 className="section-title">Truques</h3>
       <p className="muted-hint">Truques não têm círculo nem gastam espaços de magia: podem ser usados à vontade.</p>
 
       {cantrips.length > 0 && (
-        <div className="spells-list">
-          {cantrips.map(({ spell, index }) => (
-            <div key={index} className="spell-card">
-              <div className="spell-card-header">
-                <span className="spell-name">{spell.name}</span>
-                <span className="spell-level">Truque</span>
-                <button
-                  type="button"
-                  className="btn-remove"
-                  onClick={() => removeSpell(index)}
-                  aria-label={`Remover ${spell.name}`}
-                >
-                  ✕
-                </button>
-              </div>
-              {spell.description && <p className="spell-desc">{spell.description}</p>}
-            </div>
-          ))}
-        </div>
+        <div className="spells-list">{cantrips.map(({ spell, index }) => renderSpellCard(spell, index))}</div>
       )}
 
       <div className="add-spell card-inner">
         <h4>Adicionar truque</h4>
-        <div className="field">
-          <label htmlFor="cantrip-name">Nome do truque</label>
-          <input
-            id="cantrip-name"
-            type="text"
-            value={newCantrip.name}
-            onChange={(e) => setNewCantrip((c) => ({ ...c, name: e.target.value }))}
-            placeholder="ex: Raio de Fogo"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="cantrip-desc">Descrição</label>
-          <textarea
-            id="cantrip-desc"
-            rows={2}
-            value={newCantrip.description}
-            onChange={(e) => setNewCantrip((c) => ({ ...c, description: e.target.value }))}
-            placeholder="Efeito, alcance, duração..."
-          />
-        </div>
+        <SpellEditor
+          id="cantrip"
+          spell={newCantrip}
+          onChange={(spell) => setNewCantrip({ ...spell, level: 0 })}
+          cantrip
+          sheetClasses={sheetClasses}
+          takenCatalogKeys={catalogKeysExcept(null)}
+          namePlaceholder="ex: Fire Bolt"
+        />
         <button type="button" className="btn btn-ghost" onClick={addCantrip} disabled={!newCantrip.name.trim()}>
           + Adicionar truque
         </button>
@@ -1469,71 +1559,41 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
 
       {spells.some((spell) => spell.level > 0) && (
         <div className="spells-list">
-          {spells.map((spell, i) =>
-            spell.level > 0 ? (
-              <div key={i} className="spell-card">
-                <div className="spell-card-header">
-                  <span className="spell-name">{spell.name}</span>
-                  <span className="spell-level">{spell.level}º círculo</span>
-                  <button
-                    type="button"
-                    className="btn-remove"
-                    onClick={() => removeSpell(i)}
-                    aria-label={`Remover ${spell.name}`}
-                  >
-                    ✕
-                  </button>
-                </div>
-                {spell.description && <p className="spell-desc">{spell.description}</p>}
-              </div>
-            ) : null,
-          )}
+          {spells.map((spell, index) => (spell.level > 0 ? renderSpellCard(spell, index) : null))}
         </div>
       )}
 
       <div className="add-spell card-inner">
         <h4>Adicionar magia</h4>
-        <div className="row">
-          <div className="field grow">
-            <label htmlFor="spell-name">Nome da magia</label>
-            <input
-              id="spell-name"
-              type="text"
-              value={newSpell.name}
-              onChange={(e) => setNewSpell((s) => ({ ...s, name: e.target.value }))}
-              placeholder="ex: Bola de Fogo"
-            />
-          </div>
+        <SpellEditor
+          id="spell"
+          spell={newSpell}
+          onChange={changeNewSpell}
+          cantrip={false}
+          sheetClasses={sheetClasses}
+          takenCatalogKeys={catalogKeysExcept(null)}
+          namePlaceholder="ex: Fireball"
+        >
           <Select
             label="Círculo (obrigatório)"
-            value={newSpell.circle}
+            value={newSpellCircle}
             onChange={chooseSpellCircle}
             options={[{ value: '', label: 'Escolha o círculo' }, ...circleOptions]}
           />
-        </div>
-        {newSpell.circle !== '' && (
-          <div className="field">
-            <label htmlFor="spell-slots">Espaços de magia do {newSpell.circle}º círculo</label>
-            <NumberInput
-              id="spell-slots"
-              min={1}
-              max={MAX_SPELL_SLOTS}
-              value={newSpell.slots}
-              onChange={(slots) => setNewSpell((s) => ({ ...s, slots }))}
-              onClear={() => setNewSpell((s) => ({ ...s, slots: 0 }))}
-            />
-          </div>
-        )}
-        <div className="field">
-          <label htmlFor="spell-desc">Descrição</label>
-          <textarea
-            id="spell-desc"
-            rows={2}
-            value={newSpell.description}
-            onChange={(e) => setNewSpell((s) => ({ ...s, description: e.target.value }))}
-            placeholder="Efeito, alcance, duração..."
-          />
-        </div>
+          {newSpellCircle !== '' && (
+            <div className="field">
+              <label htmlFor="spell-slots">Espaços de magia do {newSpellCircle}º círculo</label>
+              <NumberInput
+                id="spell-slots"
+                min={1}
+                max={MAX_SPELL_SLOTS}
+                value={newSpellSlots}
+                onChange={setNewSpellSlots}
+                onClear={() => setNewSpellSlots(0)}
+              />
+            </div>
+          )}
+        </SpellEditor>
         <button type="button" className="btn btn-ghost" onClick={addSpell} disabled={!canAddSpell}>
           + Adicionar magia
         </button>

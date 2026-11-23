@@ -14,6 +14,7 @@ import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.repository.MagiaCatalogoRepository;
 import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.character.secao.SecaoAtributosDto;
@@ -56,17 +57,20 @@ public class PersonagemService {
     private final ObjectMapper objectMapper;
     private final SessoesAtivasDeMesa sessoesAtivas;
     private final PacoteEquipamentoRepository pacoteRepository;
+    private final MagiaCatalogoRepository magiaCatalogoRepository;
 
     public PersonagemService(PersonagemRepository personagemRepository,
                              UsuarioRepositorie usuarioRepositorie,
                              ObjectMapper objectMapper,
                              SessoesAtivasDeMesa sessoesAtivas,
-                             PacoteEquipamentoRepository pacoteRepository) {
+                             PacoteEquipamentoRepository pacoteRepository,
+                             MagiaCatalogoRepository magiaCatalogoRepository) {
         this.personagemRepository = personagemRepository;
         this.usuarioRepositorie = usuarioRepositorie;
         this.objectMapper = objectMapper;
         this.sessoesAtivas = sessoesAtivas;
         this.pacoteRepository = pacoteRepository;
+        this.magiaCatalogoRepository = magiaCatalogoRepository;
     }
 
     /** Lista todos os personagens de um usuário, opcionalmente filtrados por tipo */
@@ -344,12 +348,37 @@ public class PersonagemService {
         validarEspacosDeMagia(dto);
         personagem.getSpells().clear();
         if (dto.spells() != null) {
+            Set<String> chavesDoCatalogo = new HashSet<>();
             dto.spells().stream()
-                    .map(s -> new Magia(s.name(), s.level(), s.description()))
+                    .map(s -> paraMagia(s, chavesDoCatalogo))
                     .forEach(personagem.getSpells()::add);
         }
         personagem.setSpellSlots(serializeSlots(dto.spellSlots()));
         personagem.setSpellSlotsCurrent(serializeSlots(dto.spellSlotsCurrent()));
+    }
+
+    private Magia paraMagia(PersonagemRequestDto.SpellDto dto, Set<String> chavesDoCatalogo) {
+        Magia magia = new Magia(dto.name().trim(), dto.level(), textoOuNulo(dto.description()));
+        magia.setSchool(textoOuNulo(dto.school()));
+        magia.setCastingTime(textoOuNulo(dto.castingTime()));
+        magia.setRange(textoOuNulo(dto.range()));
+        magia.setComponents(textoOuNulo(dto.components()));
+        magia.setMaterial(textoOuNulo(dto.material()));
+        magia.setDuration(textoOuNulo(dto.duration()));
+        magia.setConcentration(Boolean.TRUE.equals(dto.concentration()));
+        magia.setRitual(Boolean.TRUE.equals(dto.ritual()));
+        magia.setHigherLevels(textoOuNulo(dto.higherLevels()));
+        magia.setClasses(textoOuNulo(dto.classes()));
+        String chave = textoOuNulo(dto.catalogKey());
+        if (chave != null) {
+            if (!chavesDoCatalogo.add(chave)) {
+                throw new IllegalArgumentException(
+                        "A magia " + magia.getName() + " do catálogo aparece mais de uma vez na ficha.");
+            }
+            magia.setCatalogo(magiaCatalogoRepository.findById(chave)
+                    .orElseThrow(() -> new IllegalArgumentException("Magia do catálogo não encontrada: " + chave)));
+        }
+        return magia;
     }
 
     private Equipamento paraEquipamento(PersonagemRequestDto.EquipamentoDto dto) {

@@ -37,6 +37,7 @@ import ExtraArmorClass from '../../components/sheet/ExtraArmorClass';
 import CoinAdder from '../../components/sheet/CoinAdder';
 import SheetRollHistory from '../../components/sheet/SheetRollHistory';
 import SheetWeapon from './SheetWeapon';
+import SpellDetails from '../../components/sheet/SpellDetails';
 import './CharacterSheet.css';
 
 const SKILL_KEYS = Object.keys(SKILL_LABEL) as SkillKey[];
@@ -325,7 +326,7 @@ export default function CharacterSheet({
                   {cantrips.map((spell, index) => (
                     <li key={`${spell.name}-${index}`}>
                       <strong>{spell.name}</strong>
-                      {spell.description && <span> — {spell.description}</span>}
+                      <SpellDetails spell={spell} />
                     </li>
                   ))}
                 </ul>
@@ -356,7 +357,7 @@ export default function CharacterSheet({
                       {group.list.map((spell, index) => (
                         <li key={`${spell.name}-${index}`}>
                           <strong>{spell.name}</strong>
-                          {spell.description && <span> — {spell.description}</span>}
+                          <SpellDetails spell={spell} />
                         </li>
                       ))}
                     </ul>

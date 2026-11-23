@@ -47,7 +47,7 @@ public record PersonagemRequestDto(
         List<@Valid EquipamentoDto> equipamentos,
 
         /** Magias do personagem */
-        List<SpellDto> spells,
+        List<@Valid SpellDto> spells,
 
         /** Slots de magia por círculo: {"1": 4, "2": 3, ...} */
         Map<String, Integer> spellSlots,
@@ -257,8 +257,24 @@ public record PersonagemRequestDto(
     ) {}
 
     public record SpellDto(
-            @NotBlank(message = "Toda magia precisa de um nome") String name,
+            @NotBlank(message = "Toda magia precisa de um nome")
+            @Size(max = 100, message = "O nome da magia não pode ter mais de 100 caracteres") String name,
             @NotNull(message = "O círculo da magia é obrigatório") @Min(value = 0, message = "O círculo da magia deve ser de 0 a 9") @Max(value = 9, message = "O círculo da magia deve ser de 0 a 9") Integer level,
-            String description
-    ) {}
+            String description,
+            @Size(max = 30, message = "A escola da magia não pode ter mais de 30 caracteres") String school,
+            @Size(max = 60, message = "O tempo de conjuração não pode ter mais de 60 caracteres") String castingTime,
+            @Size(max = 60, message = "O alcance não pode ter mais de 60 caracteres") String range,
+            @Size(max = 20, message = "Os componentes não podem ter mais de 20 caracteres") String components,
+            @Size(max = 400, message = "O material não pode ter mais de 400 caracteres") String material,
+            @Size(max = 60, message = "A duração não pode ter mais de 60 caracteres") String duration,
+            Boolean concentration,
+            Boolean ritual,
+            @Size(max = 5000, message = "O texto de níveis superiores não pode ter mais de 5000 caracteres") String higherLevels,
+            @Size(max = 200, message = "As classes da magia não podem ter mais de 200 caracteres") String classes,
+            @Size(max = 60, message = "Magia do catálogo inválida") String catalogKey
+    ) {
+        public SpellDto(String name, Integer level, String description) {
+            this(name, level, description, null, null, null, null, null, null, null, null, null, null, null);
+        }
+    }
 }
