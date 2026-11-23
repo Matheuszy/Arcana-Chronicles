@@ -543,3 +543,56 @@
   .character-sheet-form .actions .btn { flex: 0 0 auto; }
   .class-row { padding-bottom: 0; border-bottom: 0; }
 }
+
+.spell-attribution a { color: var(--ember-bright); }
+.spell-card--editing { display: flex; flex-direction: column; gap: 0.5rem; }
+.spell-card--editing > .btn { align-self: flex-start; }
+.spell-action { padding: 0.2em 0.7em; font-size: 0.78rem; }
+.spell-origin {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 99px;
+  border: 1px solid var(--ink-700);
+  color: var(--parchment-dim);
+}
+.spell-origin--edited { border-color: var(--ember); color: var(--ember-bright); }
+.spell-editor { display: flex; flex-direction: column; gap: 0.25rem; }
+.spell-search { position: relative; }
+.spell-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem;
+  list-style: none;
+  max-height: 18rem;
+  overflow-y: auto;
+  background: var(--ink-900, #141414);
+  border: 1px solid var(--ink-700);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.spell-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.spell-suggestion--active { background: rgba(201, 150, 47, 0.14); }
+.spell-suggestion--taken { cursor: not-allowed; opacity: 0.55; }
+.spell-suggestion-name { font-weight: 600; }
+.spell-suggestion-meta { font-size: 0.75rem; color: var(--parchment-dim); }
+.spell-suggestion-state { padding: 0.5rem 0.6rem; font-size: 0.82rem; color: var(--parchment-dim); }
+.spell-suggestion-error { color: var(--seal, #c0392b); }
+.spell-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(12rem, 100%), 1fr));
+  gap: 0 0.75rem;
+}
+.spell-flags { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.25rem 0 0.5rem; }
+.spell-flag { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
+.spell-flag input[type="checkbox"] { accent-color: var(--ember); }

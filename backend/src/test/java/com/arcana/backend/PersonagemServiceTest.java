@@ -13,6 +13,7 @@ import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.repository.MagiaCatalogoRepository;
 import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.character.service.PersonagemService;
@@ -49,6 +50,9 @@ class PersonagemServiceTest {
     @Mock
     private PacoteEquipamentoRepository pacoteRepository;
 
+    @Mock
+    private MagiaCatalogoRepository magiaCatalogoRepository;
+
     private PersonagemService service;
     private SessoesAtivasDeMesa sessoesAtivas;
 
@@ -56,7 +60,7 @@ class PersonagemServiceTest {
     void setUp() {
         sessoesAtivas = mock(SessoesAtivasDeMesa.class);
         service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper(), sessoesAtivas,
-                pacoteRepository);
+                pacoteRepository, magiaCatalogoRepository);
     }
 
     private Personagem personagemDeAlice() {

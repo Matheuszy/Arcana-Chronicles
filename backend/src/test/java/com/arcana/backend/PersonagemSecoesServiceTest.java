@@ -5,9 +5,11 @@ import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.ClassePersonagem;
 import com.arcana.backend.character.model.Equipamento;
 import com.arcana.backend.character.model.Magia;
+import com.arcana.backend.character.model.MagiaCatalogo;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.repository.MagiaCatalogoRepository;
 import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
 import com.arcana.backend.character.secao.SecaoAtributosRequestDto;
@@ -27,11 +29,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -54,12 +59,15 @@ class PersonagemSecoesServiceTest {
     @Mock
     private PacoteEquipamentoRepository pacoteRepository;
 
+    @Mock
+    private MagiaCatalogoRepository magiaCatalogoRepository;
+
     private PersonagemService service;
 
     @BeforeEach
     void setUp() {
         service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper(), sessoesAtivas,
-                pacoteRepository);
+                pacoteRepository, magiaCatalogoRepository);
     }
 
     private Personagem fichaCompletaDeAlice() {
@@ -109,6 +117,96 @@ class PersonagemSecoesServiceTest {
         assertEquals("Maça", personagem.getEquipamentos().get(0).getNome());
         assertEquals(15, personagem.getMoedasOuro());
         assertEquals(List.of("Comum"), personagem.getIdiomas());
+    }
+
+    private static final MagiaCatalogo BOLA_DE_FOGO = new MagiaCatalogo("fireball", "Fireball", "fireball", "SRD 5.1", 3,
+            "Evocation", "1 action", "150 feet", "V, S, M", "A tiny ball of bat guano and sulfur.", "Instantaneous",
+            false, false, "A bright streak flashes.", "The damage increases by 1d6.",
+            new ArrayList<>(List.of("Sorcerer", "Wizard")));
+
+    private PersonagemRequestDto.SpellDto copiaDaBolaDeFogo(String descricao) {
+        return new PersonagemRequestDto.SpellDto("Fireball", 3, descricao, "Evocation", "1 action", "150 feet",
+                "V, S, M", "A tiny ball of bat guano and sulfur.", "Instantaneous", false, false,
+                "The damage increases by 1d6.", "Sorcerer, Wizard", "fireball");
+    }
+
+    private SecaoMagiasRequestDto magiasComEspacosDoTerceiroCirculo(List<PersonagemRequestDto.SpellDto> magias) {
+        return new SecaoMagiasRequestDto(magias, Map.of("3", 2), Map.of("3", 2));
+    }
+
+    @Test
+    void deveGuardarCadaCampoDaMagiaCopiadaDoCatalogoSemMarcarComoEditada() {
+        Personagem personagem = fichaCompletaDeAlice();
+        prepararFicha(personagem);
+        salvarDevolvendoAFicha();
+        when(magiaCatalogoRepository.findById("fireball")).thenReturn(Optional.of(BOLA_DE_FOGO));
+
+        var magia = service.atualizarSecaoMagias(10L,
+                magiasComEspacosDoTerceiroCirculo(List.of(copiaDaBolaDeFogo("A bright streak flashes."))), 1L)
+                .spells().get(0);
+
+        assertEquals("150 feet", magia.range());
+        assertEquals("1 action", magia.castingTime());
+        assertEquals("A tiny ball of bat guano and sulfur.", magia.material());
+        assertEquals("Sorcerer, Wizard", magia.classes());
+        assertEquals("fireball", magia.catalogKey());
+        assertFalse(magia.editada());
+    }
+
+    @Test
+    void deveMarcarComoEditadaSemAlterarOCatalogo() {
+        Personagem personagem = fichaCompletaDeAlice();
+        prepararFicha(personagem);
+        salvarDevolvendoAFicha();
+        when(magiaCatalogoRepository.findById("fireball")).thenReturn(Optional.of(BOLA_DE_FOGO));
+
+        var magia = service.atualizarSecaoMagias(10L,
+                magiasComEspacosDoTerceiroCirculo(List.of(copiaDaBolaDeFogo("Minha versão da bola de fogo."))), 1L)
+                .spells().get(0);
+
+        assertTrue(magia.editada());
+        assertEquals("Minha versão da bola de fogo.", magia.description());
+        assertEquals("A bright streak flashes.", BOLA_DE_FOGO.getDescricao());
+    }
+
+    @Test
+    void deveManterMagiaPersonalizadaSemReferenciaAoCatalogo() {
+        Personagem personagem = fichaCompletaDeAlice();
+        prepararFicha(personagem);
+        salvarDevolvendoAFicha();
+
+        var magia = service.atualizarSecaoMagias(10L, new SecaoMagiasRequestDto(
+                List.of(new PersonagemRequestDto.SpellDto("Fireball", 1, "Versão caseira")), Map.of("1", 1), null), 1L)
+                .spells().get(0);
+
+        assertNull(magia.catalogKey());
+        assertFalse(magia.editada());
+    }
+
+    @Test
+    void deveRecusarAMesmaMagiaDoCatalogoDuasVezesMasPermitirPersonalizadaComOMesmoNome() {
+        prepararFicha(fichaCompletaDeAlice());
+        when(magiaCatalogoRepository.findById("fireball")).thenReturn(Optional.of(BOLA_DE_FOGO));
+
+        assertThrows(IllegalArgumentException.class, () -> service.atualizarSecaoMagias(10L,
+                magiasComEspacosDoTerceiroCirculo(List.of(copiaDaBolaDeFogo(null), copiaDaBolaDeFogo("outra"))), 1L));
+        verify(personagemRepository, never()).save(any());
+
+        salvarDevolvendoAFicha();
+        var magias = service.atualizarSecaoMagias(10L, magiasComEspacosDoTerceiroCirculo(List.of(
+                copiaDaBolaDeFogo(null), new PersonagemRequestDto.SpellDto("Fireball", 3, "Personalizada"))), 1L)
+                .spells();
+        assertEquals(2, magias.size());
+    }
+
+    @Test
+    void deveRecusarMagiaDeCatalogoInexistente() {
+        prepararFicha(fichaCompletaDeAlice());
+        when(magiaCatalogoRepository.findById("fireball")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> service.atualizarSecaoMagias(10L,
+                magiasComEspacosDoTerceiroCirculo(List.of(copiaDaBolaDeFogo(null))), 1L));
+        verify(personagemRepository, never()).save(any());
     }
 
     @Test
