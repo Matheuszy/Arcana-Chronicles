@@ -7,6 +7,7 @@ import {
   Equipment,
   attributeModifier,
   formatModifier,
+  formatWeight,
   parseDamageDice,
 } from '../../types/character';
 import { RollMode, RollRequest } from '../../types/chat';
@@ -83,7 +84,13 @@ export default function SheetWeapon({ weapon, character, onRoll, rollDisabled = 
     <li className="paper-equipment">
       <div className="paper-equipment-head">
         <strong>{weapon.nome}</strong>
-        {weapon.dano && <span className="paper-tag">Dano {weapon.dano}</span>}
+        {weapon.dano && (
+          <span className="paper-tag">
+            Dano {weapon.dano}
+            {weapon.tipoDano ? ` ${weapon.tipoDano.toLowerCase()}` : ''}
+          </span>
+        )}
+        {weapon.pesoKg != null && <span className="paper-tag">{formatWeight(weapon.pesoKg)}</span>}
         {attribute && (
           <span className="paper-tag">
             {ATTRIBUTE_LABEL[attribute]} {formatModifier(attributeMod)}

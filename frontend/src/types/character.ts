@@ -183,6 +183,69 @@ export interface Equipment {
   atributo?: keyof Attributes | null;
   classeArmadura?: number | null;
   propriedades?: string | null;
+  tipoDano?: string | null;
+  pesoKg?: number | null;
+  catalogKey?: string | null;
+  editada?: boolean;
+}
+
+export type EquipmentCategory = 'ARMA' | 'ARMADURA' | 'EQUIPAMENTO_DE_AVENTURA' | 'FERRAMENTA';
+
+export interface CatalogEquipment {
+  chave: string;
+  nome: string;
+  versaoRegras: string;
+  categoria: EquipmentCategory;
+  subcategoria: string;
+  quantidade: number;
+  precoEmPc: number;
+  preco: string;
+  pesoKg: number;
+  dano: string | null;
+  tipoDano: string | null;
+  propriedades: string | null;
+  classeArmadura: number | null;
+  somaDestreza: boolean | null;
+  destrezaMaxima: number | null;
+  regraDeClasseArmadura: string | null;
+  forcaMinima: number | null;
+  desvantagemFurtividade: boolean;
+  tipoNaFicha: EquipmentType | null;
+  danoNaFicha: string | null;
+  propriedadesNaFicha: string | null;
+}
+
+export const MAX_EQUIPMENT_WEIGHT_KG = 9999;
+export const MAX_EQUIPMENT_DAMAGE_TYPE_LENGTH = 20;
+
+function defaultWeaponAttribute(catalog: CatalogEquipment, attributes: Attributes): keyof Attributes {
+  if (catalog.subcategoria.endsWith('à distância')) return 'destreza';
+  const finesse = (catalog.propriedades ?? '').toLowerCase().includes('acuidade');
+  return finesse && attributes.destreza > attributes.forca ? 'destreza' : 'forca';
+}
+
+export function equipmentFromCatalog(
+  catalog: CatalogEquipment,
+  attributes: Attributes,
+  keep?: Pick<Equipment, 'atributo'>,
+): Equipment {
+  const weapon = catalog.tipoNaFicha === 'ARMA';
+  return {
+    tipo: catalog.tipoNaFicha ?? 'ARMA',
+    nome: catalog.nome,
+    dano: weapon ? catalog.danoNaFicha : null,
+    atributo: weapon ? keep?.atributo ?? defaultWeaponAttribute(catalog, attributes) : null,
+    classeArmadura: weapon ? null : catalog.classeArmadura,
+    propriedades: catalog.propriedadesNaFicha,
+    tipoDano: weapon ? catalog.tipoDano : null,
+    pesoKg: catalog.pesoKg,
+    catalogKey: catalog.chave,
+    editada: false,
+  };
+}
+
+export function formatWeight(kg: number): string {
+  return `${kg.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg`;
 }
 
 export const EQUIPMENT_TYPE_LABEL: Record<EquipmentType, string> = {
@@ -540,10 +603,11 @@ export function attributeModifier(score: number): number {
 
 export function equipmentDetails(equipment: Equipment): string[] {
   return [
-    equipment.dano ? `Dano ${equipment.dano}` : null,
+    equipment.dano ? `Dano ${[equipment.dano, equipment.tipoDano?.toLowerCase()].filter(Boolean).join(' ')}` : null,
     equipment.atributo ? `Base: ${ATTRIBUTE_LABEL[equipment.atributo]}` : null,
     equipment.classeArmadura != null ? `CA ${equipment.classeArmadura}` : null,
     equipment.propriedades || null,
+    equipment.pesoKg != null ? formatWeight(equipment.pesoKg) : null,
   ].filter((detail): detail is string => detail !== null);
 }
 

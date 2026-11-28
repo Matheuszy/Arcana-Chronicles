@@ -13,6 +13,7 @@ import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.repository.EquipamentoCatalogoRepository;
 import com.arcana.backend.character.repository.MagiaCatalogoRepository;
 import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
@@ -53,6 +54,9 @@ class PersonagemServiceTest {
     @Mock
     private MagiaCatalogoRepository magiaCatalogoRepository;
 
+    @Mock
+    private EquipamentoCatalogoRepository equipamentoCatalogoRepository;
+
     private PersonagemService service;
     private SessoesAtivasDeMesa sessoesAtivas;
 
@@ -60,7 +64,7 @@ class PersonagemServiceTest {
     void setUp() {
         sessoesAtivas = mock(SessoesAtivasDeMesa.class);
         service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper(), sessoesAtivas,
-                pacoteRepository, magiaCatalogoRepository);
+                pacoteRepository, magiaCatalogoRepository, equipamentoCatalogoRepository);
     }
 
     private Personagem personagemDeAlice() {
@@ -570,8 +574,10 @@ class PersonagemServiceTest {
         var resposta = service.atualizar(10L, dto, 1L);
 
         assertEquals(List.of(
-                new PersonagemResponseDto.EquipamentoDto(TipoEquipamento.ARMA, "Espada longa", "1d8", "forca", null, "Versátil"),
-                new PersonagemResponseDto.EquipamentoDto(TipoEquipamento.ARMADURA, "Cota de malha", null, null, 16, null)),
+                new PersonagemResponseDto.EquipamentoDto(TipoEquipamento.ARMA, "Espada longa", "1d8", "forca", null,
+                        "Versátil", null, null, null, false),
+                new PersonagemResponseDto.EquipamentoDto(TipoEquipamento.ARMADURA, "Cota de malha", null, null, 16, null,
+                        null, null, null, false)),
                 resposta.equipamentos());
         assertEquals(Atributo.FORCA, personagem.getEquipamentos().get(0).getAtributo());
     }
@@ -586,7 +592,8 @@ class PersonagemServiceTest {
 
         var resposta = service.atualizar(10L, dto, 1L);
 
-        assertEquals(List.of(new PersonagemResponseDto.EquipamentoDto(TipoEquipamento.ARMA, "Adaga", null, null, null, null)),
+        assertEquals(List.of(new PersonagemResponseDto.EquipamentoDto(TipoEquipamento.ARMA, "Adaga", null, null, null, null,
+                        null, null, null, false)),
                 resposta.equipamentos());
     }
 

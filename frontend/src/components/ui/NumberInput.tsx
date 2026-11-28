@@ -43,7 +43,7 @@ export default function NumberInput({ value, onChange, onClear, onBlur, ...props
       <input
         {...props}
         type="number"
-        inputMode="numeric"
+        inputMode={props.inputMode ?? 'numeric'}
         value={text}
         onChange={(event) => {
           const typed = event.target.value;

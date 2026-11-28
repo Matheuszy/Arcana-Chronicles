@@ -7,6 +7,7 @@ import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.ClassePersonagem;
 import com.arcana.backend.character.model.DeslocamentoAdicional;
 import com.arcana.backend.character.model.Equipamento;
+import com.arcana.backend.character.model.EquipamentoCatalogo;
 import com.arcana.backend.character.model.Habilidade;
 import com.arcana.backend.character.model.Magia;
 import com.arcana.backend.character.model.Moeda;
@@ -14,6 +15,7 @@ import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.repository.EquipamentoCatalogoRepository;
 import com.arcana.backend.character.repository.MagiaCatalogoRepository;
 import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
@@ -58,19 +60,22 @@ public class PersonagemService {
     private final SessoesAtivasDeMesa sessoesAtivas;
     private final PacoteEquipamentoRepository pacoteRepository;
     private final MagiaCatalogoRepository magiaCatalogoRepository;
+    private final EquipamentoCatalogoRepository equipamentoCatalogoRepository;
 
     public PersonagemService(PersonagemRepository personagemRepository,
                              UsuarioRepositorie usuarioRepositorie,
                              ObjectMapper objectMapper,
                              SessoesAtivasDeMesa sessoesAtivas,
                              PacoteEquipamentoRepository pacoteRepository,
-                             MagiaCatalogoRepository magiaCatalogoRepository) {
+                             MagiaCatalogoRepository magiaCatalogoRepository,
+                             EquipamentoCatalogoRepository equipamentoCatalogoRepository) {
         this.personagemRepository = personagemRepository;
         this.usuarioRepositorie = usuarioRepositorie;
         this.objectMapper = objectMapper;
         this.sessoesAtivas = sessoesAtivas;
         this.pacoteRepository = pacoteRepository;
         this.magiaCatalogoRepository = magiaCatalogoRepository;
+        this.equipamentoCatalogoRepository = equipamentoCatalogoRepository;
     }
 
     /** Lista todos os personagens de um usuário, opcionalmente filtrados por tipo */
@@ -384,13 +389,26 @@ public class PersonagemService {
     private Equipamento paraEquipamento(PersonagemRequestDto.EquipamentoDto dto) {
         boolean arma = dto.tipo() == TipoEquipamento.ARMA;
         String atributo = textoOuNulo(dto.atributo());
-        return new Equipamento(
+        Equipamento equipamento = new Equipamento(
                 dto.tipo(),
                 dto.nome().trim(),
                 arma ? textoOuNulo(dto.dano()) : null,
                 arma && atributo != null ? Atributo.daChave(atributo) : null,
                 arma ? null : dto.classeArmadura(),
                 textoOuNulo(dto.propriedades()));
+        equipamento.setTipoDano(arma ? textoOuNulo(dto.tipoDano()) : null);
+        equipamento.setPesoKg(dto.pesoKg());
+        String chave = textoOuNulo(dto.catalogKey());
+        if (chave != null) {
+            EquipamentoCatalogo catalogo = equipamentoCatalogoRepository.findById(chave)
+                    .orElseThrow(() -> new IllegalArgumentException("Equipamento do catálogo não encontrado: " + chave));
+            if (catalogo.tipoNaFicha() != dto.tipo()) {
+                throw new IllegalArgumentException(catalogo.getNome() + " do catálogo não é "
+                        + (arma ? "uma arma." : "uma armadura."));
+            }
+            equipamento.setCatalogo(catalogo);
+        }
+        return equipamento;
     }
 
     private ClassePersonagem paraClasse(PersonagemRequestDto.ClasseDto dto) {

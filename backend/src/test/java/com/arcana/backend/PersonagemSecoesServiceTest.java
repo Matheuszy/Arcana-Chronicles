@@ -2,6 +2,8 @@ package com.arcana.backend;
 
 import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.model.Atributos;
+import com.arcana.backend.character.model.CategoriaEquipamento;
+import com.arcana.backend.character.model.EquipamentoCatalogo;
 import com.arcana.backend.character.model.ClassePersonagem;
 import com.arcana.backend.character.model.Equipamento;
 import com.arcana.backend.character.model.Magia;
@@ -9,6 +11,7 @@ import com.arcana.backend.character.model.MagiaCatalogo;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.model.TipoJogador;
+import com.arcana.backend.character.repository.EquipamentoCatalogoRepository;
 import com.arcana.backend.character.repository.MagiaCatalogoRepository;
 import com.arcana.backend.character.repository.PacoteEquipamentoRepository;
 import com.arcana.backend.character.repository.PersonagemRepository;
@@ -29,6 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -62,12 +66,15 @@ class PersonagemSecoesServiceTest {
     @Mock
     private MagiaCatalogoRepository magiaCatalogoRepository;
 
+    @Mock
+    private EquipamentoCatalogoRepository equipamentoCatalogoRepository;
+
     private PersonagemService service;
 
     @BeforeEach
     void setUp() {
         service = new PersonagemService(personagemRepository, usuarioRepositorie, new ObjectMapper(), sessoesAtivas,
-                pacoteRepository, magiaCatalogoRepository);
+                pacoteRepository, magiaCatalogoRepository, equipamentoCatalogoRepository);
     }
 
     private Personagem fichaCompletaDeAlice() {
@@ -283,6 +290,145 @@ class PersonagemSecoesServiceTest {
         assertTrue(resposta.equipamentos().isEmpty());
         assertEquals(30, resposta.moedasOuro());
         assertEquals("Luz", personagem.getSpells().get(0).getName());
+    }
+
+    private static final EquipamentoCatalogo ESPADA_LONGA = new EquipamentoCatalogo("longsword", "Espada longa",
+            "espada longa", "SRD 5.1", CategoriaEquipamento.ARMA, "Arma marcial corpo a corpo", 1, 1500,
+            new BigDecimal("1.500"), "1d8", "Cortante", "Versátil (1d10)", null, null, null, null, false);
+
+    private static final EquipamentoCatalogo BRUNEA = new EquipamentoCatalogo("scale-mail", "Brunea", "brunea",
+            "SRD 5.1", CategoriaEquipamento.ARMADURA, "Armadura média", 1, 5000, new BigDecimal("22.500"),
+            null, null, null, 14, true, 2, null, true);
+
+    private static final EquipamentoCatalogo MOCHILA = new EquipamentoCatalogo("backpack", "Mochila", "mochila",
+            "SRD 5.1", CategoriaEquipamento.EQUIPAMENTO_DE_AVENTURA, "Equipamento de aventura", 1, 200,
+            new BigDecimal("2.500"), null, null, null, null, null, null, null, false);
+
+    private PersonagemRequestDto.EquipamentoDto espadaLongaDoCatalogo(String pesoKg) {
+        return new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMA, "Espada longa", "1d8", "forca", null,
+                "Versátil (1d10)", "Cortante", new BigDecimal(pesoKg), "longsword");
+    }
+
+    private PersonagemRequestDto.EquipamentoDto bruneaDoCatalogo(String pesoKg) {
+        return new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMADURA, "Brunea", null, null, 14,
+                "+ Des (máx. 2), desvantagem em Furtividade", null, new BigDecimal(pesoKg), "scale-mail");
+    }
+
+    private SecaoEquipamentoRequestDto abaDeEquipamento(PersonagemRequestDto.EquipamentoDto... equipamentos) {
+        return new SecaoEquipamentoRequestDto(List.of(equipamentos), List.of(), 0, 0, 0, 0, 0);
+    }
+
+    @Test
+    void deveGuardarArmaCopiadaDoCatalogoComPesoETipoDeDanoSemMarcarComoEditada() {
+        prepararFicha(fichaCompletaDeAlice());
+        salvarDevolvendoAFicha();
+        when(equipamentoCatalogoRepository.findById("longsword")).thenReturn(Optional.of(ESPADA_LONGA));
+
+        var arma = service.atualizarSecaoEquipamento(10L, abaDeEquipamento(espadaLongaDoCatalogo("1.5")), 1L)
+                .equipamentos().get(0);
+
+        assertEquals("longsword", arma.catalogKey());
+        assertEquals("Cortante", arma.tipoDano());
+        assertEquals(0, new BigDecimal("1.5").compareTo(arma.pesoKg()));
+        assertEquals("forca", arma.atributo());
+        assertFalse(arma.editada());
+    }
+
+    @Test
+    void deveMarcarArmaComoEditadaQuandoUmCampoDoCatalogoMuda() {
+        prepararFicha(fichaCompletaDeAlice());
+        salvarDevolvendoAFicha();
+        when(equipamentoCatalogoRepository.findById("longsword")).thenReturn(Optional.of(ESPADA_LONGA));
+        var renomeada = new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMA, "Espada do avô", "1d8", null,
+                null, "Versátil (1d10)", "Cortante", new BigDecimal("1.5"), "longsword");
+
+        var equipamentos = service.atualizarSecaoEquipamento(10L,
+                abaDeEquipamento(espadaLongaDoCatalogo("3"), renomeada), 1L).equipamentos();
+
+        assertTrue(equipamentos.get(0).editada());
+        assertTrue(equipamentos.get(1).editada());
+        assertEquals("Espada longa", ESPADA_LONGA.getNome());
+    }
+
+    @Test
+    void deveCompararArmaduraDoCatalogoPelaCaPropriedadesEPeso() {
+        prepararFicha(fichaCompletaDeAlice());
+        salvarDevolvendoAFicha();
+        when(equipamentoCatalogoRepository.findById("scale-mail")).thenReturn(Optional.of(BRUNEA));
+
+        var equipamentos = service.atualizarSecaoEquipamento(10L,
+                abaDeEquipamento(bruneaDoCatalogo("22.5"), bruneaDoCatalogo("20")), 1L).equipamentos();
+
+        assertFalse(equipamentos.get(0).editada());
+        assertEquals(14, equipamentos.get(0).classeArmadura());
+        assertTrue(equipamentos.get(1).editada());
+    }
+
+    @Test
+    void devePermitirOMesmoEquipamentoDoCatalogoMaisDeUmaVez() {
+        prepararFicha(fichaCompletaDeAlice());
+        salvarDevolvendoAFicha();
+        when(equipamentoCatalogoRepository.findById("longsword")).thenReturn(Optional.of(ESPADA_LONGA));
+
+        var equipamentos = service.atualizarSecaoEquipamento(10L,
+                abaDeEquipamento(espadaLongaDoCatalogo("1.5"), espadaLongaDoCatalogo("1.5")), 1L).equipamentos();
+
+        assertEquals(2, equipamentos.size());
+    }
+
+    @Test
+    void deveGuardarPesoDeArmaPersonalizadaSemReferenciaAoCatalogo() {
+        prepararFicha(fichaCompletaDeAlice());
+        salvarDevolvendoAFicha();
+        var personalizada = new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMA, "Foice do ceifador", "2d4",
+                "forca", null, null, "Cortante", new BigDecimal("4"), null);
+
+        var arma = service.atualizarSecaoEquipamento(10L, abaDeEquipamento(personalizada), 1L).equipamentos().get(0);
+
+        assertNull(arma.catalogKey());
+        assertFalse(arma.editada());
+        assertEquals(0, new BigDecimal("4").compareTo(arma.pesoKg()));
+    }
+
+    @Test
+    void deveIgnorarTipoDeDanoEmArmadura() {
+        prepararFicha(fichaCompletaDeAlice());
+        salvarDevolvendoAFicha();
+        var armadura = new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMADURA, "Couraça", null, null, 15,
+                null, "Cortante", null, null);
+
+        var salva = service.atualizarSecaoEquipamento(10L, abaDeEquipamento(armadura), 1L).equipamentos().get(0);
+
+        assertNull(salva.tipoDano());
+        assertNull(salva.pesoKg());
+    }
+
+    @Test
+    void deveRecusarItemDoCatalogoComTipoDiferenteDoEquipamento() {
+        prepararFicha(fichaCompletaDeAlice());
+        when(equipamentoCatalogoRepository.findById("backpack")).thenReturn(Optional.of(MOCHILA));
+        when(equipamentoCatalogoRepository.findById("longsword")).thenReturn(Optional.of(ESPADA_LONGA));
+        var mochilaComoArma = new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMA, "Mochila", null, null,
+                null, null, null, new BigDecimal("2.5"), "backpack");
+        var espadaComoArmadura = new PersonagemRequestDto.EquipamentoDto(TipoEquipamento.ARMADURA, "Espada longa",
+                null, null, 2, null, null, new BigDecimal("1.5"), "longsword");
+
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> service.atualizarSecaoEquipamento(10L, abaDeEquipamento(mochilaComoArma), 1L));
+        assertEquals("Mochila do catálogo não é uma arma.", erro.getMessage());
+        assertThrows(IllegalArgumentException.class,
+                () -> service.atualizarSecaoEquipamento(10L, abaDeEquipamento(espadaComoArmadura), 1L));
+        verify(personagemRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRecusarEquipamentoDeCatalogoInexistente() {
+        prepararFicha(fichaCompletaDeAlice());
+        when(equipamentoCatalogoRepository.findById("longsword")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> service.atualizarSecaoEquipamento(10L,
+                abaDeEquipamento(espadaLongaDoCatalogo("1.5")), 1L));
+        verify(personagemRepository, never()).save(any());
     }
 
     @Test
