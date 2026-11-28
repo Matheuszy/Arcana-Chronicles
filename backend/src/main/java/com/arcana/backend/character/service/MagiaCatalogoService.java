@@ -8,7 +8,6 @@ import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -100,10 +99,6 @@ public class MagiaCatalogoService {
     }
 
     static String normalizar(String texto) {
-        if (texto == null) {
-            return "";
-        }
-        String semAcentos = Normalizer.normalize(texto, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
-        return semAcentos.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+        return TermoDeBusca.normalizar(texto);
     }
 }
