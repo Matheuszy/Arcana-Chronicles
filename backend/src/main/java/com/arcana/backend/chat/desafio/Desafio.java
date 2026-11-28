@@ -286,8 +286,8 @@ public class Desafio {
 
     void validarAjuda(String alvoId, Long autorId, TipoAjuda tipo) {
         Participacao participacao = participacao(alvoId);
-        if (participacao.controladorId.equals(autorId)) {
-            throw new IllegalArgumentException("Você não pode ajudar ou atrapalhar o próprio teste.");
+        if (participacao.controladorId.equals(autorId) && !tipo.beneficia()) {
+            throw new IllegalArgumentException("Você não pode atrapalhar o próprio teste.");
         }
         if (participacao.estado == EstadoDesafio.AGUARDANDO_CONFIRMACAO) {
             if (!tipo.ehDado()) {
@@ -299,9 +299,14 @@ public class Desafio {
                     + " não aceita ajudas ou atrapalhos agora.");
         }
         if (participacao.autoresDaTentativa.contains(autorId)) {
-            throw new IllegalStateException("Você já ajudou ou atrapalhou " + participacao.nomePersonagem
-                    + " nesta tentativa.");
+            throw new IllegalStateException(participacao.controladorId.equals(autorId)
+                    ? "Você já se ajudou nesta tentativa."
+                    : "Você já ajudou ou atrapalhou " + participacao.nomePersonagem + " nesta tentativa.");
         }
+    }
+
+    boolean ehOProprioTeste(String alvoId, Long autorId) {
+        return participacao(alvoId).controladorId.equals(autorId);
     }
 
     void aplicarAjuda(String alvoId, Ajuda ajuda) {

@@ -637,10 +637,70 @@ class DesafioServiceTest {
     }
 
     @Test
-    void deveRecusarAjudaNoProprioTesteEDadoBonusInvalido() {
+    void devePermitirQueOJogadorSeDeVantagemNoProprioTeste() {
         String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
 
-        assertThrows(IllegalArgumentException.class, () -> ajudar(ARIA, desafioId, ARIA, TipoAjuda.VANTAGEM, null));
+        DesafioDto comVantagem = ajudar(ARIA, desafioId, ARIA, TipoAjuda.VANTAGEM, null);
+
+        assertEquals(ModoRolagem.VANTAGEM, participacao(comVantagem, ARIA).modoEfetivo());
+        assertEquals("Aria", ajudaDe(comVantagem, ARIA, ARIA).autorNome());
+    }
+
+    @Test
+    void devePermitirQueOJogadorAnuleAPropriaDesvantagem() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.DESVANTAGEM)).id();
+
+        DesafioDto anulada = ajudar(ARIA, desafioId, ARIA, TipoAjuda.ANULAR_DESVANTAGEM, null);
+
+        assertEquals(ModoRolagem.NORMAL, participacao(anulada, ARIA).modoEfetivo());
+    }
+
+    @Test
+    void deveSomarODadoBonusQueOJogadorDeuASiMesmoDepoisDaRolagem() {
+        String desafioId = desafioPara(18, convocar(ARIA, ModoRolagem.NORMAL)).id();
+        proximasFaces(12);
+        service.rolar(mesa, ARIA, EscolhaTeste.deAtributo(Atributo.DESTREZA));
+
+        proximasFaces(6);
+        ajudar(ARIA, desafioId, ARIA, TipoAjuda.DADO_BONUS, 8);
+        RolagemDeDesafio rolagem = ultimaRolagem(confirmar(MESTRE, desafioId, ARIA), ARIA);
+
+        assertEquals(rolagem.dados().getTotal() + 6, rolagem.total());
+        assertEquals(1, rolagem.ajudas().size());
+    }
+
+    @Test
+    void deveLimitarAUmaAjudaASiMesmoPorTentativaSemImpedirAjudaDosCompanheiros() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
+        ajudar(ARIA, desafioId, ARIA, TipoAjuda.VANTAGEM, null);
+
+        IllegalStateException erro = assertThrows(IllegalStateException.class,
+                () -> ajudar(ARIA, desafioId, ARIA, TipoAjuda.DADO_BONUS, 4));
+        assertEquals("Você já se ajudou nesta tentativa.", erro.getMessage());
+
+        proximasFaces(3);
+        DesafioDto comAmbas = ajudar(BROM, desafioId, ARIA, TipoAjuda.DADO_BONUS, 4);
+        assertEquals(2, participacao(comAmbas, ARIA).ajudas().size());
+    }
+
+    @Test
+    void devePermitirQueOJogadorRemovaAAjudaQueDeuASiMesmo() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
+        String vantagemId = ajudaDe(ajudar(ARIA, desafioId, ARIA, TipoAjuda.VANTAGEM, null), ARIA, ARIA).id();
+
+        DesafioDto semAjuda = service.removerAjuda(mesa, ARIA, desafioId, String.valueOf(ARIA.userId()), vantagemId);
+
+        assertTrue(participacao(semAjuda, ARIA).ajudas().isEmpty());
+    }
+
+    @Test
+    void deveRecusarAtrapalhoNoProprioTesteEDadoBonusInvalido() {
+        String desafioId = desafioPara(15, convocar(ARIA, ModoRolagem.NORMAL)).id();
+
+        IllegalArgumentException desvantagem = assertThrows(IllegalArgumentException.class,
+                () -> ajudar(ARIA, desafioId, ARIA, TipoAjuda.DESVANTAGEM, null));
+        assertEquals("Você não pode atrapalhar o próprio teste.", desvantagem.getMessage());
+        assertThrows(IllegalArgumentException.class, () -> ajudar(ARIA, desafioId, ARIA, TipoAjuda.DADO_PENALIDADE, null));
         assertThrows(IllegalArgumentException.class, () -> ajudar(BROM, desafioId, ARIA, TipoAjuda.DADO_BONUS, 20));
         assertThrows(IllegalArgumentException.class, () -> ajudar(BROM, desafioId, ARIA, TipoAjuda.DADO_BONUS, null));
         assertThrows(IllegalArgumentException.class, () -> ajudar(BROM, desafioId, ARIA, null, null));

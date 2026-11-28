@@ -181,7 +181,7 @@ public class DesafioService {
         Integer facesDoDado = facesDaAjuda(tipo, faces);
         return mesa.desafios().alterar(desafioId, autor.userId(), desafio -> {
             desafio.validarAjuda(alvoId, autor.userId(), tipo);
-            if (!"MESTRE".equals(autor.role())) {
+            if (!"MESTRE".equals(autor.role()) && !desafio.ehOProprioTeste(alvoId, autor.userId())) {
                 mesa.combate().usarReacaoParaAjudar(autor.userId());
             }
             Integer valor = facesDoDado == null ? null

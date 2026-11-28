@@ -16,12 +16,13 @@ import {
   Challenge,
   ChallengeChoice,
   ChallengePlayer,
+  HelpKind,
   challengeAuthor,
   isActiveState,
   isPendingRoll,
   ROLL_MODE_LABEL,
 } from '../../types/challenge';
-import { HelpList, RollSummary } from './ChallengeHelps';
+import { HelpForm, HelpList, RollSummary } from './ChallengeHelps';
 
 const SKILL_KEYS = Object.keys(SKILL_LABEL) as SkillKey[];
 
@@ -32,6 +33,7 @@ interface ChallengePlayerPanelProps {
   paused: boolean;
   canSend: boolean;
   onRoll: (choice: ChallengeChoice) => void;
+  onHelp: (challengeId: string, targetId: string, kind: HelpKind, faces?: number) => void;
   onRemoveHelp: (challengeId: string, targetId: string, helpId: string) => void;
 }
 
@@ -46,18 +48,24 @@ function challengeTitle(challenge: Challenge): string {
 function RollPicker({
   challenge,
   entry,
+  userId,
   character,
   paused,
   canSend,
   onRoll,
+  onHelp,
+  onRemoveHelp,
   onClose,
 }: {
   challenge: Challenge;
   entry: ChallengePlayer;
+  userId: string | null;
   character: Character | undefined;
   paused: boolean;
   canSend: boolean;
   onRoll: (choice: ChallengeChoice) => void;
+  onHelp: (kind: HelpKind, faces?: number) => void;
+  onRemoveHelp: (helpId: string) => void;
   onClose: () => void;
 }) {
   const [choice, setChoice] = useState<ChallengeChoice | null>(null);
@@ -104,6 +112,9 @@ function RollPicker({
             Tentativa anterior: {entry.rolagens[0].descricaoEscolha} → {entry.rolagens[0].total} (falha).
           </p>
         )}
+
+        <HelpList player={entry} viewerId={userId} isMaster={false} canSend={canSend} onRemove={onRemoveHelp} />
+        <HelpForm challenge={challenge} player={entry} viewerId={userId} canSend={canSend} onHelp={onHelp} />
 
         {!character && <p className="roll-error">Selecione seu personagem na mesa para rolar o desafio.</p>}
 
@@ -171,6 +182,7 @@ export default function ChallengePlayerPanel({
   paused,
   canSend,
   onRoll,
+  onHelp,
   onRemoveHelp,
 }: ChallengePlayerPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -216,6 +228,15 @@ export default function ChallengePlayerPanel({
                 canSend={canSend}
                 onRemove={(helpId) => onRemoveHelp(challenge.id, entry.id, helpId)}
               />
+              {!isPendingRoll(entry.estado) && (
+                <HelpForm
+                  challenge={challenge}
+                  player={entry}
+                  viewerId={userId}
+                  canSend={canSend}
+                  onHelp={(kind, faces) => onHelp(challenge.id, entry.id, kind, faces)}
+                />
+              )}
               {isPendingRoll(entry.estado) && (
                 <button className="btn btn-primary" onClick={() => setPickerOpen(true)}>
                   Abrir teste
@@ -231,6 +252,7 @@ export default function ChallengePlayerPanel({
           key={pendingKey ?? undefined}
           challenge={pending}
           entry={pendingEntry}
+          userId={userId}
           character={character}
           paused={paused}
           canSend={canSend}
@@ -238,6 +260,8 @@ export default function ChallengePlayerPanel({
             onRoll(choice);
             setPickerOpen(false);
           }}
+          onHelp={(kind, faces) => onHelp(pending.id, pendingEntry.id, kind, faces)}
+          onRemoveHelp={(helpId) => onRemoveHelp(pending.id, pendingEntry.id, helpId)}
           onClose={() => setPickerOpen(false)}
         />
       )}

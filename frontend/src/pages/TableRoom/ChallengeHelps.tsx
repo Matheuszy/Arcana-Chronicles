@@ -12,6 +12,7 @@ import {
   acceptsHelp,
   describeHelp,
   isBeneficialHelp,
+  isBeneficialKind,
   pendingTotal,
 } from '../../types/challenge';
 
@@ -24,9 +25,13 @@ export function helpActionFor(
   isMaster: boolean,
 ): HelpAction | null {
   if (isMaster) return 'remover';
-  if (String(player.jogadorId) === viewerId && isBeneficialHelp(help)) return 'recusar';
+  if (String(player.jogadorId) === viewerId && isBeneficialHelp(help)) {
+    return String(help.autorId) === viewerId ? 'remover' : 'recusar';
+  }
   return null;
 }
+
+const SELF_HELP_REACTION: HelpReaction = { usesReaction: false, blockedReason: null };
 
 interface HelpListProps {
   player: ChallengePlayer;
@@ -84,19 +89,29 @@ interface HelpFormProps {
   challenge: Challenge;
   player: ChallengePlayer;
   viewerId: string | null;
-  reaction: HelpReaction;
+  reaction?: HelpReaction;
   canSend: boolean;
   onHelp: (kind: HelpKind, faces?: number) => void;
 }
 
-export function HelpForm({ challenge, player, viewerId, reaction, canSend, onHelp }: HelpFormProps) {
-  const kinds = HELP_KINDS.filter((kind) => acceptsHelp(player.estado, kind));
+export function HelpForm({ challenge, player, viewerId, reaction: helperReaction, canSend, onHelp }: HelpFormProps) {
+  const selfHelp = String(player.jogadorId) === viewerId;
+  const reaction = selfHelp || !helperReaction ? SELF_HELP_REACTION : helperReaction;
+  const kinds = HELP_KINDS.filter(
+    (kind) => acceptsHelp(player.estado, kind) && (!selfHelp || isBeneficialKind(kind)),
+  );
   const [chosenKind, setChosenKind] = useState<HelpKind>('DADO_BONUS');
   const [faces, setFaces] = useState('4');
 
-  if (String(player.jogadorId) === viewerId || kinds.length === 0) return null;
+  if (kinds.length === 0) return null;
   if (player.ajudas.some((help) => String(help.autorId) === viewerId)) {
-    return <p className="muted challenge-help-note">Você já ajudou ou atrapalhou {player.nomePersonagem} nesta tentativa.</p>;
+    return (
+      <p className="muted challenge-help-note">
+        {selfHelp
+          ? 'Você já se ajudou nesta tentativa.'
+          : `Você já ajudou ou atrapalhou ${player.nomePersonagem} nesta tentativa.`}
+      </p>
+    );
   }
   if (reaction.blockedReason) {
     return <p className="muted challenge-help-note">{reaction.blockedReason}</p>;
@@ -107,7 +122,7 @@ export function HelpForm({ challenge, player, viewerId, reaction, canSend, onHel
 
   return (
     <details className="challenge-help-form">
-      <summary>Ajudar ou atrapalhar {player.nomePersonagem}</summary>
+      <summary>{selfHelp ? 'Ajudar a si mesmo' : `Ajudar ou atrapalhar ${player.nomePersonagem}`}</summary>
       <div className="challenge-help-fields">
         <Select
           label="O que fazer"
@@ -133,8 +148,9 @@ export function HelpForm({ challenge, player, viewerId, reaction, canSend, onHel
           Aplicar
         </button>
         <small id={`help-note-${formId}`} className="muted">
-          {reaction.usesReaction && 'Em combate, ajudar ou atrapalhar gasta a sua reação da rodada. '}
-          Uma por pessoa a cada tentativa. Depois da rolagem, só dados bônus ou de penalidade.
+          {selfHelp
+            ? 'Uma vez a cada tentativa, sem gastar a reação. Depois da rolagem, só dado bônus.'
+            : `${reaction.usesReaction ? 'Em combate, ajudar ou atrapalhar gasta a sua reação da rodada. ' : ''}Uma por pessoa a cada tentativa. Depois da rolagem, só dados bônus ou de penalidade.`}
         </small>
       </div>
     </details>

@@ -790,6 +790,7 @@ export default function TableRoom() {
             paused={Boolean(isPaused)}
             canSend={connected}
             onRoll={chatService.rollChallenge.bind(chatService)}
+            onHelp={chatService.helpChallenge.bind(chatService)}
             onRemoveHelp={chatService.removeChallengeHelp.bind(chatService)}
           />
         )}

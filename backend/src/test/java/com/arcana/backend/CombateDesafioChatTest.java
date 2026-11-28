@@ -507,6 +507,21 @@ class CombateDesafioChatTest {
     }
 
     @Test
+    void deveDeixarOJogadorSeAjudarNoProprioTurnoSemGastarAReacao() throws Exception {
+        iniciarComAriaNoPrimeiroTurno();
+        enviar(sessaoMestre, """
+                {"type":"DESAFIO_CRIAR","comandoDesafio":{"cd":10,"jogadores":[{"jogadorId":20,"modo":"NORMAL"}]}}
+                """);
+        String desafioId = ultimoDesafio(sessaoMestre).get("id").asText();
+
+        ajudar(sessaoAria, desafioId, 20, "VANTAGEM");
+
+        assertEquals(1, alvo(ultimoDesafio(sessaoMestre), "20").get("ajudas").size());
+        assertEquals("VANTAGEM", alvo(ultimoDesafio(sessaoMestre), "20").get("modoEfetivo").asText());
+        assertFalse(entrada(ultimoCombate(sessaoAria), "20").get("reacaoUsada").asBoolean());
+    }
+
+    @Test
     void deveDeixarAjudarSemGastarReacaoForaDoCombateEPeloMestre() throws Exception {
         iniciarComAriaNoPrimeiroTurno();
         enviar(sessaoMestre, """

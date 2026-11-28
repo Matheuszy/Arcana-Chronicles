@@ -61,14 +61,16 @@ export default function ChallengeTablePanel({
                     canSend={canSend}
                     onRemove={(helpId) => onRemoveHelp(challenge.id, player.id, helpId)}
                   />
-                  <HelpForm
-                    challenge={challenge}
-                    player={player}
-                    viewerId={viewerId}
-                    reaction={reaction}
-                    canSend={canSend}
-                    onHelp={(kind, faces) => onHelp(challenge.id, player.id, kind, faces)}
-                  />
+                  {String(player.jogadorId) !== viewerId && (
+                    <HelpForm
+                      challenge={challenge}
+                      player={player}
+                      viewerId={viewerId}
+                      reaction={reaction}
+                      canSend={canSend}
+                      onHelp={(kind, faces) => onHelp(challenge.id, player.id, kind, faces)}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
