@@ -2,6 +2,7 @@ package com.arcana.backend;
 
 import com.arcana.backend.character.PersonagemRequestDto;
 import com.arcana.backend.character.PersonagemResponseDto;
+import com.arcana.backend.character.model.ItemDaFicha;
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.Moeda;
@@ -223,7 +224,7 @@ class PersonagemServiceTest {
                 Map.of("persuasao", 3, "atletismo", 6), null, null, null, null, null, null, null,
                 List.of(new PersonagemRequestDto.ClasseDto(" Guerreiro ", "Campeão", 3),
                         new PersonagemRequestDto.ClasseDto("Artífice", "  ", 2)), 3, Map.of("constituicao", 3, "forca", 6),
-                List.of(" Corda de 15 m ", "Tocha"),
+                List.of(new PersonagemRequestDto.ItemDto(" Corda de 15 m "), new PersonagemRequestDto.ItemDto("Tocha")),
                 List.of(new PersonagemRequestDto.HabilidadeDto("  Fúria  ", "  Dobra o dano  ")),
                 " Elfo ", "Neutro e Bom",
                 List.of(new PersonagemRequestDto.HabilidadeDto(" Visão no escuro ", "Até 18 m"),
@@ -242,7 +243,7 @@ class PersonagemServiceTest {
                 List.copyOf(resposta.savingThrows().entrySet()));
         assertEquals(List.of(Map.entry("atletismo", 6), Map.entry("persuasao", 3)),
                 List.copyOf(resposta.skills().entrySet()));
-        assertEquals(List.of("Corda de 15 m", "Tocha"), resposta.items());
+        assertEquals(List.of("Corda de 15 m", "Tocha"), resposta.items().stream().map(PersonagemResponseDto.ItemDto::nome).toList());
         assertEquals(List.of(new PersonagemResponseDto.HabilidadeDto("Fúria", "Dobra o dano")), resposta.habilidades());
         assertEquals("Elfo", resposta.raca());
         assertEquals("Neutro e Bom", resposta.alinhamento());
@@ -361,20 +362,20 @@ class PersonagemServiceTest {
         contaComPapel(1L, PapelUsuario.JOGADOR);
         when(personagemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(pacoteRepository.findById("ARTISTA")).thenReturn(Optional.of(
-                new PacoteEquipamento("ARTISTA", "Artista", 3, List.of("Mochila", "Kit de disfarce"))));
+                new PacoteEquipamento("ARTISTA", "Artista", 3, List.of(new ItemDaFicha("Mochila"), new ItemDaFicha("Kit de disfarce")))));
         PersonagemRequestDto dto = new PersonagemRequestDto(
                 "Lyra", TipoJogador.PLAYER, 1, 10, 10, 12,
                 new PersonagemRequestDto.AtributosDto(10, 10, 10, 10, 10, 10),
                 null, null, null, null, null, null, null, null,
-                null, null, null, List.of("Alaúde"), null, null, null, null, null, null, 9, null, null, null,
+                null, null, null, List.of(new PersonagemRequestDto.ItemDto("Alaúde")), null, null, null, null, null, null, 9, null, null, null,
                 null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, "artista", null, null);
 
         var resposta = service.criar(dto, 1L);
 
-        assertEquals(List.of("Alaúde", "Mochila", "Kit de disfarce"), resposta.items());
+        assertEquals(List.of("Alaúde", "Mochila", "Kit de disfarce"), resposta.items().stream().map(PersonagemResponseDto.ItemDto::nome).toList());
         assertEquals("ARTISTA", resposta.pacoteEquipamento());
-        assertEquals(List.of("Mochila", "Kit de disfarce"), resposta.itensDoPacote());
+        assertEquals(List.of("Mochila", "Kit de disfarce"), resposta.itensDoPacote().stream().map(PersonagemResponseDto.ItemDto::nome).toList());
     }
 
     @Test

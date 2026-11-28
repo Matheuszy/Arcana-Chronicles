@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Select from '../../components/ui/Select';
 import { characterService } from '../../services/characterService';
-import { Character, EquipmentPack } from '../../types/character';
+import { Character, EquipmentPack, itemLabel } from '../../types/character';
 
 interface EquipmentPackPickerProps {
   characterId?: string;
@@ -95,7 +95,7 @@ export default function EquipmentPackPicker({
       </div>
       {preview && (
         <p className="equipment-pack-preview">
-          <strong>{preview.nome}:</strong> {preview.itens.join(', ')}
+          <strong>{preview.nome}:</strong> {preview.itens.map(itemLabel).join(', ')}
           {creating && ' · Os itens entram na ficha ao salvar.'}
         </p>
       )}

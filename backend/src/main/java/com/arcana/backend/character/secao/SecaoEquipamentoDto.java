@@ -7,9 +7,9 @@ import java.util.List;
 
 public record SecaoEquipamentoDto(
         List<PersonagemResponseDto.EquipamentoDto> equipamentos,
-        List<String> items,
+        List<PersonagemResponseDto.ItemDto> items,
         String pacoteEquipamento,
-        List<String> itensDoPacote,
+        List<PersonagemResponseDto.ItemDto> itensDoPacote,
         Integer moedasCobre,
         Integer moedasPrata,
         Integer moedasElectro,
@@ -20,9 +20,9 @@ public record SecaoEquipamentoDto(
     public static SecaoEquipamentoDto from(Personagem p) {
         return new SecaoEquipamentoDto(
                 PersonagemResponseDto.equipamentos(p),
-                List.copyOf(p.getItens()),
+                PersonagemResponseDto.itens(p.getItens()),
                 p.getPacoteEquipamento(),
-                List.copyOf(p.getItensDoPacote()),
+                PersonagemResponseDto.itens(p.getItensDoPacote()),
                 p.getMoedasCobre(),
                 p.getMoedasPrata(),
                 p.getMoedasElectro(),

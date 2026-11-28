@@ -75,8 +75,7 @@ public record PersonagemRequestDto(
                     @Max(value = 20, message = "Bônus do atributo não pode passar de 20") Integer> savingThrows,
 
         @Size(max = 50, message = "A ficha pode ter no máximo 50 itens")
-        List<@NotBlank(message = "Item não pode ser vazio")
-             @Size(max = 100, message = "Item não pode ter mais de 100 caracteres") String> items,
+        List<@Valid ItemDto> items,
 
         @Size(max = 30, message = "A ficha pode ter no máximo 30 habilidades de classe e subclasse")
         List<@Valid HabilidadeDto> habilidades,
@@ -245,6 +244,27 @@ public record PersonagemRequestDto(
         public EquipamentoDto(TipoEquipamento tipo, String nome, String dano, String atributo,
                               Integer classeArmadura, String propriedades) {
             this(tipo, nome, dano, atributo, classeArmadura, propriedades, null, null, null);
+        }
+    }
+
+    public record ItemDto(
+            @NotBlank(message = "Item não pode ser vazio")
+            @Size(max = 100, message = "Item não pode ter mais de 100 caracteres")
+            String nome,
+
+            @Min(value = 1, message = "A quantidade do item deve ser de 1 a 9999")
+            @Max(value = 9999, message = "A quantidade do item deve ser de 1 a 9999")
+            Integer quantidade,
+
+            @DecimalMin(value = "0", message = "O peso do item não pode ser negativo")
+            @Digits(integer = 4, fraction = 4, message = "O peso do item deve ter no máximo 4 dígitos inteiros e 4 decimais")
+            BigDecimal pesoKg,
+
+            @Size(max = 60, message = "A chave do catálogo não pode ter mais de 60 caracteres")
+            String catalogKey
+    ) {
+        public ItemDto(String nome) {
+            this(nome, 1, null, null);
         }
     }
 

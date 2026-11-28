@@ -9,6 +9,8 @@ import {
   DEATH_SAVE_MARKS,
   DEFAULT_HIT_DIE,
   equipmentPackName,
+  itemLabel,
+  itemTotalWeight,
   totalArmorClass,
   SheetRoll,
   SHEET_TAB_LABEL,
@@ -308,9 +310,15 @@ export default function CharacterSheet({
                 )}
                 {items.length > 0 ? (
                   <ul className="paper-items">
-                    {items.map((item, index) => (
-                      <li key={`${item}-${index}`}>{item}</li>
-                    ))}
+                    {items.map((item, index) => {
+                      const weight = itemTotalWeight(item);
+                      return (
+                        <li key={`${item.nome}-${index}`}>
+                          {itemLabel(item)}
+                          {weight !== null && <span className="paper-item-weight"> · {formatWeight(weight)}</span>}
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : (
                   <p className="paper-text paper-empty">Nenhum item na ficha.</p>

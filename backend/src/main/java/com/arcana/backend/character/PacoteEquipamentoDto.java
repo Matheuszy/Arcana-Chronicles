@@ -7,9 +7,9 @@ import java.util.List;
 public record PacoteEquipamentoDto(
         String chave,
         String nome,
-        List<String> itens
+        List<PersonagemResponseDto.ItemDto> itens
 ) {
     public static PacoteEquipamentoDto from(PacoteEquipamento pacote) {
-        return new PacoteEquipamentoDto(pacote.getChave(), pacote.getNome(), List.copyOf(pacote.getItens()));
+        return new PacoteEquipamentoDto(pacote.getChave(), pacote.getNome(), PersonagemResponseDto.itens(pacote.getItens()));
     }
 }

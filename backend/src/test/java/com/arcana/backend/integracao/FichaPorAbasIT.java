@@ -62,7 +62,7 @@ class FichaPorAbasIT extends IntegracaoTest {
                 .andExpect(jsonPath("$.spellSlotsCurrent.1").value(1));
 
         putComo(dono.token(), base + "equipamento", Map.of(
-                "items", List.of("Tocha", "Corda"),
+                "items", List.of(Map.of("nome", "Tocha", "quantidade", 10), Map.of("nome", "Corda")),
                 "equipamentos", List.of(Map.of("tipo", "ARMA", "nome", "Espada longa", "dano", "1d8")),
                 "moedasOuro", 12))
                 .andExpect(status().isOk())
@@ -78,7 +78,7 @@ class FichaPorAbasIT extends IntegracaoTest {
         getComo(dono.token(), "/api/characters/" + id)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.spells[0].name").value("Mísseis Mágicos"))
-                .andExpect(jsonPath("$.items[0]").value("Tocha"))
+                .andExpect(jsonPath("$.items[0].nome").value("Tocha"))
                 .andExpect(jsonPath("$.equipamentos[0].nome").value("Espada longa"))
                 .andExpect(jsonPath("$.idiomas", hasSize(2)))
                 .andExpect(jsonPath("$.classes[0].classe").value("Guerreiro"))

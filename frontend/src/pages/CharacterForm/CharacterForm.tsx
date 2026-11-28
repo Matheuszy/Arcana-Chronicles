@@ -72,7 +72,13 @@ import {
   MAX_EQUIPMENT_NAME_LENGTH,
   MAX_EQUIPMENT_PROPERTIES_LENGTH,
   MAX_ITEM_LENGTH,
+  MAX_ITEM_QUANTITY,
   MAX_ITEMS,
+  itemFromCatalog,
+  itemTotalWeight,
+  formatWeight,
+  sameItem,
+  SheetItem,
   MAX_PROFICIENCY_BONUS,
   MAX_RACE_LENGTH,
   MAX_SPELL_SLOTS,
@@ -123,6 +129,8 @@ const NEW_EQUIPMENT: Equipment = {
   catalogKey: null,
   editada: false,
 };
+
+const NEW_ITEM: SheetItem = { nome: '', quantidade: 1, pesoKg: null, catalogKey: null, editado: false };
 
 const EMPTY_CHARACTER: Character = {
   name: '',
@@ -235,7 +243,9 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
   const [tabErrors, setTabErrors] = useState<Partial<Record<SheetTab, string>>>({});
   const [rollData, setRollData] = useState<Partial<Character> | null>(null);
   const requestedTabs = useRef(new Set<SheetTab>());
-  const [newItem, setNewItem] = useState('');
+  const [newItem, setNewItem] = useState<SheetItem>({ ...NEW_ITEM });
+  const [restoringItem, setRestoringItem] = useState<number | null>(null);
+  const [itemError, setItemError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [newSpell, setNewSpell] = useState<Spell>({ ...EMPTY_SPELL });
@@ -348,8 +358,15 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
   const legacyKind = !allowedKinds.includes(form.kind);
   const kindOptions = legacyKind ? [form.kind, ...allowedKinds] : allowedKinds;
   const items = form.items ?? [];
-  const trimmedNewItem = newItem.trim();
-  const canAddItem = trimmedNewItem.length > 0 && items.length < MAX_ITEMS;
+  const trimmedNewItem = newItem.nome.trim();
+  const newItemWeight = newItem.pesoKg ?? null;
+  const newItemWeightInvalid =
+    newItemWeight !== null &&
+    (!Number.isFinite(newItemWeight) || newItemWeight < 0 || newItemWeight > MAX_EQUIPMENT_WEIGHT_KG);
+  const newItemQuantityInvalid =
+    !Number.isInteger(newItem.quantidade) || newItem.quantidade < 1 || newItem.quantidade > MAX_ITEM_QUANTITY;
+  const canAddItem =
+    trimmedNewItem.length > 0 && !newItemWeightInvalid && !newItemQuantityInvalid && items.length < MAX_ITEMS;
   const rollCharacter: Character = rollData ? { ...form, ...rollData } : form;
 
   const setField = <K extends keyof Character>(key: K, value: Character[K]) =>
@@ -450,13 +467,56 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
 
   const removeClass = (index: number) => updateClasses(classes.filter((_, i) => i !== index));
 
+  const changeNewItem = (changes: Partial<SheetItem>) =>
+    setNewItem((current) => ({ ...current, ...changes, editado: current.catalogKey ? true : false }));
+
+  const chooseCatalogItem = (catalog: CatalogEquipment) => setNewItem(itemFromCatalog(catalog));
+
   const addItem = () => {
     if (!canAddItem) return;
-    setField('items', [...items, trimmedNewItem]);
-    setNewItem('');
+    const entry: SheetItem = {
+      nome: trimmedNewItem,
+      quantidade: newItem.quantidade,
+      pesoKg: newItemWeight,
+      catalogKey: newItem.catalogKey ?? null,
+      editado: Boolean(newItem.catalogKey && newItem.editado),
+    };
+    setField('items', [...items, entry]);
+    setNewItem({ ...NEW_ITEM });
+  };
+
+  const addItemOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    addItem();
+  };
+
+  const changeItemQuantity = (index: number, quantidade: number) =>
+    setField(
+      'items',
+      items.map((item, i) =>
+        i === index ? { ...item, quantidade: Math.min(MAX_ITEM_QUANTITY, Math.max(1, Math.trunc(quantidade) || 1)) } : item,
+      ),
+    );
+
+  const restoreItem = async (index: number) => {
+    const current = items[index];
+    if (!current?.catalogKey) return;
+    setRestoringItem(index);
+    setItemError(null);
+    try {
+      const restored = itemFromCatalog(await equipmentCatalogService.detail(current.catalogKey), current.quantidade);
+      setField('items', items.map((item, i) => (i === index ? restored : item)));
+    } catch (e: unknown) {
+      setItemError(e instanceof Error ? e.message : 'Não foi possível restaurar o item original.');
+    } finally {
+      setRestoringItem(null);
+    }
   };
 
   const removeItem = (index: number) => setField('items', items.filter((_, i) => i !== index));
+
+  const fromPack = (item: SheetItem) => (form.itensDoPacote ?? []).some((packItem) => sameItem(packItem, item));
 
   const equipamentos = form.equipamentos ?? [];
   const newEquipmentIsWeapon = newEquipment.tipo === 'ARMA';
@@ -1331,7 +1391,8 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
         </div>
         <EquipmentNameField
           id="equipment-name"
-          type={newEquipment.tipo}
+          category={newEquipment.tipo}
+          emptyMessage={`Nenhuma ${newEquipmentIsWeapon ? 'arma' : 'armadura'} do catálogo com esse nome. Você pode cadastrar uma personalizada.`}
           value={newEquipment.nome}
           maxLength={MAX_EQUIPMENT_NAME_LENGTH}
           placeholder={newEquipmentIsWeapon ? 'ex: Espada longa' : 'ex: Cota de malha'}
@@ -1454,40 +1515,126 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
       <h3 className="section-title">Itens</h3>
       {items.length > 0 ? (
         <ul className="items-list">
-          {items.map((item, i) => (
-            <li key={`${item}-${i}`} className="item-row">
-              <span>
-                {item}
-                {(form.itensDoPacote ?? []).includes(item) && <span className="item-from-pack">do pacote</span>}
-              </span>
-              <button type="button" className="btn-remove" onClick={() => removeItem(i)} aria-label={`Remover ${item}`}>
-                ✕
-              </button>
-            </li>
-          ))}
+          {items.map((item, i) => {
+            const totalWeight = itemTotalWeight(item);
+            return (
+              <li key={`${item.nome}-${i}`} className="item-row sheet-item-row">
+                <span className="equipment-summary">
+                  <strong>{item.nome}</strong>
+                  {item.catalogKey && (
+                    <span className={`spell-origin ${item.editado ? 'spell-origin--edited' : ''}`}>
+                      {item.editado ? 'Editado' : 'SRD 5.1'}
+                    </span>
+                  )}
+                  {fromPack(item) && <span className="item-from-pack">do pacote</span>}
+                  {totalWeight !== null && (
+                    <span className="equipment-details">
+                      {item.quantidade > 1
+                        ? `${formatWeight(totalWeight)} (${formatWeight(item.pesoKg ?? 0)} cada)`
+                        : formatWeight(totalWeight)}
+                    </span>
+                  )}
+                </span>
+                <div className="sheet-item-quantity">
+                  <NumberInput
+                    id={`item-quantity-${i}`}
+                    aria-label={`Quantidade de ${item.nome}`}
+                    min={1}
+                    max={MAX_ITEM_QUANTITY}
+                    value={item.quantidade}
+                    onChange={(quantidade) => changeItemQuantity(i, quantidade)}
+                  />
+                </div>
+                {item.catalogKey && item.editado && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost spell-action"
+                    onClick={() => void restoreItem(i)}
+                    disabled={restoringItem === i}
+                  >
+                    {restoringItem === i ? 'Restaurando…' : 'Restaurar original'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-remove"
+                  onClick={() => removeItem(i)}
+                  aria-label={`Remover ${item.nome}`}
+                >
+                  ✕
+                </button>
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className="muted-hint">Nenhum item na ficha.</p>
       )}
-      <div className="row add-item">
-        <div className="field grow">
-          <label htmlFor="new-item">Novo item ({items.length}/{MAX_ITEMS})</label>
-          <input
-            id="new-item"
-            type="text"
-            maxLength={MAX_ITEM_LENGTH}
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addItem();
-              }
-            }}
-            placeholder="ex: Poção de cura"
-            disabled={items.length >= MAX_ITEMS}
-          />
+      {itemError && <p className="text-list-warning">{itemError}</p>}
+
+      <div className="add-spell card-inner add-equipment">
+        <h4>
+          Adicionar item ({items.length}/{MAX_ITEMS})
+        </h4>
+        <EquipmentNameField
+          id="new-item"
+          value={newItem.nome}
+          maxLength={MAX_ITEM_LENGTH}
+          placeholder="ex: Corda de cânhamo"
+          disabled={items.length >= MAX_ITEMS}
+          emptyMessage="Nenhum item do catálogo com esse nome. Você pode cadastrar um personalizado."
+          onChange={(nome) => changeNewItem({ nome })}
+          onChoose={chooseCatalogItem}
+          onSubmit={addItem}
+        />
+        {newItem.catalogKey && (
+          <p className="muted-hint">
+            Preenchido pelo SRD 5.1.{newItem.editado ? ' Você alterou o nome ou o peso, então vai aparecer como editado.' : ''}
+          </p>
+        )}
+        <div className="row">
+          <div className="field">
+            <label htmlFor="new-item-quantity">Quantidade</label>
+            <NumberInput
+              id="new-item-quantity"
+              min={1}
+              max={MAX_ITEM_QUANTITY}
+              value={newItem.quantidade}
+              onChange={(quantidade) => setNewItem((current) => ({ ...current, quantidade }))}
+              onKeyDown={addItemOnEnter}
+              aria-invalid={newItemQuantityInvalid}
+              aria-describedby={newItemQuantityInvalid ? 'new-item-quantity-error' : undefined}
+              disabled={items.length >= MAX_ITEMS}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="new-item-weight">Peso por unidade (kg)</label>
+            <NumberInput
+              id="new-item-weight"
+              min={0}
+              max={MAX_EQUIPMENT_WEIGHT_KG}
+              step={0.5}
+              inputMode="decimal"
+              value={newItem.pesoKg ?? undefined}
+              onChange={(pesoKg) => changeNewItem({ pesoKg })}
+              onClear={() => changeNewItem({ pesoKg: null })}
+              onKeyDown={addItemOnEnter}
+              aria-invalid={newItemWeightInvalid}
+              aria-describedby={newItemWeightInvalid ? 'new-item-weight-error' : undefined}
+              disabled={items.length >= MAX_ITEMS}
+            />
+          </div>
         </div>
+        {newItemQuantityInvalid && (
+          <p id="new-item-quantity-error" className="form-error">
+            A quantidade deve ficar entre 1 e {MAX_ITEM_QUANTITY}.
+          </p>
+        )}
+        {newItemWeightInvalid && (
+          <p id="new-item-weight-error" className="form-error">
+            O peso deve ficar entre 0 e {MAX_EQUIPMENT_WEIGHT_KG} kg.
+          </p>
+        )}
         <button type="button" className="btn btn-ghost" onClick={addItem} disabled={!canAddItem}>
           + Adicionar item
         </button>

@@ -1,6 +1,8 @@
 package com.arcana.backend;
 
+import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.Atributos;
+import com.arcana.backend.character.model.ItemDaFicha;
 import com.arcana.backend.character.model.PacoteEquipamento;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoJogador;
@@ -36,12 +38,20 @@ import static org.mockito.Mockito.*;
 class PacoteEquipamentoServiceTest {
 
     private static final PacoteEquipamento EXPLORADOR = new PacoteEquipamento("EXPLORADOR", "Explorador", 4,
-            List.of("Mochila", "Saco de dormir", "Tocha (10)"));
+            List.of(new ItemDaFicha("Mochila"), new ItemDaFicha("Saco de dormir"), tochas(10)));
     private static final PacoteEquipamento ESTUDIOSO = new PacoteEquipamento("ESTUDIOSO", "Estudioso", 6,
-            List.of("Mochila", "Livro de conhecimento", "Faca pequena"));
+            List.of(new ItemDaFicha("Mochila"), new ItemDaFicha("Livro de conhecimento"), new ItemDaFicha("Faca pequena")));
 
     @Mock
     private PacoteEquipamentoRepository pacoteRepository;
+
+    private static ItemDaFicha tochas(int quantidade) {
+        return new ItemDaFicha("Tocha", quantidade, null, null);
+    }
+
+    private static List<String> rotulos(List<PersonagemResponseDto.ItemDto> itens) {
+        return itens.stream().map(i -> i.quantidade() == 1 ? i.nome() : i.nome() + " x" + i.quantidade()).toList();
+    }
 
     @Mock
     private PersonagemRepository personagemRepository;
@@ -94,30 +104,46 @@ class PacoteEquipamentoServiceTest {
     @Test
     void deveAplicarPacoteEmFichaLivreRegistrandoOsItensQueVieramDele() {
         Personagem personagem = fichaLivre();
-        personagem.getItens().add("Amuleto da avó");
+        personagem.getItens().add(new ItemDaFicha("Amuleto da avó"));
         prepararFichaLivre(personagem);
         when(pacoteRepository.findById("EXPLORADOR")).thenReturn(Optional.of(EXPLORADOR));
 
         var resposta = service.aplicar(10L, 1L, " explorador ");
 
-        assertEquals(List.of("Amuleto da avó", "Mochila", "Saco de dormir", "Tocha (10)"), resposta.items());
+        assertEquals(List.of("Amuleto da avó", "Mochila", "Saco de dormir", "Tocha x10"), rotulos(resposta.items()));
         assertEquals("EXPLORADOR", resposta.pacoteEquipamento());
-        assertEquals(List.of("Mochila", "Saco de dormir", "Tocha (10)"), resposta.itensDoPacote());
+        assertEquals(List.of("Mochila", "Saco de dormir", "Tocha x10"), rotulos(resposta.itensDoPacote()));
+        assertNotSame(EXPLORADOR.getItens().get(0), personagem.getItens().get(1));
+        assertNotSame(personagem.getItens().get(1), personagem.getItensDoPacote().get(0));
     }
 
     @Test
     void deveTrocarPacoteMantendoItensManuaisESemDevolverItensRemovidos() {
         Personagem personagem = fichaLivre();
-        personagem.getItens().addAll(List.of("Amuleto da avó", "Mochila", "Tocha (10)"));
+        personagem.getItens().addAll(List.of(new ItemDaFicha("Amuleto da avó"), new ItemDaFicha("Mochila"), tochas(10)));
         personagem.setPacoteEquipamento("EXPLORADOR");
-        personagem.getItensDoPacote().addAll(EXPLORADOR.getItens());
+        EXPLORADOR.getItens().stream().map(ItemDaFicha::copia).forEach(personagem.getItensDoPacote()::add);
         prepararFichaLivre(personagem);
         when(pacoteRepository.findById("ESTUDIOSO")).thenReturn(Optional.of(ESTUDIOSO));
 
         var resposta = service.aplicar(10L, 1L, "ESTUDIOSO");
 
-        assertEquals(List.of("Amuleto da avó", "Mochila", "Livro de conhecimento", "Faca pequena"), resposta.items());
+        assertEquals(List.of("Amuleto da avó", "Mochila", "Livro de conhecimento", "Faca pequena"), rotulos(resposta.items()));
         assertEquals("ESTUDIOSO", resposta.pacoteEquipamento());
+    }
+
+    @Test
+    void deveManterNaTrocaDePacoteOItemDoPacoteCujaQuantidadeMudou() {
+        Personagem personagem = fichaLivre();
+        personagem.getItens().addAll(List.of(new ItemDaFicha("Mochila"), new ItemDaFicha("Saco de dormir"), tochas(7)));
+        personagem.setPacoteEquipamento("EXPLORADOR");
+        EXPLORADOR.getItens().stream().map(ItemDaFicha::copia).forEach(personagem.getItensDoPacote()::add);
+        prepararFichaLivre(personagem);
+        when(pacoteRepository.findById("ESTUDIOSO")).thenReturn(Optional.of(ESTUDIOSO));
+
+        var resposta = service.aplicar(10L, 1L, "ESTUDIOSO");
+
+        assertEquals(List.of("Tocha x7", "Mochila", "Livro de conhecimento", "Faca pequena"), rotulos(resposta.items()));
     }
 
     @Test
@@ -134,7 +160,7 @@ class PacoteEquipamentoServiceTest {
     @Test
     void deveRecusarPacoteQueFariaAFichaPassarDoLimiteDeItens() {
         Personagem personagem = fichaLivre();
-        personagem.getItens().addAll(Collections.nCopies(48, "Pedra"));
+        personagem.getItens().addAll(Collections.nCopies(48, new ItemDaFicha("Pedra")));
         prepararFichaLivre(personagem);
         when(pacoteRepository.findById("EXPLORADOR")).thenReturn(Optional.of(EXPLORADOR));
 

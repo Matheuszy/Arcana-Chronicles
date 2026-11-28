@@ -9,6 +9,7 @@ import com.arcana.backend.character.model.DeslocamentoAdicional;
 import com.arcana.backend.character.model.Equipamento;
 import com.arcana.backend.character.model.EquipamentoCatalogo;
 import com.arcana.backend.character.model.Habilidade;
+import com.arcana.backend.character.model.ItemDaFicha;
 import com.arcana.backend.character.model.Magia;
 import com.arcana.backend.character.model.Moeda;
 import com.arcana.backend.character.model.Pericia;
@@ -340,7 +341,7 @@ public class PersonagemService {
         }
         personagem.getItens().clear();
         if (dto.items() != null) {
-            dto.items().stream().map(String::trim).forEach(personagem.getItens()::add);
+            dto.items().stream().map(this::paraItem).forEach(personagem.getItens()::add);
         }
         personagem.setMoedasCobre(valorOuZero(dto.moedasCobre()));
         personagem.setMoedasPrata(valorOuZero(dto.moedasPrata()));
@@ -384,6 +385,14 @@ public class PersonagemService {
                     .orElseThrow(() -> new IllegalArgumentException("Magia do catálogo não encontrada: " + chave)));
         }
         return magia;
+    }
+
+    private ItemDaFicha paraItem(PersonagemRequestDto.ItemDto dto) {
+        String chave = textoOuNulo(dto.catalogKey());
+        EquipamentoCatalogo catalogo = chave == null ? null : equipamentoCatalogoRepository.findById(chave)
+                .orElseThrow(() -> new IllegalArgumentException("Item do catálogo não encontrado: " + chave));
+        return new ItemDaFicha(dto.nome().trim(), dto.quantidade() != null ? dto.quantidade() : 1,
+                dto.pesoKg(), catalogo);
     }
 
     private Equipamento paraEquipamento(PersonagemRequestDto.EquipamentoDto dto) {

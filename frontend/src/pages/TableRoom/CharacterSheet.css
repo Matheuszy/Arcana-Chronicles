@@ -159,6 +159,7 @@
 .paper-proficiencies .paper-inventory-block:first-child { grid-column: auto; }
 .paper-inventory-block .paper-items { columns: 1; }
 .paper-inventory-block .paper-text { margin: 0; }
+.paper-item-weight { font-size: 0.82rem; opacity: 0.75; }
 
 .paper-equipment-list {
   list-style: none;

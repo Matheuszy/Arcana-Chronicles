@@ -11,6 +11,7 @@ import lombok.Getter;
 import org.hibernate.annotations.Immutable;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -118,6 +119,10 @@ public class EquipamentoCatalogo {
         }
         String texto = String.join(", ", partes);
         return Character.toUpperCase(texto.charAt(0)) + texto.substring(1);
+    }
+
+    public BigDecimal pesoPorUnidadeKg() {
+        return pesoKg.divide(BigDecimal.valueOf(quantidade), 4, RoundingMode.HALF_UP);
     }
 
     public String regraDeClasseArmadura() {

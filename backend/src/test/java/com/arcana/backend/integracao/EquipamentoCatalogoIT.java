@@ -159,6 +159,51 @@ class EquipamentoCatalogoIT extends IntegracaoTest {
         }
     }
 
+    private Map<String, Object> abaDeItens(List<Map<String, Object>> itens) {
+        return Map.of("equipamentos", List.of(), "items", itens);
+    }
+
+    @Test
+    void deveGuardarItensDoCatalogoComQuantidadeEPesoPorUnidade() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Long fichaId = criarPersonagem(dono, "PLAYER");
+        String url = "/api/characters/" + fichaId + "/ficha/equipamento";
+
+        putComo(dono.token(), url, abaDeItens(List.of(
+                Map.of("nome", "Flechas", "quantidade", 40, "pesoKg", 0.025, "catalogKey", "arrow"),
+                Map.of("nome", "Mochila velha", "pesoKg", 2.5, "catalogKey", "backpack"),
+                Map.of("nome", "Amuleto da avó", "quantidade", 1))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].quantidade").value(40))
+                .andExpect(jsonPath("$.items[0].pesoKg").value(0.025))
+                .andExpect(jsonPath("$.items[0].editado").value(false))
+                .andExpect(jsonPath("$.items[1].quantidade").value(1))
+                .andExpect(jsonPath("$.items[1].editado").value(true))
+                .andExpect(jsonPath("$.items[2].catalogKey").doesNotExist());
+        getComo(dono.token(), url)
+                .andExpect(jsonPath("$.items[0].catalogKey").value("arrow"))
+                .andExpect(jsonPath("$.items[0].nome").value("Flechas"));
+
+        putComo(registrar("JOGADOR").token(), url, abaDeItens(List.of(Map.of("nome", "Invasão"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deveRecusarItemComQuantidadePesoOuChaveDoCatalogoInvalidos() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Long fichaId = criarPersonagem(dono, "PLAYER");
+
+        for (Map<String, Object> invalido : List.<Map<String, Object>>of(
+                Map.of("nome", "Tocha", "quantidade", 0),
+                Map.of("nome", "Tocha", "quantidade", 10000),
+                Map.of("nome", "Tocha", "pesoKg", -1),
+                Map.of("nome", "Tocha", "catalogKey", "tocha-inventada"),
+                Map.of("nome", " "))) {
+            putComo(dono.token(), "/api/characters/" + fichaId + "/ficha/equipamento", abaDeItens(List.of(invalido)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
     @Test
     void deveNegarAcessoSemLoginENaoPermitirAlterarOCatalogo() throws Exception {
         Conta jogador = registrar("JOGADOR");

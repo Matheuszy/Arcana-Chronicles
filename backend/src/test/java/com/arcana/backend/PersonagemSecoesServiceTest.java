@@ -1,11 +1,13 @@
 package com.arcana.backend;
 
 import com.arcana.backend.character.PersonagemRequestDto;
+import com.arcana.backend.character.PersonagemResponseDto;
 import com.arcana.backend.character.model.Atributos;
 import com.arcana.backend.character.model.CategoriaEquipamento;
 import com.arcana.backend.character.model.EquipamentoCatalogo;
 import com.arcana.backend.character.model.ClassePersonagem;
 import com.arcana.backend.character.model.Equipamento;
+import com.arcana.backend.character.model.ItemDaFicha;
 import com.arcana.backend.character.model.Magia;
 import com.arcana.backend.character.model.MagiaCatalogo;
 import com.arcana.backend.character.model.Personagem;
@@ -92,7 +94,7 @@ class PersonagemSecoesServiceTest {
         personagem.setAttributes(new Atributos(10, 14, 12, 10, 16, 8));
         personagem.setOwner(alice);
         personagem.getClasses().add(new ClassePersonagem("Clériga", null, 3, 8, 3));
-        personagem.getItens().add("Corda de cânhamo");
+        personagem.getItens().add(new ItemDaFicha("Corda de cânhamo"));
         personagem.getEquipamentos().add(new Equipamento(TipoEquipamento.ARMA, "Maça", "1d6", null, null, null));
         personagem.getSpells().add(new Magia("Luz", 0, null));
         personagem.getIdiomas().add("Comum");
@@ -120,7 +122,7 @@ class PersonagemSecoesServiceTest {
 
         assertEquals("Curar Ferimentos", resposta.spells().get(0).name());
         assertEquals(2, resposta.spellSlotsCurrent().get("1"));
-        assertEquals(List.of("Corda de cânhamo"), personagem.getItens());
+        assertEquals(List.of("Corda de cânhamo"), personagem.getItens().stream().map(ItemDaFicha::getNome).toList());
         assertEquals("Maça", personagem.getEquipamentos().get(0).getNome());
         assertEquals(15, personagem.getMoedasOuro());
         assertEquals(List.of("Comum"), personagem.getIdiomas());
@@ -284,9 +286,9 @@ class PersonagemSecoesServiceTest {
         salvarDevolvendoAFicha();
 
         var resposta = service.atualizarSecaoEquipamento(10L, new SecaoEquipamentoRequestDto(
-                List.of(), List.of("  Tocha  "), 1, 2, 0, 30, 0), 1L);
+                List.of(), List.of(new PersonagemRequestDto.ItemDto("  Tocha  ")), 1, 2, 0, 30, 0), 1L);
 
-        assertEquals(List.of("Tocha"), resposta.items());
+        assertEquals(List.of(new PersonagemResponseDto.ItemDto("Tocha", 1, null, null, false)), resposta.items());
         assertTrue(resposta.equipamentos().isEmpty());
         assertEquals(30, resposta.moedasOuro());
         assertEquals("Luz", personagem.getSpells().get(0).getName());
@@ -428,6 +430,68 @@ class PersonagemSecoesServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.atualizarSecaoEquipamento(10L,
                 abaDeEquipamento(espadaLongaDoCatalogo("1.5")), 1L));
+        verify(personagemRepository, never()).save(any());
+    }
+
+    private static final EquipamentoCatalogo FLECHAS = new EquipamentoCatalogo("arrow", "Flechas", "flechas",
+            "SRD 5.1", CategoriaEquipamento.EQUIPAMENTO_DE_AVENTURA, "Munição", 20, 100,
+            new BigDecimal("0.500"), null, null, null, null, null, null, null, false);
+
+    private SecaoEquipamentoRequestDto abaDeItens(PersonagemRequestDto.ItemDto... itens) {
+        return new SecaoEquipamentoRequestDto(List.of(), List.of(itens), 0, 0, 0, 0, 0);
+    }
+
+    @Test
+    void deveGuardarItemDoCatalogoComQuantidadeEPesoPorUnidadeSemMarcarComoEditado() {
+        prepararFicha(fichaCompletaDeAlice());
+        salvarDevolvendoAFicha();
+        when(equipamentoCatalogoRepository.findById("arrow")).thenReturn(Optional.of(FLECHAS));
+        when(equipamentoCatalogoRepository.findById("backpack")).thenReturn(Optional.of(MOCHILA));
+
+        var itens = service.atualizarSecaoEquipamento(10L, abaDeItens(
+                new PersonagemRequestDto.ItemDto("Flechas", 40, new BigDecimal("0.025"), "arrow"),
+                new PersonagemRequestDto.ItemDto("Mochila", null, new BigDecimal("2.5"), "backpack")), 1L).items();
+
+        assertEquals(new PersonagemResponseDto.ItemDto("Flechas", 40, new BigDecimal("0.025"), "arrow", false), itens.get(0));
+        assertEquals(1, itens.get(1).quantidade());
+        assertFalse(itens.get(1).editado());
+    }
+
+    @Test
+    void deveMarcarItemDoCatalogoComoEditadoQuandoNomeOuPesoMudam() {
+        prepararFicha(fichaCompletaDeAlice());
+        salvarDevolvendoAFicha();
+        when(equipamentoCatalogoRepository.findById("backpack")).thenReturn(Optional.of(MOCHILA));
+
+        var itens = service.atualizarSecaoEquipamento(10L, abaDeItens(
+                new PersonagemRequestDto.ItemDto("Mochila de couro", 1, new BigDecimal("2.5"), "backpack"),
+                new PersonagemRequestDto.ItemDto("Mochila", 1, new BigDecimal("3"), "backpack"),
+                new PersonagemRequestDto.ItemDto("Mochila", 1, null, "backpack")), 1L).items();
+
+        assertTrue(itens.stream().allMatch(PersonagemResponseDto.ItemDto::editado));
+    }
+
+    @Test
+    void deveGuardarItemPersonalizadoComPesoSemReferenciaAoCatalogo() {
+        prepararFicha(fichaCompletaDeAlice());
+        salvarDevolvendoAFicha();
+
+        var item = service.atualizarSecaoEquipamento(10L, abaDeItens(
+                new PersonagemRequestDto.ItemDto(" Amuleto da avó ", 2, new BigDecimal("0.1"), " ")), 1L).items().get(0);
+
+        assertEquals(new PersonagemResponseDto.ItemDto("Amuleto da avó", 2, new BigDecimal("0.1"), null, false), item);
+        verify(equipamentoCatalogoRepository, never()).findById(any());
+    }
+
+    @Test
+    void deveRecusarItemDeCatalogoInexistente() {
+        prepararFicha(fichaCompletaDeAlice());
+        when(equipamentoCatalogoRepository.findById("arrow")).thenReturn(Optional.empty());
+
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> service.atualizarSecaoEquipamento(10L, abaDeItens(
+                        new PersonagemRequestDto.ItemDto("Flechas", 20, null, "arrow")), 1L));
+        assertEquals("Item do catálogo não encontrado: arrow", erro.getMessage());
         verify(personagemRepository, never()).save(any());
     }
 

@@ -24,12 +24,11 @@ public class PacoteEquipamento {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "pacote_equipamento_itens", joinColumns = @JoinColumn(name = "pacote_chave"))
     @OrderColumn(name = "posicao")
-    @Column(name = "item", nullable = false, length = 100)
-    private List<String> itens = new ArrayList<>();
+    private List<ItemDaFicha> itens = new ArrayList<>();
 
     protected PacoteEquipamento() {}
 
-    public PacoteEquipamento(String chave, String nome, Integer posicao, List<String> itens) {
+    public PacoteEquipamento(String chave, String nome, Integer posicao, List<ItemDaFicha> itens) {
         this.chave = chave;
         this.nome = nome;
         this.posicao = posicao;

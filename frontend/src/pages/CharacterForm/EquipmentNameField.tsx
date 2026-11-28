@@ -1,6 +1,6 @@
 import { KeyboardEvent, useEffect, useState } from 'react';
 import { equipmentCatalogService } from '../../services/equipmentCatalogService';
-import { CatalogEquipment, EquipmentType, formatWeight } from '../../types/character';
+import { CatalogEquipment, EquipmentCategory, formatWeight } from '../../types/character';
 
 const MIN_SEARCH_LENGTH = 2;
 const SEARCH_DELAY_MS = 250;
@@ -9,7 +9,8 @@ type SearchStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 interface EquipmentNameFieldProps {
   id: string;
-  type: EquipmentType;
+  category?: EquipmentCategory;
+  emptyMessage: string;
   value: string;
   maxLength: number;
   placeholder: string;
@@ -22,6 +23,7 @@ interface EquipmentNameFieldProps {
 function suggestionMeta(catalog: CatalogEquipment): string {
   const parts = [
     catalog.subcategoria,
+    catalog.quantidade > 1 ? `${catalog.quantidade} unidades` : null,
     catalog.danoNaFicha ? `${catalog.danoNaFicha} ${catalog.tipoDano?.toLowerCase() ?? ''}`.trim() : null,
     catalog.regraDeClasseArmadura ? `CA ${catalog.regraDeClasseArmadura}` : null,
     formatWeight(catalog.pesoKg),
@@ -31,7 +33,8 @@ function suggestionMeta(catalog: CatalogEquipment): string {
 
 export default function EquipmentNameField({
   id,
-  type,
+  category,
+  emptyMessage,
   value,
   maxLength,
   placeholder,
@@ -48,7 +51,6 @@ export default function EquipmentNameField({
   const term = query?.trim() ?? '';
   const open = query !== null && term.length >= MIN_SEARCH_LENGTH;
   const listId = `${id}-suggestions`;
-  const noun = type === 'ARMA' ? 'arma' : 'armadura';
 
   useEffect(() => {
     if (term.length < MIN_SEARCH_LENGTH) {
@@ -61,7 +63,7 @@ export default function EquipmentNameField({
     setError(null);
     const timer = window.setTimeout(() => {
       equipmentCatalogService
-        .search(term, { category: type, signal: controller.signal })
+        .search(term, { category, signal: controller.signal })
         .then((found) => {
           setResults(found);
           setActive(-1);
@@ -77,7 +79,7 @@ export default function EquipmentNameField({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [term, type]);
+  }, [term, category]);
 
   const choose = (catalog: CatalogEquipment) => {
     onChoose(catalog);
@@ -129,9 +131,7 @@ export default function EquipmentNameField({
           {status === 'loading' && <li className="spell-suggestion-state">Buscando no catálogo…</li>}
           {status === 'error' && <li className="spell-suggestion-state spell-suggestion-error">{error}</li>}
           {status === 'ready' && results.length === 0 && (
-            <li className="spell-suggestion-state">
-              Nenhuma {noun} do catálogo com esse nome. Você pode cadastrar uma personalizada.
-            </li>
+            <li className="spell-suggestion-state">{emptyMessage}</li>
           )}
           {status === 'ready' &&
             results.map((catalog, index) => (
