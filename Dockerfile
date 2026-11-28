@@ -12,7 +12,7 @@ COPY backend/src ./src
 RUN mvn clean package -DskipTests -B
 
 # Stage 2: Runtime do backend
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17.0.21.1_2-jre-alpine
 
 WORKDIR /app
 
