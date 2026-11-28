@@ -47,7 +47,7 @@ public class DesafioService {
 
     public DesafioDto criar(MesaAtiva mesa, AcessoMesaDto criador, NovoDesafio pedido) {
         if (criador == null) {
-            throw new AccessDeniedException("Apenas o mestre pode administrar desafios.");
+            throw new AccessDeniedException("Apenas o mestre pode administrar testes.");
         }
         boolean ehMestre = "MESTRE".equals(criador.role());
         CombateDto combate = ehMestre ? null : mesa.combate().estadoDoJogador(criador.userId()).orElse(null);
@@ -57,7 +57,7 @@ public class DesafioService {
         }
         exigirMesaEmAndamento(mesa);
         if (pedido == null) {
-            throw new IllegalArgumentException("Pedido de desafio ausente.");
+            throw new IllegalArgumentException("Pedido de teste ausente.");
         }
         int cd = validarCd(pedido.cd());
         String descricao = validarDescricao(pedido.descricao());
@@ -84,7 +84,7 @@ public class DesafioService {
         Long jogadorId = jogador.userId();
         String alvoId = Desafio.idDoJogador(jogadorId);
         DesafioDto ativo = mesa.desafios().ativoDoJogador(jogadorId)
-                .orElseThrow(() -> new IllegalStateException("Você não tem um desafio em andamento."));
+                .orElseThrow(() -> new IllegalStateException("Você não tem um teste em andamento."));
 
         FichaDeParticipante ficha = mesaService.buscarFichaDoJogadorNaMesa(mesa.getMesaId(), jogadorId);
         int modificador = escolha.modificadorEm(ficha);
@@ -109,7 +109,7 @@ public class DesafioService {
 
         return mesa.desafios().alterar(desafioId, mestre.userId(), desafio -> {
             if (!desafio.envolve(mestre.userId())) {
-                throw new IllegalArgumentException("Desafio não encontrado.");
+                throw new IllegalArgumentException("Teste não encontrado.");
             }
             List<Desafio.Participacao> monstros = monstrosParaRolar(desafio, mestre, alvoIds);
             for (Desafio.Participacao monstro : monstros) {
@@ -148,7 +148,7 @@ public class DesafioService {
                     ? desafio.cancelarTodos()
                     : desafio.cancelar(alvoIdOuTodos);
             if (!cancelou) {
-                throw new IllegalStateException("Não há desafio em andamento para cancelar.");
+                throw new IllegalStateException("Não há teste em andamento para cancelar.");
             }
         });
     }
@@ -181,7 +181,7 @@ public class DesafioService {
         Integer facesDoDado = facesDaAjuda(tipo, faces);
         return mesa.desafios().alterar(desafioId, autor.userId(), desafio -> {
             desafio.validarAjuda(alvoId, autor.userId(), tipo);
-            if (!"MESTRE".equals(autor.role())) {
+            if (!"MESTRE".equals(autor.role()) && !desafio.ehOProprioTeste(alvoId, autor.userId())) {
                 mesa.combate().usarReacaoParaAjudar(autor.userId());
             }
             Integer valor = facesDoDado == null ? null
@@ -276,7 +276,7 @@ public class DesafioService {
     private void recusarDesafioASiMesmo(AcessoMesaDto criador, List<NovoDesafio.Convocacao> convocacoes) {
         String proprioId = Desafio.idDoJogador(criador.userId());
         if (convocacoes.stream().anyMatch(convocacao -> proprioId.equals(convocacao.alvo()))) {
-            throw new IllegalArgumentException("Você não pode desafiar a si mesmo.");
+            throw new IllegalArgumentException("Você não pode pedir um teste para si mesmo.");
         }
     }
 
@@ -304,7 +304,7 @@ public class DesafioService {
             throw new IllegalStateException("O combate só começa depois que todos rolarem a iniciativa.");
         }
         if (!jogador.userId().equals(combate.controladorDoTurno())) {
-            throw new AccessDeniedException("Só é possível desafiar no seu turno.");
+            throw new AccessDeniedException("Só é possível pedir um teste no seu turno.");
         }
     }
 
@@ -317,7 +317,7 @@ public class DesafioService {
                 : alvoIds.stream().map(desafio::participacao).toList();
 
         if (escolhidos.isEmpty()) {
-            throw new IllegalStateException("Nenhum monstro aguarda rolagem neste desafio.");
+            throw new IllegalStateException("Nenhum monstro aguarda rolagem neste teste.");
         }
         for (Desafio.Participacao participacao : escolhidos) {
             if (participacao.getTipo() != Desafio.TipoAlvo.MONSTRO
@@ -363,30 +363,30 @@ public class DesafioService {
         try {
             return Long.valueOf(alvoId);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Jogador do desafio inválido.");
+            throw new IllegalArgumentException("Jogador do teste inválido.");
         }
     }
 
     private void exigirMestre(AcessoMesaDto acesso) {
         if (acesso == null || !"MESTRE".equals(acesso.role())) {
-            throw new AccessDeniedException("Apenas o mestre pode administrar desafios.");
+            throw new AccessDeniedException("Apenas o mestre pode administrar testes.");
         }
     }
 
     private void exigirCriadorDoDesafio(Desafio desafio, AcessoMesaDto acesso) {
         if (acesso == null) {
-            throw new AccessDeniedException("Apenas quem criou o desafio pode alterá-lo.");
+            throw new AccessDeniedException("Apenas quem criou o teste pode alterá-lo.");
         }
         if (!desafio.getCriadorId().equals(acesso.userId())) {
             throw new AccessDeniedException(desafio.isDoMestre()
-                    ? "Apenas o mestre pode administrar desafios."
-                    : "Apenas quem criou o desafio pode alterá-lo.");
+                    ? "Apenas o mestre pode administrar testes."
+                    : "Apenas quem criou o teste pode alterá-lo.");
         }
     }
 
     private void exigirMesaEmAndamento(MesaAtiva mesa) {
         if (mesa.pausada()) {
-            throw new IllegalStateException("A mesa está pausada. Os desafios ficam congelados até a mesa voltar.");
+            throw new IllegalStateException("A mesa está pausada. Os testes ficam congelados até a mesa voltar.");
         }
     }
 
@@ -403,7 +403,7 @@ public class DesafioService {
         }
         String limpa = descricao.trim();
         if (limpa.length() > LIMITE_DESCRICAO) {
-            throw new IllegalArgumentException("A descrição do desafio pode ter no máximo " + LIMITE_DESCRICAO + " caracteres.");
+            throw new IllegalArgumentException("A descrição do teste pode ter no máximo " + LIMITE_DESCRICAO + " caracteres.");
         }
         return limpa;
     }
@@ -421,15 +421,15 @@ public class DesafioService {
 
     private List<NovoDesafio.Convocacao> validarConvocacoes(List<NovoDesafio.Convocacao> convocacoes) {
         if (convocacoes == null || convocacoes.isEmpty()) {
-            throw new IllegalArgumentException("Selecione ao menos um jogador para o desafio.");
+            throw new IllegalArgumentException("Selecione ao menos um jogador para o teste.");
         }
         Set<String> vistos = new HashSet<>();
         for (NovoDesafio.Convocacao convocacao : convocacoes) {
             if (convocacao == null || convocacao.alvo() == null) {
-                throw new IllegalArgumentException("Jogador do desafio não informado.");
+                throw new IllegalArgumentException("Jogador do teste não informado.");
             }
             if (!vistos.add(convocacao.alvo())) {
-                throw new IllegalArgumentException("Cada jogador só pode aparecer uma vez no desafio.");
+                throw new IllegalArgumentException("Cada jogador só pode aparecer uma vez no teste.");
             }
         }
         return convocacoes;

@@ -37,6 +37,7 @@ class PersonagemIT extends IntegracaoTest {
         editada.put("proficienciasArmas", List.of("Machados"));
         editada.put("antecedente", "Artesão de guilda");
         editada.put("ideais", "Comunidade");
+        editada.put("skills", Map.of("percepcao", 2));
         editada.put("deslocamentosAdicionais", List.of(
                 Map.of("tipo", "VOO", "metros", 18, "origem", "Asas", "temporario", false)));
         putComo(dono.token(), "/api/characters/" + id, editada)

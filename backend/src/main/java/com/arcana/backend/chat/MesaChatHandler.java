@@ -378,12 +378,12 @@ public class MesaChatHandler extends TextWebSocketHandler {
         if (message.getType() == ChatMessage.Type.ROLAGEM) {
             if (desafioChat.jogadorBloqueado(mesa, acesso.userId())) {
                 enviarParaSessao(session, systemMessage(tableId,
-                        "Você tem um desafio em andamento. A única rolagem permitida é a do desafio."));
+                        "Você tem um teste em andamento. A única rolagem permitida é a do teste."));
                 return;
             }
             if (!combateChat.podeRolarLivremente(mesa, acesso.userId())) {
                 enviarParaSessao(session, systemMessage(tableId,
-                        "Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado."));
+                        "Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for chamado para um teste."));
                 return;
             }
             combateChat.rotuloDaReacaoAberta(mesa, acesso.userId()).ifPresent(message::setReacao);
@@ -435,7 +435,7 @@ public class MesaChatHandler extends TextWebSocketHandler {
             enviarParaSessao(session, systemMessage(tableId, e.getMessage()));
         } catch (RuntimeException e) {
             log.error("Falha inesperada no desafio da mesa {}", acesso.mesaId(), e);
-            enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação do desafio. Tente novamente."));
+            enviarParaSessao(session, systemMessage(tableId, "Não foi possível concluir a ação do teste. Tente novamente."));
         }
     }
 

@@ -553,11 +553,7 @@ export function parseDamageDice(dano: string | null | undefined): { quantidade: 
 }
 
 export function passivePerception(character: Character): number {
-  return (
-    PASSIVE_PERCEPTION_BASE +
-    attributeModifier(character.attributes.sabedoria) +
-    (character.proficiencyBonus ?? DEFAULT_PROFICIENCY_BONUS)
-  );
+  return PASSIVE_PERCEPTION_BASE + skillRollModifier(character, 'percepcao');
 }
 
 export function attributeRollModifier(character: Character, attribute: keyof Attributes): number {

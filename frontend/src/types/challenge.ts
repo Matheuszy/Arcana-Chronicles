@@ -62,8 +62,12 @@ export interface ChallengeHelp {
   valor: number | null;
 }
 
+export function isBeneficialKind(kind: HelpKind): boolean {
+  return BENEFICIAL_HELPS.includes(kind);
+}
+
 export function isBeneficialHelp(help: ChallengeHelp): boolean {
-  return BENEFICIAL_HELPS.includes(help.tipo);
+  return isBeneficialKind(help.tipo);
 }
 
 export function helpEffect(help: ChallengeHelp): number {

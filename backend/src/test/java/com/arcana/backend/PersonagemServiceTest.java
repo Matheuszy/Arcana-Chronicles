@@ -274,20 +274,57 @@ class PersonagemServiceTest {
     }
 
     @Test
-    void deveCalcularPercepcaoPassivaComModificadorDeSabedoriaEBonusDeProficiencia() {
+    void deveCalcularPercepcaoPassivaSemProficienciaUsandoApenasModificadorDeSabedoria() {
         Personagem personagem = personagemDeAlice();
         personagem.setAttributes(new Atributos(10, 10, 10, 10, 15, 10));
         personagem.setBonusProficiencia(3);
+        personagem.getSkills().clear();
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        assertEquals(12, service.buscarPorId(10L, 1L).percepcaoPassiva());
+    }
+
+    @Test
+    void deveCalcularPercepcaoPassivaSomandoProficienciaEmPercepcao() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setAttributes(new Atributos(10, 10, 10, 10, 15, 10));
+        personagem.setBonusProficiencia(3);
+        personagem.getSkills().clear();
+        personagem.getSkills().put("percepcao", 3);
         when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
 
         assertEquals(15, service.buscarPorId(10L, 1L).percepcaoPassiva());
     }
 
     @Test
+    void deveCalcularPercepcaoPassivaSomandoProficienciaDobradaComEspecializacaoEmPercepcao() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setAttributes(new Atributos(10, 10, 10, 10, 15, 10));
+        personagem.setBonusProficiencia(3);
+        personagem.getSkills().clear();
+        personagem.getSkills().put("percepcao", 6);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        assertEquals(18, service.buscarPorId(10L, 1L).percepcaoPassiva());
+    }
+
+    @Test
+    void deveCalcularPercepcaoPassivaIgnorandoProficienciaEmOutrasPericias() {
+        Personagem personagem = personagemDeAlice();
+        personagem.setAttributes(new Atributos(10, 10, 10, 10, 15, 10));
+        personagem.getSkills().clear();
+        personagem.getSkills().put("intuicao", 2);
+        when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
+
+        assertEquals(12, service.buscarPorId(10L, 1L).percepcaoPassiva());
+    }
+
+    @Test
     void deveCalcularPercepcaoPassivaComSabedoriaBaixaArredondandoParaBaixo() {
         Personagem personagem = personagemDeAlice();
         personagem.setAttributes(new Atributos(10, 10, 10, 10, 7, 10));
-        personagem.setBonusProficiencia(2);
+        personagem.getSkills().clear();
+        personagem.getSkills().put("percepcao", 2);
         when(personagemRepository.findById(10L)).thenReturn(Optional.of(personagem));
 
         assertEquals(10, service.buscarPorId(10L, 1L).percepcaoPassiva());

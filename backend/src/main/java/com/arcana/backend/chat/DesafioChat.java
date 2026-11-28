@@ -47,7 +47,7 @@ public class DesafioChat {
     public void executar(MesaAtiva mesa, AcessoMesaDto acesso, ChatMessage mensagem) {
         ComandoDesafio comando = mensagem.getComandoDesafio();
         if (comando == null) {
-            throw new IllegalArgumentException("Comando de desafio ausente.");
+            throw new IllegalArgumentException("Comando de teste ausente.");
         }
         if (mensagem.getType() == ChatMessage.Type.DESAFIO_FINALIZAR) {
             notificarFinalizado(mesa, desafioService.finalizar(mesa, acesso, comando.desafioId()));
@@ -76,7 +76,7 @@ public class DesafioChat {
             case DESAFIO_MENSAGEM -> desafioService.enviarMensagem(
                     mesa, acesso, comando.desafioId(), comando.destino(), comando.alvo(), comando.texto())
                     .desafio().id();
-            default -> throw new IllegalArgumentException("Comando de desafio desconhecido.");
+            default -> throw new IllegalArgumentException("Comando de teste desconhecido.");
         };
 
         notificar(mesa, desafioId);

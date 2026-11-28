@@ -149,9 +149,9 @@ function PlayerRow({
           className="btn btn-ghost challenge-cancel"
           onClick={async () => {
             const confirmed = await confirm({
-              title: 'Cancelar desafio?',
-              message: `Cancelar o desafio de ${player.nomePersonagem}?`,
-              confirmLabel: 'Cancelar desafio',
+              title: 'Cancelar teste?',
+              message: `Cancelar o teste de ${player.nomePersonagem}?`,
+              confirmLabel: 'Cancelar teste',
               cancelLabel: 'Voltar',
               danger: true,
             });
@@ -311,7 +311,7 @@ export default function ChallengeMasterPanel({
 
   const ordered = challenges.filter((c) => String(c.criadorId) === viewerId);
   const ownOpen = ordered.length > 0;
-  const hint = createHint ?? (ownOpen ? 'Finalize o desafio atual para lançar o próximo.' : undefined);
+  const hint = createHint ?? (ownOpen ? 'Finalize o teste atual para lançar o próximo.' : undefined);
 
   return (
     <div className="challenge-panel">
@@ -320,7 +320,7 @@ export default function ChallengeMasterPanel({
       {!formOpen && hint && <p className="muted">{hint}</p>}
       {!formOpen && !hint ? (
         <button className="btn btn-primary challenge-new" onClick={() => setFormOpen(true)}>
-          Novo desafio
+          Novo teste
         </button>
       ) : null}
 
@@ -353,12 +353,12 @@ export default function ChallengeMasterPanel({
             </div>
           </div>
 
-          <p className="muted">Alvos do desafio e a rolagem de cada um:</p>
+          <p className="muted">Alvos do teste e a rolagem de cada um:</p>
           {targets.length === 0 && <p className="muted">Nenhum alvo disponível.</p>}
           <ul className="challenge-pick-list">
             {targets.map((target) => {
               const busy = busyTargetIds.has(target.id);
-              const reason = busy ? 'em desafio' : target.disabledReason;
+              const reason = busy ? 'em teste' : target.disabledReason;
               const blocked = Boolean(reason);
               const current = selection[target.id];
               return (
@@ -397,7 +397,7 @@ export default function ChallengeMasterPanel({
               Cancelar
             </button>
             <button className="btn btn-primary" disabled={!canSend} onClick={create}>
-              Enviar desafio
+              Enviar teste
             </button>
           </div>
         </div>
@@ -409,7 +409,7 @@ export default function ChallengeMasterPanel({
           return (
           <li key={challenge.id} className={`challenge-card ${challenge.ativo ? 'challenge-card--ativo' : ''}`}>
             <div className="challenge-card-head">
-              <strong>{challenge.descricao ?? 'Desafio'}</strong>
+              <strong>{challenge.descricao ?? 'Teste'}</strong>
               <span className="challenge-card-dc">CD {challenge.cd}</span>
             </div>
             <ul className="challenge-players">
@@ -449,7 +449,7 @@ export default function ChallengeMasterPanel({
                 onClick={async () => {
                   if (challenge.ativo) {
                     const confirmed = await confirm({
-                      title: 'Finalizar desafio?',
+                      title: 'Finalizar teste?',
                       message: 'Quem ainda não rolou terá o teste cancelado.',
                       confirmLabel: 'Finalizar',
                       cancelLabel: 'Voltar',

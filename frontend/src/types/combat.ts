@@ -105,7 +105,7 @@ export const MAX_COMBAT_NAME_LENGTH = 60;
 export const HIDDEN_TURN_LABEL = 'Turno do mestre';
 
 export const BLOCKED_ROLL_DURING_COMBAT =
-  'Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.';
+  'Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for chamado para um teste.';
 
 export function isMyTurn(combat: Combat | null, viewerId: string | null): boolean {
   return (
