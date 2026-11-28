@@ -16,11 +16,13 @@ import AbilityListEditor from './AbilityListEditor';
 import AdditionalMovementsEditor from './AdditionalMovementsEditor';
 import EquipmentPackPicker from './EquipmentPackPicker';
 import SpellEditor from './SpellEditor';
+import EquipmentNameField from './EquipmentNameField';
 import HitPointRolls from '../../components/sheet/HitPointRolls';
 import CoinRolls from '../../components/sheet/CoinRolls';
 import SheetRollHistory from '../../components/sheet/SheetRollHistory';
 import SpellDetails from '../../components/sheet/SpellDetails';
 import { spellCatalogService } from '../../services/spellCatalogService';
+import { equipmentCatalogService } from '../../services/equipmentCatalogService';
 import {
   attributeModifier,
   attributeRollModifier,
@@ -50,8 +52,12 @@ import {
   DEFAULT_PROFICIENCY_BONUS,
   EMPTY_ATTRIBUTES,
   EMPTY_SPELL_SLOTS,
+  CatalogEquipment,
   Equipment,
   equipmentDetails,
+  equipmentFromCatalog,
+  MAX_EQUIPMENT_DAMAGE_TYPE_LENGTH,
+  MAX_EQUIPMENT_WEIGHT_KG,
   EQUIPMENT_TYPE_LABEL,
   EquipmentType,
   formatModifier,
@@ -112,6 +118,10 @@ const NEW_EQUIPMENT: Equipment = {
   atributo: null,
   classeArmadura: null,
   propriedades: '',
+  tipoDano: '',
+  pesoKg: null,
+  catalogKey: null,
+  editada: false,
 };
 
 const EMPTY_CHARACTER: Character = {
@@ -235,6 +245,8 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
   const [restoringSpell, setRestoringSpell] = useState<number | null>(null);
   const [spellError, setSpellError] = useState<string | null>(null);
   const [newEquipment, setNewEquipment] = useState<Equipment>({ ...NEW_EQUIPMENT });
+  const [restoringEquipment, setRestoringEquipment] = useState<number | null>(null);
+  const [equipmentError, setEquipmentError] = useState<string | null>(null);
   const [myTables, setMyTables] = useState<GameTable[]>([]);
   const [linkedTableIds, setLinkedTableIds] = useState<string[]>([]);
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
@@ -451,11 +463,24 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
   const newEquipmentDamage = (newEquipment.dano ?? '').trim().toLowerCase();
   const newEquipmentDamageInvalid =
     newEquipmentIsWeapon && newEquipmentDamage !== '' && !DAMAGE_DICE_PATTERN.test(newEquipmentDamage);
+  const newEquipmentWeight = newEquipment.pesoKg ?? null;
+  const newEquipmentWeightInvalid =
+    newEquipmentWeight !== null &&
+    (!Number.isFinite(newEquipmentWeight) || newEquipmentWeight < 0 || newEquipmentWeight > MAX_EQUIPMENT_WEIGHT_KG);
   const canAddEquipment =
-    newEquipment.nome.trim().length > 0 && !newEquipmentDamageInvalid && equipamentos.length < MAX_EQUIPMENT;
+    newEquipment.nome.trim().length > 0 &&
+    !newEquipmentDamageInvalid &&
+    !newEquipmentWeightInvalid &&
+    equipamentos.length < MAX_EQUIPMENT;
 
   const changeNewEquipment = (changes: Partial<Equipment>) =>
-    setNewEquipment((current) => ({ ...current, ...changes }));
+    setNewEquipment((current) => ({ ...current, ...changes, editada: current.catalogKey ? true : false }));
+
+  const changeNewEquipmentType = (tipo: EquipmentType) =>
+    setNewEquipment((current) => ({ ...current, tipo, catalogKey: null, editada: false }));
+
+  const chooseCatalogEquipment = (catalog: CatalogEquipment) =>
+    setNewEquipment(equipmentFromCatalog(catalog, form.attributes));
 
   const addEquipment = () => {
     if (!canAddEquipment) return;
@@ -466,9 +491,28 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
       atributo: newEquipmentIsWeapon ? newEquipment.atributo ?? null : null,
       classeArmadura: newEquipmentIsWeapon ? null : newEquipment.classeArmadura ?? null,
       propriedades: newEquipment.propriedades?.trim() || null,
+      tipoDano: newEquipmentIsWeapon ? newEquipment.tipoDano?.trim() || null : null,
+      pesoKg: newEquipmentWeight,
+      catalogKey: newEquipment.catalogKey ?? null,
+      editada: Boolean(newEquipment.catalogKey && newEquipment.editada),
     };
     setField('equipamentos', [...equipamentos, entry]);
     setNewEquipment({ ...NEW_EQUIPMENT, tipo: newEquipment.tipo });
+  };
+
+  const restoreEquipment = async (index: number) => {
+    const current = equipamentos[index];
+    if (!current?.catalogKey) return;
+    setRestoringEquipment(index);
+    setEquipmentError(null);
+    try {
+      const restored = equipmentFromCatalog(await equipmentCatalogService.detail(current.catalogKey), form.attributes, current);
+      setField('equipamentos', equipamentos.map((equipment, i) => (i === index ? restored : equipment)));
+    } catch (e: unknown) {
+      setEquipmentError(e instanceof Error ? e.message : 'Não foi possível restaurar o equipamento original.');
+    } finally {
+      setRestoringEquipment(null);
+    }
   };
 
   const removeEquipment = (index: number) =>
@@ -1233,8 +1277,23 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
                     {EQUIPMENT_TYPE_LABEL[equipment.tipo]}
                   </span>
                   <strong>{equipment.nome}</strong>
+                  {equipment.catalogKey && (
+                    <span className={`spell-origin ${equipment.editada ? 'spell-origin--edited' : ''}`}>
+                      {equipment.editada ? 'Editada' : 'SRD 5.1'}
+                    </span>
+                  )}
                   {details.length > 0 && <span className="equipment-details">{details.join(' · ')}</span>}
                 </span>
+                {equipment.catalogKey && equipment.editada && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost spell-action"
+                    onClick={() => void restoreEquipment(i)}
+                    disabled={restoringEquipment === i}
+                  >
+                    {restoringEquipment === i ? 'Restaurando…' : 'Restaurar original'}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-remove"
@@ -1250,6 +1309,7 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
       ) : (
         <p className="muted-hint">Nenhuma arma ou armadura na ficha.</p>
       )}
+      {equipmentError && <p className="text-list-warning">{equipmentError}</p>}
 
       <div className="add-spell card-inner add-equipment">
         <h4>
@@ -1263,25 +1323,28 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
               role="radio"
               aria-checked={newEquipment.tipo === type}
               className={`btn btn-ghost choice-toggle-option ${newEquipment.tipo === type ? 'choice-toggle-option--active' : ''}`}
-              onClick={() => changeNewEquipment({ tipo: type })}
+              onClick={() => changeNewEquipmentType(type)}
             >
               {EQUIPMENT_TYPE_LABEL[type]}
             </button>
           ))}
         </div>
-        <div className="field">
-          <label htmlFor="equipment-name">Nome</label>
-          <input
-            id="equipment-name"
-            type="text"
-            maxLength={MAX_EQUIPMENT_NAME_LENGTH}
-            value={newEquipment.nome}
-            onChange={(e) => changeNewEquipment({ nome: e.target.value })}
-            onKeyDown={addEquipmentOnEnter}
-            placeholder={newEquipmentIsWeapon ? 'ex: Espada longa' : 'ex: Cota de malha'}
-            disabled={equipamentos.length >= MAX_EQUIPMENT}
-          />
-        </div>
+        <EquipmentNameField
+          id="equipment-name"
+          type={newEquipment.tipo}
+          value={newEquipment.nome}
+          maxLength={MAX_EQUIPMENT_NAME_LENGTH}
+          placeholder={newEquipmentIsWeapon ? 'ex: Espada longa' : 'ex: Cota de malha'}
+          disabled={equipamentos.length >= MAX_EQUIPMENT}
+          onChange={(nome) => changeNewEquipment({ nome })}
+          onChoose={chooseCatalogEquipment}
+          onSubmit={addEquipment}
+        />
+        {newEquipment.catalogKey && (
+          <p className="muted-hint">
+            Preenchido pelo SRD 5.1.{newEquipment.editada ? ' Você alterou algum campo, então vai aparecer como editada.' : ''}
+          </p>
+        )}
         {newEquipmentIsWeapon ? (
           <div className="row">
             <div className="field">
@@ -1298,10 +1361,24 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
                 placeholder="ex: 1d8"
               />
             </div>
+            <div className="field">
+              <label htmlFor="equipment-damage-type">Tipo de dano</label>
+              <input
+                id="equipment-damage-type"
+                type="text"
+                maxLength={MAX_EQUIPMENT_DAMAGE_TYPE_LENGTH}
+                value={newEquipment.tipoDano ?? ''}
+                onChange={(e) => changeNewEquipment({ tipoDano: e.target.value })}
+                onKeyDown={addEquipmentOnEnter}
+                placeholder="ex: Cortante"
+              />
+            </div>
             <Select
               label="Atributo base"
               value={newEquipment.atributo ?? ''}
-              onChange={(atributo) => changeNewEquipment({ atributo: atributo === '' ? null : atributo })}
+              onChange={(atributo) =>
+                setNewEquipment((current) => ({ ...current, atributo: atributo === '' ? null : atributo }))
+              }
               options={[
                 { value: '', label: 'Nenhum' },
                 ...ATTRIBUTE_KEYS.map((key) => ({ value: key, label: ATTRIBUTE_LABEL[key] })),
@@ -1334,6 +1411,27 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
             placeholder={newEquipmentIsWeapon ? 'ex: Versátil, acuidade' : 'ex: Pesada, desvantagem em Furtividade'}
           />
         </div>
+        <div className="field">
+          <label htmlFor="equipment-weight">Peso (kg)</label>
+          <NumberInput
+            id="equipment-weight"
+            min={0}
+            max={MAX_EQUIPMENT_WEIGHT_KG}
+            step={0.5}
+            inputMode="decimal"
+            value={newEquipment.pesoKg ?? undefined}
+            onChange={(pesoKg) => changeNewEquipment({ pesoKg })}
+            onClear={() => changeNewEquipment({ pesoKg: null })}
+            onKeyDown={addEquipmentOnEnter}
+            aria-invalid={newEquipmentWeightInvalid}
+            aria-describedby={newEquipmentWeightInvalid ? 'equipment-weight-error' : undefined}
+          />
+        </div>
+        {newEquipmentWeightInvalid && (
+          <p id="equipment-weight-error" className="form-error">
+            O peso deve ficar entre 0 e {MAX_EQUIPMENT_WEIGHT_KG} kg.
+          </p>
+        )}
         {newEquipmentDamageInvalid && (
           <p id="equipment-damage-error" className="form-error">
             Use um dado como 1d8 ou 2d6.

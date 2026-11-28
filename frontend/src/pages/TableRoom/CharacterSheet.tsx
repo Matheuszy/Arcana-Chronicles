@@ -25,6 +25,7 @@ import {
   attributeRollModifier,
   formatClasses,
   formatModifier,
+  formatWeight,
   passivePerception,
   remainingSpellSlots,
   skillRollModifier,
@@ -276,6 +277,7 @@ export default function CharacterSheet({
                         <div className="paper-equipment-head">
                           <strong>{armor.nome}</strong>
                           {armor.classeArmadura != null && <span className="paper-tag">CA {armor.classeArmadura}</span>}
+                          {armor.pesoKg != null && <span className="paper-tag">{formatWeight(armor.pesoKg)}</span>}
                         </div>
                         {armor.propriedades && <p className="paper-equipment-props">{armor.propriedades}</p>}
                       </li>

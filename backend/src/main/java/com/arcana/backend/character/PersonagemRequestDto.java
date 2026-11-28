@@ -6,6 +6,7 @@ import com.arcana.backend.character.model.TipoJogador;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -229,8 +230,23 @@ public record PersonagemRequestDto(
             Integer classeArmadura,
 
             @Size(max = 200, message = "As propriedades não podem ter mais de 200 caracteres")
-            String propriedades
-    ) {}
+            String propriedades,
+
+            @Size(max = 20, message = "O tipo de dano não pode ter mais de 20 caracteres")
+            String tipoDano,
+
+            @DecimalMin(value = "0", message = "O peso não pode ser negativo")
+            @Digits(integer = 4, fraction = 3, message = "O peso deve ter no máximo 4 dígitos inteiros e 3 decimais")
+            BigDecimal pesoKg,
+
+            @Size(max = 60, message = "A chave do catálogo não pode ter mais de 60 caracteres")
+            String catalogKey
+    ) {
+        public EquipamentoDto(TipoEquipamento tipo, String nome, String dano, String atributo,
+                              Integer classeArmadura, String propriedades) {
+            this(tipo, nome, dano, atributo, classeArmadura, propriedades, null, null, null);
+        }
+    }
 
     public record DeslocamentoAdicionalDto(
             @NotNull(message = "Escolha o tipo do deslocamento adicional")

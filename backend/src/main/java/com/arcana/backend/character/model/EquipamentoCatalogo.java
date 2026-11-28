@@ -11,6 +11,9 @@ import lombok.Getter;
 import org.hibernate.annotations.Immutable;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 
 @Entity
 @Immutable
@@ -18,6 +21,9 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Table(name = "catalogo_equipamentos")
 public class EquipamentoCatalogo {
+
+    private static final Pattern DADO_DE_DANO = Pattern.compile("([1-9]|1[0-9]|20)d(4|6|8|10|12|20|100)");
+    private static final String ESCUDO = "Escudo";
 
     @Id
     @Column(length = 60)
@@ -73,4 +79,59 @@ public class EquipamentoCatalogo {
     private boolean desvantagemFurtividade;
 
     protected EquipamentoCatalogo() {}
+
+    public TipoEquipamento tipoNaFicha() {
+        return switch (categoria) {
+            case ARMA -> TipoEquipamento.ARMA;
+            case ARMADURA -> TipoEquipamento.ARMADURA;
+            default -> null;
+        };
+    }
+
+    public String danoNaFicha() {
+        return dano != null && DADO_DE_DANO.matcher(dano).matches() ? dano : null;
+    }
+
+    public String propriedadesNaFicha() {
+        List<String> partes = new ArrayList<>();
+        if (categoria == CategoriaEquipamento.ARMA) {
+            if (dano != null && danoNaFicha() == null) {
+                partes.add("dano fixo " + dano);
+            }
+            if (propriedades != null) {
+                partes.add(partes.isEmpty() ? propriedades
+                        : Character.toLowerCase(propriedades.charAt(0)) + propriedades.substring(1));
+            }
+        } else if (categoria == CategoriaEquipamento.ARMADURA) {
+            if (Boolean.TRUE.equals(somaDestreza)) {
+                partes.add(destrezaMaxima == null ? "+ Des" : "+ Des (máx. " + destrezaMaxima + ")");
+            }
+            if (forcaMinima != null) {
+                partes.add("Força " + forcaMinima);
+            }
+            if (desvantagemFurtividade) {
+                partes.add("desvantagem em Furtividade");
+            }
+        }
+        if (partes.isEmpty()) {
+            return null;
+        }
+        String texto = String.join(", ", partes);
+        return Character.toUpperCase(texto.charAt(0)) + texto.substring(1);
+    }
+
+    public String regraDeClasseArmadura() {
+        if (classeArmadura == null) {
+            return null;
+        }
+        if (ESCUDO.equals(subcategoria)) {
+            return "+" + classeArmadura;
+        }
+        if (!Boolean.TRUE.equals(somaDestreza)) {
+            return String.valueOf(classeArmadura);
+        }
+        return destrezaMaxima == null
+                ? classeArmadura + " + Des"
+                : classeArmadura + " + Des (máx. " + destrezaMaxima + ")";
+    }
 }

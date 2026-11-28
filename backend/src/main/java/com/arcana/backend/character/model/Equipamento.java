@@ -4,8 +4,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.util.Objects;
 
 @Embeddable
 @Getter
@@ -32,6 +37,16 @@ public class Equipamento {
     @Column(length = 200)
     private String propriedades;
 
+    @Column(name = "tipo_dano", length = 20)
+    private String tipoDano;
+
+    @Column(name = "peso_kg", precision = 7, scale = 3)
+    private BigDecimal pesoKg;
+
+    @ManyToOne
+    @JoinColumn(name = "catalogo_chave")
+    private EquipamentoCatalogo catalogo;
+
     public Equipamento() {}
 
     public Equipamento(TipoEquipamento tipo, String nome, String dano, Atributo atributo,
@@ -42,5 +57,19 @@ public class Equipamento {
         this.atributo = atributo;
         this.classeArmadura = classeArmadura;
         this.propriedades = propriedades;
+    }
+
+    public boolean editadaEmRelacaoAoCatalogo() {
+        if (catalogo == null) {
+            return false;
+        }
+        boolean arma = tipo == TipoEquipamento.ARMA;
+        return !(Objects.equals(nome, catalogo.getNome())
+                && tipo == catalogo.tipoNaFicha()
+                && Objects.equals(dano, arma ? catalogo.danoNaFicha() : null)
+                && Objects.equals(tipoDano, arma ? catalogo.getTipoDano() : null)
+                && Objects.equals(classeArmadura, arma ? null : catalogo.getClasseArmadura())
+                && Objects.equals(propriedades, catalogo.propriedadesNaFicha())
+                && pesoKg != null && pesoKg.compareTo(catalogo.getPesoKg()) == 0);
     }
 }

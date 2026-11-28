@@ -3,6 +3,7 @@ package com.arcana.backend;
 import com.arcana.backend.character.EquipamentoCatalogoDto;
 import com.arcana.backend.character.model.CategoriaEquipamento;
 import com.arcana.backend.character.model.EquipamentoCatalogo;
+import com.arcana.backend.character.model.TipoEquipamento;
 import com.arcana.backend.character.repository.EquipamentoCatalogoRepository;
 import com.arcana.backend.character.service.EquipamentoCatalogoService;
 import com.arcana.backend.config.exception.RecursoNaoEncontradoException;
@@ -160,6 +161,31 @@ class EquipamentoCatalogoServiceTest {
         assertEquals("13 + Des (máx. 2)", service.detalhar("armadura").regraDeClasseArmadura());
         assertEquals("16", service.detalhar("armadura").regraDeClasseArmadura());
         assertEquals("+2", service.detalhar("armadura").regraDeClasseArmadura());
+    }
+
+    @Test
+    void devePrepararOsCamposQueAFichaCopiaDeArmasEArmaduras() {
+        EquipamentoCatalogo zarabatana = new EquipamentoCatalogo("blowgun", "Zarabatana", "zarabatana", "SRD 5.1",
+                CategoriaEquipamento.ARMA, "Arma marcial à distância", 1, 1000, new BigDecimal("0.500"), "1",
+                "Perfurante", "Munição (7,5/30 m), recarga", null, null, null, null, false);
+        EquipamentoCatalogo cotaDeMalha = new EquipamentoCatalogo("chain-mail", "Cota de malha", "cota de malha",
+                "SRD 5.1", CategoriaEquipamento.ARMADURA, "Armadura pesada", 1, 7500, new BigDecimal("27.500"), null,
+                null, null, 16, false, null, 13, true);
+        when(repository.findById("blowgun")).thenReturn(Optional.of(zarabatana));
+        when(repository.findById("chain-mail")).thenReturn(Optional.of(cotaDeMalha));
+        when(repository.findById("longsword")).thenReturn(Optional.of(ESPADA_LONGA));
+        when(repository.findById("armadura")).thenReturn(Optional.of(armadura("Armadura média", 13, true, 2)));
+        when(repository.findById("item")).thenReturn(Optional.of(itemComPreco(5)));
+
+        EquipamentoCatalogoDto arma = service.detalhar("blowgun");
+        assertEquals(TipoEquipamento.ARMA, arma.tipoNaFicha());
+        assertNull(arma.danoNaFicha());
+        assertEquals("Dano fixo 1, munição (7,5/30 m), recarga", arma.propriedadesNaFicha());
+        assertEquals("1d8", service.detalhar("longsword").danoNaFicha());
+        assertEquals("Força 13, desvantagem em Furtividade", service.detalhar("chain-mail").propriedadesNaFicha());
+        assertEquals("+ Des (máx. 2), Força 13, desvantagem em Furtividade",
+                service.detalhar("armadura").propriedadesNaFicha());
+        assertNull(service.detalhar("item").tipoNaFicha());
     }
 
     @Test

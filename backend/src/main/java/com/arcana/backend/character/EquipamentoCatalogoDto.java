@@ -2,6 +2,7 @@ package com.arcana.backend.character;
 
 import com.arcana.backend.character.model.CategoriaEquipamento;
 import com.arcana.backend.character.model.EquipamentoCatalogo;
+import com.arcana.backend.character.model.TipoEquipamento;
 
 import java.math.BigDecimal;
 import java.util.Locale;
@@ -24,7 +25,10 @@ public record EquipamentoCatalogoDto(
         Integer destrezaMaxima,
         String regraDeClasseArmadura,
         Integer forcaMinima,
-        boolean desvantagemFurtividade
+        boolean desvantagemFurtividade,
+        TipoEquipamento tipoNaFicha,
+        String danoNaFicha,
+        String propriedadesNaFicha
 ) {
 
     private static final Locale PORTUGUES = Locale.forLanguageTag("pt-BR");
@@ -37,8 +41,9 @@ public record EquipamentoCatalogoDto(
                 equipamento.getQuantidade(), equipamento.getPrecoEmPc(), precoFormatado(equipamento.getPrecoEmPc()),
                 equipamento.getPesoKg().stripTrailingZeros(), equipamento.getDano(), equipamento.getTipoDano(),
                 equipamento.getPropriedades(), equipamento.getClasseArmadura(), equipamento.getSomaDestreza(),
-                equipamento.getDestrezaMaxima(), regraDeClasseArmadura(equipamento), equipamento.getForcaMinima(),
-                equipamento.isDesvantagemFurtividade());
+                equipamento.getDestrezaMaxima(), equipamento.regraDeClasseArmadura(), equipamento.getForcaMinima(),
+                equipamento.isDesvantagemFurtividade(), equipamento.tipoNaFicha(), equipamento.danoNaFicha(),
+                equipamento.propriedadesNaFicha());
     }
 
     static String precoFormatado(int precoEmPc) {
@@ -49,20 +54,5 @@ public record EquipamentoCatalogoDto(
             return String.format(PORTUGUES, "%,d pp", precoEmPc / PC_POR_PP);
         }
         return String.format(PORTUGUES, "%,d pc", precoEmPc);
-    }
-
-    static String regraDeClasseArmadura(EquipamentoCatalogo equipamento) {
-        Integer base = equipamento.getClasseArmadura();
-        if (base == null) {
-            return null;
-        }
-        if ("Escudo".equals(equipamento.getSubcategoria())) {
-            return "+" + base;
-        }
-        if (!Boolean.TRUE.equals(equipamento.getSomaDestreza())) {
-            return String.valueOf(base);
-        }
-        Integer maximo = equipamento.getDestrezaMaxima();
-        return maximo == null ? base + " + Des" : base + " + Des (máx. " + maximo + ")";
     }
 }

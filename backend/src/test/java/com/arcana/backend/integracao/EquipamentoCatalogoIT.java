@@ -2,6 +2,8 @@ package com.arcana.backend.integracao;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.everyItem;
@@ -98,6 +100,63 @@ class EquipamentoCatalogoIT extends IntegracaoTest {
                 .andExpect(jsonPath("$.regraDeClasseArmadura").value("14 + Des (máx. 2)"))
                 .andExpect(jsonPath("$.desvantagemFurtividade").value(false));
         getComo(jogador.token(), URL + "/shield").andExpect(jsonPath("$.regraDeClasseArmadura").value("+2"));
+    }
+
+    private Map<String, Object> espadaLongaDoCatalogo(String nome, double pesoKg) {
+        Map<String, Object> arma = new HashMap<>();
+        arma.put("tipo", "ARMA");
+        arma.put("nome", nome);
+        arma.put("dano", "1d8");
+        arma.put("atributo", "forca");
+        arma.put("propriedades", "Versátil (1d10)");
+        arma.put("tipoDano", "Cortante");
+        arma.put("pesoKg", pesoKg);
+        arma.put("catalogKey", "longsword");
+        return arma;
+    }
+
+    private Map<String, Object> abaDeEquipamento(List<Map<String, Object>> equipamentos) {
+        return Map.of("equipamentos", equipamentos, "items", List.of());
+    }
+
+    @Test
+    void deveCopiarArmaDoCatalogoParaAFichaComPesoEMarcarQuandoForEditada() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Long fichaId = criarPersonagem(dono, "PLAYER");
+        String url = "/api/characters/" + fichaId + "/ficha/equipamento";
+
+        putComo(dono.token(), url, abaDeEquipamento(List.of(
+                espadaLongaDoCatalogo("Espada longa", 1.5), espadaLongaDoCatalogo("Espada do avô", 1.5))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.equipamentos[0].catalogKey").value("longsword"))
+                .andExpect(jsonPath("$.equipamentos[0].tipoDano").value("Cortante"))
+                .andExpect(jsonPath("$.equipamentos[0].pesoKg").value(1.5))
+                .andExpect(jsonPath("$.equipamentos[0].editada").value(false))
+                .andExpect(jsonPath("$.equipamentos[1].editada").value(true));
+        getComo(dono.token(), url)
+                .andExpect(jsonPath("$.equipamentos[0].catalogKey").value("longsword"))
+                .andExpect(jsonPath("$.equipamentos[1].nome").value("Espada do avô"));
+        getComo(dono.token(), URL + "/longsword").andExpect(jsonPath("$.nome").value("Espada longa"));
+
+        putComo(registrar("JOGADOR").token(), url, abaDeEquipamento(List.of(espadaLongaDoCatalogo("Invasão", 1))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deveRecusarItemDoCatalogoQueNaoCombinaComOTipoDoEquipamento() throws Exception {
+        Conta dono = registrar("JOGADOR");
+        Long fichaId = criarPersonagem(dono, "PLAYER");
+        Map<String, Object> mochilaComoArma = new HashMap<>(espadaLongaDoCatalogo("Mochila", 2.5));
+        mochilaComoArma.put("catalogKey", "backpack");
+        Map<String, Object> chaveInexistente = new HashMap<>(espadaLongaDoCatalogo("Espada", 1.5));
+        chaveInexistente.put("catalogKey", "espada-inventada");
+        Map<String, Object> pesoNegativo = new HashMap<>(espadaLongaDoCatalogo("Espada longa", -1));
+
+        for (Map<String, Object> invalido : List.of(mochilaComoArma, chaveInexistente, pesoNegativo)) {
+            putComo(dono.token(), "/api/characters/" + fichaId + "/ficha/equipamento",
+                    abaDeEquipamento(List.of(invalido)))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test

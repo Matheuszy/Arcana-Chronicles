@@ -10,6 +10,7 @@ import com.arcana.backend.character.model.TipoJogador;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -91,7 +92,11 @@ public record PersonagemResponseDto(
             String dano,
             String atributo,
             Integer classeArmadura,
-            String propriedades
+            String propriedades,
+            String tipoDano,
+            BigDecimal pesoKg,
+            String catalogKey,
+            boolean editada
     ) {}
 
     public record AtributosDto(
@@ -233,7 +238,10 @@ public record PersonagemResponseDto(
         return p.getEquipamentos().stream()
                 .map(e -> new EquipamentoDto(e.getTipo(), e.getNome(), e.getDano(),
                         e.getAtributo() != null ? e.getAtributo().getChave() : null,
-                        e.getClasseArmadura(), e.getPropriedades()))
+                        e.getClasseArmadura(), e.getPropriedades(), e.getTipoDano(),
+                        e.getPesoKg() != null ? e.getPesoKg().stripTrailingZeros() : null,
+                        e.getCatalogo() != null ? e.getCatalogo().getChave() : null,
+                        e.editadaEmRelacaoAoCatalogo()))
                 .toList();
     }
 
