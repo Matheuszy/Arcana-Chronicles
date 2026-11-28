@@ -194,7 +194,7 @@ class PersonagemIT extends IntegracaoTest {
         ficha.put("proficiencyBonus", 3);
         ficha.put("savingThrows", Map.of("destreza", 3, "inteligencia", 3));
         ficha.put("skills", Map.of("furtividade", 6, "persuasao", 3));
-        ficha.put("items", List.of("Ferramentas de ladrão", "Corda de 15 m"));
+        ficha.put("items", List.of(Map.of("nome", "Ferramentas de ladrão"), Map.of("nome", "Corda de 15 m")));
 
         Long id = corpo(postComo(dono.token(), "/api/characters", ficha).andExpect(status().isCreated()))
                 .get("id").asLong();
@@ -213,7 +213,7 @@ class PersonagemIT extends IntegracaoTest {
                 .andExpect(jsonPath("$.savingThrows.forca").doesNotExist())
                 .andExpect(jsonPath("$.skills.furtividade").value(6))
                 .andExpect(jsonPath("$.skills.persuasao").value(3))
-                .andExpect(jsonPath("$.items", contains("Ferramentas de ladrão", "Corda de 15 m")));
+                .andExpect(jsonPath("$.items[*].nome", contains("Ferramentas de ladrão", "Corda de 15 m")));
     }
 
     @Test
@@ -328,11 +328,11 @@ class PersonagemIT extends IntegracaoTest {
         postComo(dono.token(), "/api/characters", comBonusForaDoLimite).andExpect(status().isBadRequest());
 
         Map<String, Object> comItemLongo = new HashMap<>(fichaDoTipo("PLAYER"));
-        comItemLongo.put("items", List.of("x".repeat(101)));
+        comItemLongo.put("items", List.of(Map.of("nome", "x".repeat(101))));
         postComo(dono.token(), "/api/characters", comItemLongo).andExpect(status().isBadRequest());
 
         Map<String, Object> comItensDemais = new HashMap<>(fichaDoTipo("PLAYER"));
-        comItensDemais.put("items", Collections.nCopies(51, "Tocha"));
+        comItensDemais.put("items", Collections.nCopies(51, Map.of("nome", "Tocha")));
         postComo(dono.token(), "/api/characters", comItensDemais).andExpect(status().isBadRequest());
     }
 }

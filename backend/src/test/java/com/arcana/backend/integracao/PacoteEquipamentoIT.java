@@ -26,7 +26,19 @@ class PacoteEquipamentoIT extends IntegracaoTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(7)))
                 .andExpect(jsonPath("$[0].nome").value("Assaltante"))
-                .andExpect(jsonPath("$[4].itens", hasItem("Tocha (10)")));
+                .andExpect(jsonPath("$[4].itens[4].nome").value("Tocha"))
+                .andExpect(jsonPath("$[4].itens[4].quantidade").value(10))
+                .andExpect(jsonPath("$[4].itens[4].catalogKey").value("torch"))
+                .andExpect(jsonPath("$[4].itens[4].pesoKg").value(0.5))
+                .andExpect(jsonPath("$[0].itens[10].nome").value("Ração de viagem (1 dia)"))
+                .andExpect(jsonPath("$[0].itens[10].quantidade").value(5))
+                .andExpect(jsonPath("$[0].itens[10].catalogKey").value("rations-1-day"))
+                .andExpect(jsonPath("$[0].itens[1].nome").value("Rolamentos de esferas (saco com 1.000)"))
+                .andExpect(jsonPath("$[0].itens[1].quantidade").value(1))
+                .andExpect(jsonPath("$[5].itens[5].nome").value("Bloco de incenso"))
+                .andExpect(jsonPath("$[5].itens[5].quantidade").value(2))
+                .andExpect(jsonPath("$[5].itens[5].catalogKey").doesNotExist())
+                .andExpect(jsonPath("$[6].itens[1].pesoKg").doesNotExist());
     }
 
     @Test
@@ -37,7 +49,7 @@ class PacoteEquipamentoIT extends IntegracaoTest {
         putComo(dono.token(), urlDoPacote(fichaId), EXPLORADOR)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pacoteEquipamento").value("EXPLORADOR"))
-                .andExpect(jsonPath("$.items", hasItem("Saco de dormir")));
+                .andExpect(jsonPath("$.items[*].nome", hasItem("Saco de dormir")));
         putComo(dono.token(), urlDoPacote(fichaId), ESTUDIOSO)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pacoteEquipamento").value("ESTUDIOSO"))

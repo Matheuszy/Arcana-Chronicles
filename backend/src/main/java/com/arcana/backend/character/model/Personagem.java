@@ -144,8 +144,7 @@ public class Personagem {
     @ElementCollection
     @CollectionTable(name = "personagem_itens", joinColumns = @JoinColumn(name = "personagem_id"))
     @OrderColumn(name = "posicao")
-    @Column(name = "item")
-    private List<String> itens = new ArrayList<>();
+    private List<ItemDaFicha> itens = new ArrayList<>();
 
 
     @ElementCollection
@@ -178,8 +177,7 @@ public class Personagem {
     @ElementCollection
     @CollectionTable(name = "personagem_itens_do_pacote", joinColumns = @JoinColumn(name = "personagem_id"))
     @OrderColumn(name = "posicao")
-    @Column(name = "item", nullable = false, length = 100)
-    private List<String> itensDoPacote = new ArrayList<>();
+    private List<ItemDaFicha> itensDoPacote = new ArrayList<>();
 
     @ElementCollection
     @CollectionTable(name = "personagem_pericias", joinColumns = @JoinColumn(name = "personagem_id"))
@@ -243,9 +241,12 @@ public class Personagem {
         if (pacote.getChave().equals(pacoteEquipamento)) {
             throw new IllegalStateException("O pacote " + pacote.getNome() + " já está na ficha.");
         }
-        List<String> novosItens = new ArrayList<>(itens);
-        itensDoPacote.forEach(novosItens::remove);
-        novosItens.addAll(pacote.getItens());
+        List<ItemDaFicha> novosItens = new ArrayList<>(itens);
+        itensDoPacote.forEach(doPacote -> novosItens.stream()
+                .filter(item -> item.mesmoItemQue(doPacote))
+                .findFirst()
+                .ifPresent(novosItens::remove));
+        pacote.getItens().stream().map(ItemDaFicha::copia).forEach(novosItens::add);
         if (novosItens.size() > LIMITE_DE_ITENS) {
             throw new IllegalStateException("Com o pacote " + pacote.getNome() + " a ficha passaria de "
                     + LIMITE_DE_ITENS + " itens. Remova alguns itens antes.");
@@ -253,7 +254,7 @@ public class Personagem {
         itens.clear();
         itens.addAll(novosItens);
         itensDoPacote.clear();
-        itensDoPacote.addAll(pacote.getItens());
+        pacote.getItens().stream().map(ItemDaFicha::copia).forEach(itensDoPacote::add);
         pacoteEquipamento = pacote.getChave();
     }
 

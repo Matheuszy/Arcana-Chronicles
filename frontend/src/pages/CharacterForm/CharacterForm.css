@@ -296,6 +296,9 @@
 .equipment-type--arma { color: var(--ember-bright); }
 .equipment-type--armadura { color: var(--info-text); }
 .equipment-details { font-size: 0.8rem; color: var(--parchment-dim); }
+.sheet-item-row .equipment-summary { flex: 1; }
+.sheet-item-row .item-from-pack { margin-left: 0; }
+.sheet-item-quantity { width: 5.5rem; flex-shrink: 0; }
 
 .add-equipment { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.75rem; }
 .add-equipment .btn { align-self: flex-start; }

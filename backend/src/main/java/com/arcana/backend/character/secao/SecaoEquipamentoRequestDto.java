@@ -4,7 +4,6 @@ import com.arcana.backend.character.PersonagemRequestDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
@@ -14,8 +13,7 @@ public record SecaoEquipamentoRequestDto(
         List<PersonagemRequestDto.@Valid EquipamentoDto> equipamentos,
 
         @Size(max = 50, message = "A ficha pode ter no máximo 50 itens")
-        List<@NotBlank(message = "Item não pode ser vazio")
-             @Size(max = 100, message = "Item não pode ter mais de 100 caracteres") String> items,
+        List<PersonagemRequestDto.@Valid ItemDto> items,
 
         @Min(value = 0, message = "Moedas de cobre não podem ser negativas")
         @Max(value = 1000000, message = "Moedas de cobre não podem passar de 1.000.000")

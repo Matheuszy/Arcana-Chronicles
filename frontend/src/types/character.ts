@@ -248,6 +248,42 @@ export function formatWeight(kg: number): string {
   return `${kg.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg`;
 }
 
+export interface SheetItem {
+  nome: string;
+  quantidade: number;
+  pesoKg?: number | null;
+  catalogKey?: string | null;
+  editado?: boolean;
+}
+
+export const MAX_ITEM_QUANTITY = 9999;
+
+export function catalogWeightPerUnit(catalog: CatalogEquipment): number {
+  return Math.round((catalog.pesoKg / catalog.quantidade) * 10000) / 10000;
+}
+
+export function itemFromCatalog(catalog: CatalogEquipment, quantidade = catalog.quantidade): SheetItem {
+  return {
+    nome: catalog.nome,
+    quantidade,
+    pesoKg: catalogWeightPerUnit(catalog),
+    catalogKey: catalog.chave,
+    editado: false,
+  };
+}
+
+export function itemTotalWeight(item: SheetItem): number | null {
+  return item.pesoKg == null ? null : Math.round(item.pesoKg * item.quantidade * 1000) / 1000;
+}
+
+export function itemLabel(item: SheetItem): string {
+  return item.quantidade > 1 ? `${item.nome} ×${item.quantidade}` : item.nome;
+}
+
+export function sameItem(a: SheetItem, b: SheetItem): boolean {
+  return a.nome === b.nome && a.quantidade === b.quantidade;
+}
+
 export const EQUIPMENT_TYPE_LABEL: Record<EquipmentType, string> = {
   ARMA: 'Arma',
   ARMADURA: 'Armadura',
@@ -286,7 +322,7 @@ export const MAX_MOVEMENT_ORIGIN_LENGTH = 60;
 export interface EquipmentPack {
   chave: string;
   nome: string;
-  itens: string[];
+  itens: SheetItem[];
 }
 
 export function equipmentPackName(chave: string): string {
@@ -328,7 +364,7 @@ export interface Character {
   bonusIniciativa?: number;
   moedasRoladas?: boolean;
   classeArmaduraTotal?: number;
-  itensDoPacote?: string[];
+  itensDoPacote?: SheetItem[];
   attributes: Attributes;
   backstory?: string;
   /** usado pela IA para incorporar o NPC no chat da mesa */
@@ -358,7 +394,7 @@ export interface Character {
   habilidadesRaca?: Ability[];
   proficiencyBonus?: number;
   savingThrows?: AttributeBonuses;
-  items?: string[];
+  items?: SheetItem[];
 }
 
 export type SheetSection = 'personagem' | 'atributos' | 'habilidades' | 'equipamento' | 'magias';

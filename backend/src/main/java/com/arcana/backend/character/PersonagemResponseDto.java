@@ -2,6 +2,7 @@ package com.arcana.backend.character;
 
 import com.arcana.backend.character.model.Atributo;
 import com.arcana.backend.character.model.Habilidade;
+import com.arcana.backend.character.model.ItemDaFicha;
 import com.arcana.backend.character.model.Pericia;
 import com.arcana.backend.character.model.Personagem;
 import com.arcana.backend.character.model.TipoDeslocamento;
@@ -41,7 +42,7 @@ public record PersonagemResponseDto(
         List<ClasseDto> classes,
         Integer proficiencyBonus,
         Map<String, Integer> savingThrows,
-        List<String> items,
+        List<ItemDto> items,
         List<HabilidadeDto> habilidades,
         String raca,
         String alinhamento,
@@ -69,7 +70,7 @@ public record PersonagemResponseDto(
         Integer moedasOuro,
         Integer moedasPlatina,
         String pacoteEquipamento,
-        List<String> itensDoPacote,
+        List<ItemDto> itensDoPacote,
         Integer caAdicional,
         int classeArmaduraTotal,
         boolean moedasRoladas,
@@ -97,6 +98,14 @@ public record PersonagemResponseDto(
             BigDecimal pesoKg,
             String catalogKey,
             boolean editada
+    ) {}
+
+    public record ItemDto(
+            String nome,
+            int quantidade,
+            BigDecimal pesoKg,
+            String catalogKey,
+            boolean editado
     ) {}
 
     public record AtributosDto(
@@ -161,7 +170,7 @@ public record PersonagemResponseDto(
                 classes(p),
                 p.getBonusProficiencia(),
                 salvaguardasEmOrdem(p),
-                List.copyOf(p.getItens()),
+                itens(p.getItens()),
                 habilidades(p.getHabilidades()),
                 p.getRaca(),
                 p.getAlinhamento(),
@@ -189,7 +198,7 @@ public record PersonagemResponseDto(
                 p.getMoedasOuro(),
                 p.getMoedasPlatina(),
                 p.getPacoteEquipamento(),
-                List.copyOf(p.getItensDoPacote()),
+                itens(p.getItensDoPacote()),
                 p.getCaAdicional(),
                 p.getArmorClass() + p.getCaAdicional(),
                 p.isMoedasRoladas(),
@@ -242,6 +251,15 @@ public record PersonagemResponseDto(
                         e.getPesoKg() != null ? e.getPesoKg().stripTrailingZeros() : null,
                         e.getCatalogo() != null ? e.getCatalogo().getChave() : null,
                         e.editadaEmRelacaoAoCatalogo()))
+                .toList();
+    }
+
+    public static List<ItemDto> itens(List<ItemDaFicha> itens) {
+        return itens.stream()
+                .map(i -> new ItemDto(i.getNome(), i.getQuantidade(),
+                        i.getPesoKg() != null ? i.getPesoKg().stripTrailingZeros() : null,
+                        i.getCatalogo() != null ? i.getCatalogo().getChave() : null,
+                        i.editadoEmRelacaoAoCatalogo()))
                 .toList();
     }
 
