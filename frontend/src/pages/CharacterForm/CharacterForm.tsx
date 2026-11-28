@@ -983,7 +983,7 @@ export function CharacterEditor({ id, initialCharacter, embedded = false, onSave
           />
         </div>
         <div className="field">
-          <label htmlFor="passivePerception" title="10 + modificador de Sabedoria + bônus de proficiência">
+          <label htmlFor="passivePerception" title="10 + modificador de Sabedoria + bônus da perícia Percepção, se tiver proficiência">
             Percepção passiva
           </label>
           <output id="passivePerception" className="computed-value" aria-live="polite">
