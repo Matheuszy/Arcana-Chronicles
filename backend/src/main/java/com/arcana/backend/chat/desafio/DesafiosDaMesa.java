@@ -20,7 +20,7 @@ public class DesafiosDaMesa {
                 String nome = participacao.getTipo() == Desafio.TipoAlvo.JOGADOR
                         ? participacao.getNomeJogador()
                         : participacao.getNomePersonagem();
-                throw new IllegalStateException(nome + " já tem um desafio em andamento.");
+                throw new IllegalStateException(nome + " já tem um teste em andamento.");
             }
         }
         desafios.put(desafio.getId(), desafio);
@@ -111,7 +111,7 @@ public class DesafiosDaMesa {
     private Desafio buscar(String desafioId) {
         Desafio desafio = desafios.get(desafioId);
         if (desafio == null) {
-            throw new IllegalArgumentException("Desafio não encontrado.");
+            throw new IllegalArgumentException("Teste não encontrado.");
         }
         return desafio;
     }

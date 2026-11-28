@@ -373,7 +373,7 @@ class CombateChatTest {
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
-        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for chamado para um teste.",
                 ultimoAviso(sessaoAria));
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
 
@@ -388,7 +388,7 @@ class CombateChatTest {
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
 
-        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for chamado para um teste.",
                 ultimoAviso(sessaoAria));
         assertTrue(recebidas(sessaoMestre, "ROLAGEM").isEmpty());
     }
@@ -787,7 +787,7 @@ class CombateChatTest {
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
 
         enviar(sessaoAria, ROLAGEM_LIVRE);
-        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for chamado para um teste.",
                 ultimoAviso(sessaoAria));
         assertEquals(1, recebidas(sessaoMestre, "ROLAGEM").size());
     }
@@ -965,7 +965,7 @@ class CombateChatTest {
         enviar(sessaoAria, "{\"type\":\"COMBATE_ENCERRAR_REACAO\"}");
         assertTrue(participante(ultimoCombate(sessaoAria), "20").get("reacaoAberta").isNull());
         enviar(sessaoAria, ROLAGEM_LIVRE);
-        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for chamado para um teste.",
                 ultimoAviso(sessaoAria));
         assertEquals(1, recebidas(sessaoCael, "ROLAGEM").size());
     }
@@ -1002,7 +1002,7 @@ class CombateChatTest {
 
         assertTrue(participante(ultimoCombate(sessaoAria), "20").get("reacaoAberta").isNull());
         enviar(sessaoAria, ROLAGEM_LIVRE);
-        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for desafiado.",
+        assertEquals("Durante o combate você só pode rolar dados no seu turno, numa reação ou quando for chamado para um teste.",
                 ultimoAviso(sessaoAria));
     }
 

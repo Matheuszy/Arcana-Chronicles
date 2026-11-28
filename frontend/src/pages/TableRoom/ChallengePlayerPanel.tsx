@@ -42,7 +42,7 @@ function myEntry(challenge: Challenge, userId: string | null): ChallengePlayer |
 }
 
 function challengeTitle(challenge: Challenge): string {
-  return challenge.doMestre ? 'Desafio do mestre' : `Desafio de ${challengeAuthor(challenge)}`;
+  return challenge.doMestre ? 'Teste do mestre' : `Teste de ${challengeAuthor(challenge)}`;
 }
 
 function RollPicker({
@@ -102,7 +102,7 @@ function RollPicker({
 
         {entry.modoEfetivo !== entry.modo && (
           <p className="muted">
-            O desafio pediu {ROLL_MODE_LABEL[entry.modo].toLowerCase()}, mas as ajudas e atrapalhos mudaram para{' '}
+            O teste pediu {ROLL_MODE_LABEL[entry.modo].toLowerCase()}, mas as ajudas e atrapalhos mudaram para{' '}
             {ROLL_MODE_LABEL[entry.modoEfetivo].toLowerCase()}.
           </p>
         )}
@@ -116,7 +116,7 @@ function RollPicker({
         <HelpList player={entry} viewerId={userId} isMaster={false} canSend={canSend} onRemove={onRemoveHelp} />
         <HelpForm challenge={challenge} player={entry} viewerId={userId} canSend={canSend} onHelp={onHelp} />
 
-        {!character && <p className="roll-error">Selecione seu personagem na mesa para rolar o desafio.</p>}
+        {!character && <p className="roll-error">Selecione seu personagem na mesa para rolar o teste.</p>}
 
         {character && (
           <>
@@ -156,7 +156,7 @@ function RollPicker({
           </>
         )}
 
-        {paused && <p className="roll-error">A mesa está pausada. O desafio fica congelado até o mestre retomar.</p>}
+        {paused && <p className="roll-error">A mesa está pausada. O teste fica congelado até o mestre retomar.</p>}
 
         <div className="roll-panel-actions">
           <button className="btn btn-ghost" onClick={onClose}>
@@ -206,7 +206,7 @@ export default function ChallengePlayerPanel({
 
   return (
     <div className="challenge-panel">
-      <h3 className="section-title">Desafios</h3>
+      <h3 className="section-title">Testes</h3>
       <ul className="challenge-list">
         {mine.map((challenge) => {
           const entry = myEntry(challenge, userId);

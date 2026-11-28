@@ -249,7 +249,7 @@ class CombateDesafioChatTest {
 
         desafiar(sessaoBrom, "[{\"alvoId\":\"20\"}]");
 
-        assertEquals("Só é possível desafiar no seu turno.", ultimoAviso(sessaoBrom));
+        assertEquals("Só é possível pedir um teste no seu turno.", ultimoAviso(sessaoBrom));
         assertTrue(recebidas(sessaoAria, "DESAFIO").isEmpty());
     }
 
@@ -258,7 +258,7 @@ class CombateDesafioChatTest {
         iniciarComAriaNoPrimeiroTurno();
 
         desafiar(sessaoAria, "[{\"alvoId\":\"20\"}]");
-        assertEquals("Você não pode desafiar a si mesmo.", ultimoAviso(sessaoAria));
+        assertEquals("Você não pode pedir um teste para si mesmo.", ultimoAviso(sessaoAria));
 
         desafiar(sessaoAria, "[{\"alvoId\":\"40\"}]");
         assertEquals("Este alvo não participa do combate.", ultimoAviso(sessaoAria));
@@ -298,7 +298,7 @@ class CombateDesafioChatTest {
                 """.formatted(desafioId));
         assertEquals("AGUARDANDO_CONFIRMACAO", alvo(ultimoDesafio(sessaoAria), "monstro-1").get("estado").asText());
         confirmar(sessaoMestre, desafioId);
-        assertEquals("Apenas quem criou o desafio pode alterá-lo.", ultimoAviso(sessaoMestre));
+        assertEquals("Apenas quem criou o teste pode alterá-lo.", ultimoAviso(sessaoMestre));
         confirmar(sessaoAria, desafioId);
 
         JsonNode desafio = ultimoDesafio(sessaoAria);
@@ -334,7 +334,7 @@ class CombateDesafioChatTest {
                 {"type":"DESAFIO_ROLAR","comandoDesafio":{"atributo":"destreza"}}
                 """);
 
-        assertEquals("Você não tem um desafio em andamento.", ultimoAviso(sessaoAria));
+        assertEquals("Você não tem um teste em andamento.", ultimoAviso(sessaoAria));
     }
 
     @Test
@@ -394,7 +394,7 @@ class CombateDesafioChatTest {
         enviar(sessaoBrom, """
                 {"type":"DESAFIO_ROLAR","comandoDesafio":{"atributo":"destreza"}}
                 """);
-        assertEquals("Você não tem um desafio em andamento.", ultimoAviso(sessaoBrom));
+        assertEquals("Você não tem um teste em andamento.", ultimoAviso(sessaoBrom));
     }
 
     @Test

@@ -213,7 +213,7 @@ public class Desafio {
     public Participacao participacao(String alvoId) {
         Participacao participacao = participacoes.get(alvoId);
         if (participacao == null) {
-            throw new IllegalArgumentException("Este jogador não faz parte do desafio.");
+            throw new IllegalArgumentException("Este jogador não faz parte do teste.");
         }
         return participacao;
     }
@@ -226,8 +226,8 @@ public class Desafio {
                         + (doMestre ? "o mestre" : nomeDoCriador) + " decidir se haverá uma nova tentativa.";
                 case AGUARDANDO_CONFIRMACAO -> "Aguarde "
                         + (doMestre ? "o mestre" : nomeDoCriador) + " confirmar o resultado.";
-                case CANCELADO -> "Este desafio foi cancelado.";
-                default -> "Este desafio já foi concluído.";
+                case CANCELADO -> "Este teste foi cancelado.";
+                default -> "Este teste já foi concluído.";
             });
         }
     }
@@ -373,15 +373,15 @@ public class Desafio {
         };
         if (destinatarios.isEmpty()) {
             throw new IllegalStateException(destino == MensagemDeResultado.Destino.VENCEDORES
-                    ? "Nenhum jogador venceu este desafio ainda."
-                    : "Nenhum jogador falhou neste desafio ainda.");
+                    ? "Nenhum jogador passou neste teste ainda."
+                    : "Nenhum jogador falhou neste teste ainda.");
         }
         return destinatarios;
     }
 
     void registrarMensagem(MensagemDeResultado mensagem) {
         if (mensagens.size() >= LIMITE_MENSAGENS) {
-            throw new IllegalStateException("Este desafio já recebeu o máximo de " + LIMITE_MENSAGENS + " mensagens.");
+            throw new IllegalStateException("Este teste já recebeu o máximo de " + LIMITE_MENSAGENS + " mensagens.");
         }
         mensagens.add(mensagem);
     }

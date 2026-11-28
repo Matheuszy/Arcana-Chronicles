@@ -198,7 +198,7 @@ class DesafioChatTest {
                 """);
 
         assertTrue(recebidas(sessaoAria, "DESAFIO").isEmpty());
-        assertEquals("Você não pode desafiar a si mesmo.", recebidas(sessaoAria, "SISTEMA").get(0).get("content").asText());
+        assertEquals("Você não pode pedir um teste para si mesmo.", recebidas(sessaoAria, "SISTEMA").get(0).get("content").asText());
     }
 
     @Test
@@ -217,7 +217,7 @@ class DesafioChatTest {
         enviar(sessaoAria, """
                 {"type":"DESAFIO_CONFIRMAR","comandoDesafio":{"desafioId":"%s","jogadorId":20}}
                 """.formatted(desafioId));
-        assertEquals("Apenas o mestre pode administrar desafios.",
+        assertEquals("Apenas o mestre pode administrar testes.",
                 recebidas(sessaoAria, "SISTEMA").get(0).get("content").asText());
         confirmarTodos(desafioId);
 
@@ -245,7 +245,7 @@ class DesafioChatTest {
 
         List<JsonNode> avisos = recebidas(sessaoAria, "SISTEMA");
         assertEquals(1, avisos.size());
-        assertEquals("Você tem um desafio em andamento. A única rolagem permitida é a do desafio.",
+        assertEquals("Você tem um teste em andamento. A única rolagem permitida é a do teste.",
                 avisos.get(0).get("content").asText());
         assertTrue(recebidas(sessaoBrom, "ROLAGEM").isEmpty());
         assertTrue(recebidas(sessaoCael, "ROLAGEM").isEmpty());
@@ -389,7 +389,7 @@ class DesafioChatTest {
                 """.formatted(desafioId));
 
         assertTrue(recebidas(sessaoMestre, "DESAFIO_FINALIZADO").isEmpty());
-        assertEquals("Apenas o mestre pode administrar desafios.",
+        assertEquals("Apenas o mestre pode administrar testes.",
                 recebidas(sessaoAria, "SISTEMA").get(0).get("content").asText());
     }
 
@@ -420,7 +420,7 @@ class DesafioChatTest {
                 """);
 
         List<JsonNode> errosDoMestre = recebidas(sessaoMestre, "SISTEMA");
-        assertEquals("Comando de desafio ausente.", errosDoMestre.get(0).get("content").asText());
+        assertEquals("Comando de teste ausente.", errosDoMestre.get(0).get("content").asText());
         assertEquals("Este jogador não participa da mesa.", errosDoMestre.get(1).get("content").asText());
         assertEquals("Perícia desconhecida: voar", recebidas(sessaoAria, "SISTEMA").get(0).get("content").asText());
         assertTrue(recebidas(sessaoCael, "SISTEMA").isEmpty());

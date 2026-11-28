@@ -32,17 +32,17 @@ export default function ChallengeTablePanel({
 
   return (
     <div className="challenge-panel">
-      <h3 className="section-title">Desafios da mesa</h3>
+      <h3 className="section-title">Testes da mesa</h3>
       <p className="muted">Qualquer pessoa da mesa pode ajudar ou atrapalhar um teste.</p>
       <ul className="challenge-list">
         {shown.map((challenge) => (
           <li key={challenge.id} className="challenge-card challenge-card--ativo">
             <div className="challenge-card-head">
-              <strong>{challenge.descricao ?? 'Desafio'}</strong>
+              <strong>{challenge.descricao ?? 'Teste'}</strong>
               <span className="challenge-card-dc">{challenge.cd === null ? 'CD oculta' : `CD ${challenge.cd}`}</span>
             </div>
             <p className="muted challenge-announcement">
-              {challengeAuthor(challenge)} desafiou {challengeTargetsSentence(challenge)}
+              {challengeAuthor(challenge)} pediu um teste para {challengeTargetsSentence(challenge)}
             </p>
             <ul className="challenge-players">
               {challenge.jogadores.map((player) => (

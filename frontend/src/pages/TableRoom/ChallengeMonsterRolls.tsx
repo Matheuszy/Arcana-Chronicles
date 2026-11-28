@@ -46,11 +46,11 @@ function MonsterRollCard({
   return (
     <li className="challenge-card challenge-card--ativo">
       <div className="challenge-card-head">
-        <strong>{challenge.descricao ?? 'Desafio'}</strong>
+        <strong>{challenge.descricao ?? 'Teste'}</strong>
         <span className="challenge-card-dc">CD {challenge.cd}</span>
       </div>
       <p className="muted">
-        {challenge.criadorNome} desafiou seus monstros. Cada um rola o próprio d20 com a sua ficha.
+        {challenge.criadorNome} pediu um teste para seus monstros. Cada um rola o próprio d20 com a sua ficha.
       </p>
       <div className="combat-roll">
         <Select
@@ -70,7 +70,7 @@ function MonsterRollCard({
           options={MODES.map((option) => ({ value: option, label: ROLL_MODE_LABEL[option] }))}
         />
       </div>
-      {paused && <p className="roll-error">A mesa está pausada. O desafio fica congelado até o mestre retomar.</p>}
+      {paused && <p className="roll-error">A mesa está pausada. O teste fica congelado até o mestre retomar.</p>}
       <ul className="challenge-players">
         {pending.map((monster) => (
           <li key={monster.id} className="challenge-player">
@@ -124,7 +124,7 @@ export default function ChallengeMonsterRolls({ challenges, paused, canSend, onR
 
   return (
     <div className="challenge-panel">
-      <h3 className="section-title">Monstros desafiados</h3>
+      <h3 className="section-title">Monstros em teste</h3>
       <ul className="challenge-list">
         {cards.map(({ challenge, pending }) => (
           <MonsterRollCard

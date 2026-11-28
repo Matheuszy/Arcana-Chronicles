@@ -81,7 +81,7 @@ const SIDE_LABEL: Record<SideTab, string> = {
   MESA: 'Mesa',
   GENTE: 'Gente',
   FICHAS: 'Fichas',
-  DESAFIO: 'Desafio',
+  DESAFIO: 'Teste',
   COMBATE: 'Combate',
   DADOS: 'Dados',
 };
@@ -211,7 +211,7 @@ export default function TableRoom() {
   const rollBlockedByCombat = !canRollFreely(combats, viewerId);
   const rollBlocked = rollBlockedByChallenge || rollBlockedByCombat;
   const rollBlockedReason = rollBlockedByChallenge
-    ? 'Você tem um desafio em andamento. A única rolagem permitida é a do desafio.'
+    ? 'Você tem um teste em andamento. A única rolagem permitida é a do teste.'
     : BLOCKED_ROLL_DURING_COMBAT;
   const sideTabs = isMaster ? SIDE_TABS : SIDE_TABS.filter((tab) => tab !== 'COMBATE');
   const turnKey = turnCombat ? `${turnCombat.id}-${turnCombat.rodada}` : null;
@@ -224,7 +224,7 @@ export default function TableRoom() {
     if (!challengeAnnouncement) return;
     const { challenge } = challengeAnnouncement;
     const description = challenge.descricao ? `: ${challenge.descricao}` : '';
-    notify(`${challengeAuthor(challenge)} desafiou ${challengeTargetsSentence(challenge)}${description}`, 'info');
+    notify(`${challengeAuthor(challenge)} pediu um teste para ${challengeTargetsSentence(challenge)}${description}`, 'info');
   }, [challengeAnnouncement, notify]);
   const previousChallengeCount = useRef(0);
 
@@ -602,7 +602,7 @@ export default function TableRoom() {
       ? masterChallengeTargets.filter((target) => target.id !== viewerId)
       : combatChallengeTargets;
   const playerChallengeHint =
-    myCombat !== null && !isMyTurn(myCombat, viewerId) ? 'Durante o combate, você só pode desafiar no seu turno.' : undefined;
+    myCombat !== null && !isMyTurn(myCombat, viewerId) ? 'Durante o combate, você só pode pedir um teste no seu turno.' : undefined;
 
   return (
     <section className="room">
@@ -746,7 +746,7 @@ export default function TableRoom() {
             targets={masterChallengeTargets}
             viewerId={viewerId}
             isMaster
-            title="Desafios de CD"
+            title="Testes de CD"
             canSend={canSend}
             connected={connected}
             onCreate={chatService.createChallenge.bind(chatService)}
@@ -767,7 +767,7 @@ export default function TableRoom() {
             targets={playerChallengeTargets}
             viewerId={viewerId}
             isMaster={false}
-            title={myCombat !== null ? 'Meus desafios de combate' : 'Meus desafios'}
+            title={myCombat !== null ? 'Meus testes de combate' : 'Meus testes'}
             createHint={playerChallengeHint}
             canSend={canSend}
             connected={connected}
